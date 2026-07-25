@@ -1,3 +1,4 @@
+from vic_addon.vic.dpp_nilai_lain import DPP_NILAI_LAIN_DOCTYPES
 from vic_addon.vic.naming import NAMING_DOCTYPES
 
 app_name = "vic_addon"
@@ -73,7 +74,10 @@ after_install = "vic_addon.vic.naming.setup_amend_naming_rule"
 after_migrate = "vic_addon.vic.naming.setup_amend_naming_rule"
 
 # include js in doctype views
-doctype_js = {"Supplier Quotation": "public/js/supplier_quotation.js"}
+doctype_js = {
+	"Supplier Quotation": "public/js/supplier_quotation.js",
+	**{doctype: "public/js/dpp_nilai_lain.js" for doctype in DPP_NILAI_LAIN_DOCTYPES},
+}
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -183,6 +187,10 @@ doc_events["Supplier Quotation"]["before_validate"] = [
 	"vic_addon.vic.multi_level_discount.validate_discount_levels",
 	"vic_addon.vic.multi_level_discount.apply_multi_level_discount",
 ]
+
+for doctype in DPP_NILAI_LAIN_DOCTYPES:
+	# DPP Nilai Lain = 11/12 x net total, dihitung setelah total ERPNext beres
+	doc_events.setdefault(doctype, {})["validate"] = "vic_addon.vic.dpp_nilai_lain.set_dpp_nilai_lain"
 
 # doc_events = {
 # 	"*": {

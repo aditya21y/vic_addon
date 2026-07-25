@@ -53,6 +53,45 @@ Kalau ada perubahan customization lewat Customize Form, export ulang fixtures-ny
 bench --site $SITE export-fixtures --app vic_addon
 ```
 
+#### DPP Nilai Lain (PPN 12%)
+
+Field baru di **Sales Order, Sales Invoice, Purchase Order, Purchase Invoice**:
+
+| Field | Isi |
+| --- | --- |
+| DPP Nilai Lain | `11/12 x Net Total`, read only, dihitung otomatis |
+| DPP Nilai Lain (Company Currency) | versi mata uang perusahaan |
+
+Sesuai PMK 131/2024, tarif PPN 12% dikenakan atas DPP Nilai Lain (11/12 dari nilai
+transaksi), jadi pajaknya setara 11%:
+
+```
+Net Total                        10.000
+DPP Nilai Lain = 11/12 x 10.000   9.166,67
+PPN 12% x 9.166,67                1.100      (= 11% x 10.000)
+```
+
+Baris pajaknya sendiri tetap pakai setup ERPNext standar: **Purchase/Sales Taxes and Charges
+Template** dengan `Charge Type = On Net Total` dan `Rate = 11`, description misal
+`PPN 12% (DPP Nilai Lain)`. Hasil rupiahnya identik dengan 12% x DPP Nilai Lain, tapi
+perhitungan per item, item-wise tax breakup, dan GL entry tetap logika bawaan ERPNext.
+Field DPP Nilai Lain dipakai buat print / e-Faktur / laporan pajak.
+
+Rasionya konstanta di `vic_addon/vic/dpp_nilai_lain.py`:
+
+```python
+DPP_NILAI_LAIN_RATIO = 11 / 12
+```
+
+Kalau aturannya berubah (misal PPN 12% penuh tanpa DPP Nilai Lain), ganti jadi `1` dan
+sesuaikan rate di tax template jadi 12.
+
+Implementasi:
+
+- `vic_addon/vic/dpp_nilai_lain.py` — kalkulasi (hook `validate`)
+- `vic_addon/public/js/dpp_nilai_lain.js` — update angkanya live di form
+- `vic_addon/fixtures/custom_field.json` — 8 custom field (2 per doctype)
+
 #### Naming series reset per bulan + amend suffix R
 
 Variable naming series baru yang ambil bulan dari **field tanggal dokumennya sendiri**
