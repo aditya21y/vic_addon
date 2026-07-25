@@ -53,6 +53,59 @@ Kalau ada perubahan customization lewat Customize Form, export ulang fixtures-ny
 bench --site $SITE export-fixtures --app vic_addon
 ```
 
+#### Naming series reset per bulan + amend suffix R
+
+Variable naming series baru yang ambil bulan dari **field tanggal dokumennya sendiri**
+(bukan tanggal hari ini):
+
+| Variable | Hasil | Contoh series |
+| --- | --- | --- |
+| `.YYMM.` | `2602` | `SAL-ORD-.YYMM.-` → `SAL-ORD-2602-00001` |
+| `.YYYYMM.` | `202602` | `SAL-ORD-.YYYYMM.-` → `SAL-ORD-202602-00001` |
+
+Acuan tanggalnya: `posting_date` → `transaction_date` → `date` (dipakai yang pertama ada di
+doctype tersebut). Jadi Delivery Note / Stock Entry ikut posting date, Sales Order /
+Purchase Order ikut transaction date.
+
+Karena bulan masuk ke prefix, counter di tabel `Series` kepisah per bulan:
+
+| Dokumen | Nomor |
+| --- | --- |
+| Sales Order, transaction date 2026-02-10 | SAL-ORD-2602-00001 |
+| Sales Order, transaction date 2026-02-20 | SAL-ORD-2602-00002 |
+| Sales Order, transaction date 2026-07-25 | SAL-ORD-**2607**-**00001** (reset) |
+| Sales Order backdate ke 2026-02-28 | SAL-ORD-2602-**00003** (lanjut nomor terakhir Feb) |
+| Delivery Note, posting date 2026-02-15 | MAT-DN-2602-00001 |
+
+Dokumen amend pakai suffix `R`, bukan `-1` bawaan ERPNext:
+
+```
+SAL-ORD-2602-00001  ->  SAL-ORD-2602-00001R1  ->  SAL-ORD-2602-00001R2
+```
+
+Doctype yang dicover (Selling, Buying, Stock): Quotation, Sales Order, Delivery Note,
+Sales Invoice, Supplier Quotation, Purchase Order, Purchase Receipt, Purchase Invoice,
+Material Request, Stock Entry, Stock Reconciliation. Series lama (`.YYYY.-`) tetap
+disimpan sebagai opsi biar dokumen existing gak gagal validasi.
+
+Implementasi:
+
+- `vic_addon/vic/naming.py` — variable `.YYMM.`, sinkronisasi counter, amend suffix R
+- `naming_series_variables` + `doc_events` (`before_naming`, `autoname`) di `hooks.py`
+- Property setter `naming_series` (options + default) per doctype di `vic_addon/fixtures/`
+
+Nambah doctype lain: tambahin ke `NAMING_DOCTYPES` di `vic_addon/vic/naming.py`, set
+seriesnya lewat **Document Naming Settings**, terus export ulang fixtures.
+
+Catatan:
+
+- Aturan amend (`Document Naming Settings` → `Default Naming` per doctype) di-set lewat hook
+  `after_install` / `after_migrate`, karena Single doctype gak bisa jadi fixture.
+- `.YYMM.` selalu ikut tanggal dokumen. Beda sama variable bawaan `.YY.` / `.MM.` yang cuma
+  ikut posting date kalau **Global Defaults → Use Posting Datetime for Naming Documents**
+  dinyalain (default mati, jadi ambil tanggal hari ini). Kalau tetap mau pakai `.YY.`/`.MM.`
+  di series lain, nyalain dulu opsi itu biar konsisten.
+
 ### Contributing
 
 This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:

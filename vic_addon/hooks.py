@@ -1,3 +1,5 @@
+from vic_addon.vic.naming import NAMING_DOCTYPES
+
 app_name = "vic_addon"
 app_title = "VIC"
 app_publisher = "aditya"
@@ -7,40 +9,14 @@ app_license = "mit"
 
 # Fixtures
 # --------
-# Customization (custom field / property setter) di-sync otomatis saat install & migrate.
-# Kalau ada perubahan lewat Customize Form, jalankan:
+# Customization (custom field / property setter) milik module VIC di-sync otomatis
+# saat install & migrate. Kalau ada perubahan lewat Customize Form, jalankan:
 # 	bench --site <site> export-fixtures --app vic_addon
+# Pastikan field Module di customization-nya keisi "VIC" biar keikut ke-export.
 
 fixtures = [
-	{
-		"dt": "Custom Field",
-		"filters": [
-			[
-				"name",
-				"in",
-				[
-					"Supplier Quotation Item-custom_discount_level_1",
-					"Supplier Quotation Item-custom_discount_level_2",
-					"Supplier Quotation Item-custom_discount_level_3",
-				],
-			]
-		],
-	},
-	{
-		"dt": "Property Setter",
-		"filters": [
-			[
-				"name",
-				"in",
-				[
-					"Supplier Quotation Item-discount_percentage-read_only",
-					"Supplier Quotation Item-discount_percentage-label",
-					"Supplier Quotation Item-discount_amount-read_only",
-					"Supplier Quotation-apply_discount_on-default",
-				],
-			]
-		],
-	},
+	{"dt": "Custom Field", "filters": [["module", "=", "VIC"]]},
+	{"dt": "Property Setter", "filters": [["module", "=", "VIC"]]},
 ]
 
 # Apps
@@ -79,6 +55,22 @@ fixtures = [
 
 # include js in page
 # page_js = {"page" : "public/js/file.js"}
+
+# Naming Series
+# -------------
+# Variable tambahan buat naming series, bulannya ikut tanggal dokumen (bukan tanggal hari ini)
+
+naming_series_variables = {
+	"YYMM": "vic_addon.vic.naming.parse_yymm",
+	"YYYYMM": "vic_addon.vic.naming.parse_yyyymm",
+}
+
+# Installation
+# ------------
+# aturan amend naming ada di Single doctype (Document Naming Settings), gak bisa jadi fixture
+
+after_install = "vic_addon.vic.naming.setup_amend_naming_rule"
+after_migrate = "vic_addon.vic.naming.setup_amend_naming_rule"
 
 # include js in doctype views
 doctype_js = {"Supplier Quotation": "public/js/supplier_quotation.js"}
@@ -178,13 +170,19 @@ doctype_js = {"Supplier Quotation": "public/js/supplier_quotation.js"}
 # Hook on document methods and events
 
 doc_events = {
-	"Supplier Quotation": {
-		"before_validate": [
-			"vic_addon.vic.multi_level_discount.validate_discount_levels",
-			"vic_addon.vic.multi_level_discount.apply_multi_level_discount",
-		],
-	},
+	doctype: {
+		# nomor diambil dari nomor terakhir di bulan dokumen (aman buat backdate & data import)
+		"before_naming": "vic_addon.vic.naming.sync_series_counter",
+		# dokumen amend pakai suffix R: SAL-ORD-2502-00001R1
+		"autoname": "vic_addon.vic.naming.set_amended_name",
+	}
+	for doctype in NAMING_DOCTYPES
 }
+
+doc_events["Supplier Quotation"]["before_validate"] = [
+	"vic_addon.vic.multi_level_discount.validate_discount_levels",
+	"vic_addon.vic.multi_level_discount.apply_multi_level_discount",
+]
 
 # doc_events = {
 # 	"*": {
