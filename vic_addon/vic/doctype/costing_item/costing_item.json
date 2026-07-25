@@ -1,289 +1,288 @@
 {
- "actions": [],
- "allow_bulk_edit": 1,
- "allow_rename": 1,
- "creation": "2026-07-26 00:13:54.639146",
- "doctype": "DocType",
- "editable_grid": 1,
- "engine": "InnoDB",
- "field_order": [
-  "item_code",
-  "item_name",
-  "column_break_item",
-  "uom",
-  "qty",
-  "buying_section",
-  "rate",
-  "column_break_buying",
-  "amount",
-  "costing_section",
-  "distributed_cost_rate",
-  "distributed_cost_amount",
-  "column_break_costing",
-  "hpp_rate",
-  "hpp_amount",
-  "selling_section",
-  "margin_percentage",
-  "margin_rate",
-  "margin_amount",
-  "column_break_selling",
-  "selling_rate",
-  "selling_amount",
-  "quotation_section",
-  "quotation_rate",
-  "quotation_rate_manually_set",
-  "quotation_amount",
-  "column_break_quotation",
-  "profit_amount",
-  "profit_percentage",
-  "reference_section",
-  "supplier_quotation",
-  "column_break_reference",
-  "supplier",
-  "supplier_quotation_item"
- ],
- "fields": [
-  {
-   "columns": 2,
-   "fieldname": "item_code",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Item",
-   "options": "Item",
-   "reqd": 1
-  },
-  {
-   "fetch_from": "item_code.item_name",
-   "fieldname": "item_name",
-   "fieldtype": "Data",
-   "label": "Item Name",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_item",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "uom",
-   "fieldtype": "Link",
-   "label": "UOM",
-   "options": "UOM"
-  },
-  {
-   "columns": 1,
-   "default": "1",
-   "fieldname": "qty",
-   "fieldtype": "Float",
-   "in_list_view": 1,
-   "label": "Qty",
-   "reqd": 1
-  },
-  {
-   "fieldname": "buying_section",
-   "fieldtype": "Section Break",
-   "label": "Buying"
-  },
-  {
-   "columns": 1,
-   "description": "Rate beli dari Supplier Quotation (net rate, sudah termasuk diskon)",
-   "fieldname": "rate",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "Rate",
-   "options": "currency",
-   "reqd": 1
-  },
-  {
-   "fieldname": "column_break_buying",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "amount",
-   "fieldtype": "Currency",
-   "label": "Amount",
-   "options": "currency",
-   "read_only": 1
-  },
-  {
-   "fieldname": "costing_section",
-   "fieldtype": "Section Break",
-   "label": "Costing"
-  },
-  {
-   "description": "Rate x Additional Cost Percentage x (1 + Additional Percentage)",
-   "fieldname": "distributed_cost_rate",
-   "fieldtype": "Currency",
-   "label": "Distributed Cost Rate",
-   "options": "currency",
-   "read_only": 1
-  },
-  {
-   "fieldname": "distributed_cost_amount",
-   "fieldtype": "Currency",
-   "label": "Distributed Cost Amount",
-   "options": "currency",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_costing",
-   "fieldtype": "Column Break"
-  },
-  {
-   "columns": 1,
-   "description": "Rate + Distributed Cost Rate",
-   "fieldname": "hpp_rate",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "HPP Rate",
-   "options": "currency",
-   "read_only": 1
-  },
-  {
-   "fieldname": "hpp_amount",
-   "fieldtype": "Currency",
-   "label": "HPP Amount",
-   "options": "currency",
-   "read_only": 1
-  },
-  {
-   "fieldname": "selling_section",
-   "fieldtype": "Section Break",
-   "label": "Selling"
-  },
-  {
-   "columns": 1,
-   "description": "Margin atas harga jual: Selling Rate = HPP Rate / (1 - Margin %)",
-   "fieldname": "margin_percentage",
-   "fieldtype": "Percent",
-   "in_list_view": 1,
-   "label": "Margin %"
-  },
-  {
-   "fieldname": "margin_rate",
-   "fieldtype": "Currency",
-   "label": "Margin Rate",
-   "options": "currency",
-   "read_only": 1
-  },
-  {
-   "fieldname": "margin_amount",
-   "fieldtype": "Currency",
-   "label": "Margin Amount",
-   "options": "currency",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_selling",
-   "fieldtype": "Column Break"
-  },
-  {
-   "columns": 1,
-   "fieldname": "selling_rate",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "Selling Rate",
-   "options": "currency",
-   "read_only": 1
-  },
-  {
-   "fieldname": "selling_amount",
-   "fieldtype": "Currency",
-   "label": "Selling Amount",
-   "options": "currency",
-   "read_only": 1
-  },
-  {
-   "fieldname": "quotation_section",
-   "fieldtype": "Section Break",
-   "label": "Quotation & Profit"
-  },
-  {
-   "description": "Default ngikut Selling Rate, boleh diubah manual (harga nego ke customer)",
-   "fieldname": "quotation_rate",
-   "fieldtype": "Currency",
-   "label": "Quotation Rate",
-   "options": "currency"
-  },
-  {
-   "default": "0",
-   "description": "Otomatis nyala kalau Quotation Rate diisi manual. Kosongin Quotation Rate-nya buat balik ngikut Selling Rate.",
-   "fieldname": "quotation_rate_manually_set",
-   "fieldtype": "Check",
-   "label": "Quotation Rate Manually Set",
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "quotation_amount",
-   "fieldtype": "Currency",
-   "label": "Quotation Amount",
-   "options": "currency",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_quotation",
-   "fieldtype": "Column Break"
-  },
-  {
-   "description": "Selling Amount - HPP Amount",
-   "fieldname": "profit_amount",
-   "fieldtype": "Currency",
-   "label": "Profit Amount",
-   "options": "currency",
-   "read_only": 1
-  },
-  {
-   "fieldname": "profit_percentage",
-   "fieldtype": "Percent",
-   "label": "Profit %",
-   "read_only": 1
-  },
-  {
-   "fieldname": "reference_section",
-   "fieldtype": "Section Break",
-   "label": "Reference"
-  },
-  {
-   "fieldname": "supplier_quotation",
-   "fieldtype": "Link",
-   "label": "Supplier Quotation",
-   "options": "Supplier Quotation"
-  },
-  {
-   "fieldname": "column_break_reference",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fetch_from": "supplier_quotation.supplier",
-   "fieldname": "supplier",
-   "fieldtype": "Link",
-   "label": "Supplier",
-   "options": "Supplier",
-   "read_only": 1
-  },
-  {
-   "fieldname": "supplier_quotation_item",
-   "fieldtype": "Data",
-   "hidden": 1,
-   "label": "Supplier Quotation Item",
-   "print_hide": 1,
-   "read_only": 1
-  }
- ],
- "grid_page_length": 50,
- "index_web_pages_for_search": 1,
- "istable": 1,
- "links": [],
- "modified": "2026-07-26 00:35:31.690462",
- "modified_by": "Administrator",
- "module": "VIC",
- "name": "Costing Item",
- "owner": "Administrator",
- "permissions": [],
- "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
- "sort_field": "creation",
- "sort_order": "DESC",
- "states": []
+    "actions": [],
+    "allow_bulk_edit": 1,
+    "allow_rename": 1,
+    "creation": "2026-07-26 00:13:54.639146",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "item_code",
+        "item_name",
+        "column_break_item",
+        "uom",
+        "qty",
+        "buying_section",
+        "rate",
+        "column_break_buying",
+        "amount",
+        "costing_section",
+        "distributed_cost_rate",
+        "distributed_cost_amount",
+        "column_break_costing",
+        "hpp_rate",
+        "hpp_amount",
+        "selling_section",
+        "margin_percentage",
+        "margin_rate",
+        "margin_amount",
+        "column_break_selling",
+        "selling_rate",
+        "selling_amount",
+        "quotation_section",
+        "quotation_rate",
+        "quotation_rate_manually_set",
+        "quotation_amount",
+        "column_break_quotation",
+        "profit_amount",
+        "profit_percentage",
+        "reference_section",
+        "supplier_quotation",
+        "column_break_reference",
+        "supplier",
+        "supplier_quotation_item"
+    ],
+    "fields": [
+        {
+            "columns": 2,
+            "fieldname": "item_code",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Item",
+            "options": "Item",
+            "reqd": 1
+        },
+        {
+            "fetch_from": "item_code.item_name",
+            "fieldname": "item_name",
+            "fieldtype": "Data",
+            "label": "Item Name",
+            "read_only": 1
+        },
+        {
+            "fieldname": "column_break_item",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "uom",
+            "fieldtype": "Link",
+            "label": "UOM",
+            "options": "UOM"
+        },
+        {
+            "columns": 1,
+            "default": "1",
+            "fieldname": "qty",
+            "fieldtype": "Float",
+            "in_list_view": 1,
+            "label": "Qty",
+            "reqd": 1
+        },
+        {
+            "fieldname": "buying_section",
+            "fieldtype": "Section Break",
+            "label": "Buying"
+        },
+        {
+            "columns": 1,
+            "description": "Rate beli dari Supplier Quotation (net rate, sudah termasuk diskon)",
+            "fieldname": "rate",
+            "fieldtype": "Currency",
+            "in_list_view": 1,
+            "label": "Rate",
+            "options": "currency",
+            "reqd": 1
+        },
+        {
+            "fieldname": "column_break_buying",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "amount",
+            "fieldtype": "Currency",
+            "label": "Amount",
+            "options": "currency",
+            "read_only": 1
+        },
+        {
+            "fieldname": "costing_section",
+            "fieldtype": "Section Break",
+            "label": "Costing"
+        },
+        {
+            "description": "Rate x Additional Cost Percentage x (1 + Additional Percentage)",
+            "fieldname": "distributed_cost_rate",
+            "fieldtype": "Currency",
+            "label": "Distributed Cost Rate",
+            "options": "currency",
+            "read_only": 1
+        },
+        {
+            "fieldname": "distributed_cost_amount",
+            "fieldtype": "Currency",
+            "label": "Distributed Cost Amount",
+            "options": "currency",
+            "read_only": 1
+        },
+        {
+            "fieldname": "column_break_costing",
+            "fieldtype": "Column Break"
+        },
+        {
+            "columns": 1,
+            "description": "Rate + Distributed Cost Rate",
+            "fieldname": "hpp_rate",
+            "fieldtype": "Currency",
+            "in_list_view": 1,
+            "label": "HPP Rate",
+            "options": "currency",
+            "read_only": 1
+        },
+        {
+            "fieldname": "hpp_amount",
+            "fieldtype": "Currency",
+            "label": "HPP Amount",
+            "options": "currency",
+            "read_only": 1
+        },
+        {
+            "fieldname": "selling_section",
+            "fieldtype": "Section Break",
+            "label": "Selling"
+        },
+        {
+            "columns": 1,
+            "description": "Margin atas harga jual: Selling Rate = HPP Rate / (1 - Margin %)",
+            "fieldname": "margin_percentage",
+            "fieldtype": "Percent",
+            "in_list_view": 1,
+            "label": "Margin %"
+        },
+        {
+            "fieldname": "margin_rate",
+            "fieldtype": "Currency",
+            "label": "Margin Rate",
+            "options": "currency",
+            "read_only": 1
+        },
+        {
+            "fieldname": "margin_amount",
+            "fieldtype": "Currency",
+            "label": "Margin Amount",
+            "options": "currency",
+            "read_only": 1
+        },
+        {
+            "fieldname": "column_break_selling",
+            "fieldtype": "Column Break"
+        },
+        {
+            "columns": 1,
+            "fieldname": "selling_rate",
+            "fieldtype": "Currency",
+            "in_list_view": 1,
+            "label": "Selling Rate",
+            "options": "currency",
+            "read_only": 1
+        },
+        {
+            "fieldname": "selling_amount",
+            "fieldtype": "Currency",
+            "label": "Selling Amount",
+            "options": "currency",
+            "read_only": 1
+        },
+        {
+            "fieldname": "quotation_section",
+            "fieldtype": "Section Break",
+            "label": "Quotation & Profit"
+        },
+        {
+            "description": "Default Selling Rate, Ubah untuk (harga nego ke customer)",
+            "fieldname": "quotation_rate",
+            "fieldtype": "Currency",
+            "label": "Quotation Rate",
+            "options": "currency"
+        },
+        {
+            "default": "0",
+            "fieldname": "quotation_rate_manually_set",
+            "fieldtype": "Check",
+            "label": "Quotation Rate Manually Set",
+            "no_copy": 1,
+            "print_hide": 1,
+            "read_only": 1
+        },
+        {
+            "fieldname": "quotation_amount",
+            "fieldtype": "Currency",
+            "label": "Quotation Amount",
+            "options": "currency",
+            "read_only": 1
+        },
+        {
+            "fieldname": "column_break_quotation",
+            "fieldtype": "Column Break"
+        },
+        {
+            "description": "Selling Amount - HPP Amount",
+            "fieldname": "profit_amount",
+            "fieldtype": "Currency",
+            "label": "Profit Amount",
+            "options": "currency",
+            "read_only": 1
+        },
+        {
+            "fieldname": "profit_percentage",
+            "fieldtype": "Percent",
+            "label": "Profit %",
+            "read_only": 1
+        },
+        {
+            "fieldname": "reference_section",
+            "fieldtype": "Section Break",
+            "label": "Reference"
+        },
+        {
+            "fieldname": "supplier_quotation",
+            "fieldtype": "Link",
+            "label": "Supplier Quotation",
+            "options": "Supplier Quotation"
+        },
+        {
+            "fieldname": "column_break_reference",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fetch_from": "supplier_quotation.supplier",
+            "fieldname": "supplier",
+            "fieldtype": "Link",
+            "label": "Supplier",
+            "options": "Supplier",
+            "read_only": 1
+        },
+        {
+            "fieldname": "supplier_quotation_item",
+            "fieldtype": "Data",
+            "hidden": 1,
+            "label": "Supplier Quotation Item",
+            "print_hide": 1,
+            "read_only": 1
+        }
+    ],
+    "grid_page_length": 50,
+    "index_web_pages_for_search": 1,
+    "istable": 1,
+    "links": [],
+    "modified": "2026-07-26 00:35:31.690462",
+    "modified_by": "Administrator",
+    "module": "VIC",
+    "name": "Costing Item",
+    "owner": "Administrator",
+    "permissions": [],
+    "row_format": "Dynamic",
+    "rows_threshold_for_grid_search": 20,
+    "sort_field": "creation",
+    "sort_order": "DESC",
+    "states": []
 }
