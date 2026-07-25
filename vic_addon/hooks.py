@@ -5,6 +5,44 @@ app_description = "app for VIC"
 app_email = "adityayudhaperdana21@gmail.com"
 app_license = "mit"
 
+# Fixtures
+# --------
+# Customization (custom field / property setter) di-sync otomatis saat install & migrate.
+# Kalau ada perubahan lewat Customize Form, jalankan:
+# 	bench --site <site> export-fixtures --app vic_addon
+
+fixtures = [
+	{
+		"dt": "Custom Field",
+		"filters": [
+			[
+				"name",
+				"in",
+				[
+					"Supplier Quotation Item-custom_discount_level_1",
+					"Supplier Quotation Item-custom_discount_level_2",
+					"Supplier Quotation Item-custom_discount_level_3",
+				],
+			]
+		],
+	},
+	{
+		"dt": "Property Setter",
+		"filters": [
+			[
+				"name",
+				"in",
+				[
+					"Supplier Quotation Item-discount_percentage-read_only",
+					"Supplier Quotation Item-discount_percentage-label",
+					"Supplier Quotation Item-discount_amount-read_only",
+					"Supplier Quotation-apply_discount_on-default",
+				],
+			]
+		],
+	},
+]
+
 # Apps
 # ------------------
 
@@ -43,6 +81,7 @@ app_license = "mit"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
+doctype_js = {"Supplier Quotation": "public/js/supplier_quotation.js"}
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -137,6 +176,15 @@ app_license = "mit"
 # Document Events
 # ---------------
 # Hook on document methods and events
+
+doc_events = {
+	"Supplier Quotation": {
+		"before_validate": [
+			"vic_addon.vic.multi_level_discount.validate_discount_levels",
+			"vic_addon.vic.multi_level_discount.apply_multi_level_discount",
+		],
+	},
+}
 
 # doc_events = {
 # 	"*": {
