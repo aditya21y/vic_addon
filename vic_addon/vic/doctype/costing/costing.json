@@ -1,0 +1,238 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-07-26 00:13:55.156394",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "posting_date",
+  "column_break_header",
+  "company",
+  "currency",
+  "column_break_remarks",
+  "remarks",
+  "items_section",
+  "items",
+  "additional_costs_section",
+  "additional_costs",
+  "additional_percentage",
+  "totals_section",
+  "total_buying_amount",
+  "total_additional_costs",
+  "additional_cost_percentage",
+  "total_distributed_cost_amount",
+  "column_break_totals",
+  "total_hpp_amount",
+  "total_selling_amount",
+  "total_quotation_amount",
+  "total_profit_amount",
+  "total_profit_percentage"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "no_copy": 1,
+   "options": "CST-.YYMM.-",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Posting Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_header",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "remember_last_selected_value": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "company.default_currency",
+   "fetch_if_empty": 1,
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_remarks",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Catatan costing, misal alasan additional percentage",
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "items_section",
+   "fieldtype": "Section Break",
+   "label": "Costing"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Costing Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "additional_costs_section",
+   "fieldtype": "Section Break",
+   "label": "Additional Costs"
+  },
+  {
+   "fieldname": "additional_costs",
+   "fieldtype": "Table",
+   "label": "Additional Costs",
+   "options": "Costing Additional Cost"
+  },
+  {
+   "description": "Buffer tambahan di atas distribusi additional cost (input manual)",
+   "fieldname": "additional_percentage",
+   "fieldtype": "Percent",
+   "label": "Additional Percentage"
+  },
+  {
+   "fieldname": "totals_section",
+   "fieldtype": "Section Break",
+   "label": "Totals"
+  },
+  {
+   "fieldname": "total_buying_amount",
+   "fieldtype": "Currency",
+   "label": "Total Buying Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_additional_costs",
+   "fieldtype": "Currency",
+   "label": "Total Additional Costs",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "description": "Total Additional Costs / Total Buying Amount",
+   "fieldname": "additional_cost_percentage",
+   "fieldtype": "Percent",
+   "label": "Additional Cost Percentage",
+   "read_only": 1
+  },
+  {
+   "description": "Total Additional Costs x (1 + Additional Percentage)",
+   "fieldname": "total_distributed_cost_amount",
+   "fieldtype": "Currency",
+   "label": "Total Distributed Cost Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_totals",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_hpp_amount",
+   "fieldtype": "Currency",
+   "label": "Total HPP Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_selling_amount",
+   "fieldtype": "Currency",
+   "label": "Total Selling Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_quotation_amount",
+   "fieldtype": "Currency",
+   "label": "Total Quotation Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_profit_amount",
+   "fieldtype": "Currency",
+   "label": "Total Profit Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_profit_percentage",
+   "fieldtype": "Percent",
+   "label": "Total Profit %",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-26 00:22:20.524894",
+ "modified_by": "Administrator",
+ "module": "VIC",
+ "name": "Costing",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Purchase Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

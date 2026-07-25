@@ -5,14 +5,30 @@ app for VIC
 ### Installation
 
 You can install this app using the [bench](https://github.com/frappe/bench) CLI:
-### fix issue errpnext 16 
-bench --site nic_vic.localhost execute erpnext.setup.install.create_address_and_contact_custom_fields
-
 ```bash
 cd $PATH_TO_YOUR_BENCH
 bench get-app $URL_OF_THIS_REPO --branch version-16
 bench install-app vic_addon
 ```
+
+### fix issue errpnext 16 
+bench --site nic_vic.localhost execute erpnext.setup.install.create_address_and_contact_custom_fields
+### staging setting to accessable
+C:\Windows\System32\drivers\etc\hosts
+[IP_ADDRESS] vic-app nic-app
+http://nic-app:8000
+http://vic-app:8000
+
+
+### Multitenant Setting
+# nyalain resolusi berdasarkan hostname
+bench config dns_multitenant on
+
+bench --site site1.local set-config host_name http://site1.local:8000
+bench --site site2.local set-config host_name http://site2.local:8000
+
+bench start
+
 
 ### Fitur
 
@@ -52,6 +68,77 @@ Kalau ada perubahan customization lewat Customize Form, export ulang fixtures-ny
 ```bash
 bench --site $SITE export-fixtures --app vic_addon
 ```
+
+#### Costing (custom doctype)
+
+Ngitung HPP dari harga Supplier Quotation + distribusi additional cost, terus nentuin harga
+jual dari margin. Rumusnya ngikut sheet **5a. COSTING** di source of truth. Non-submittable
+(sesuai bispro) biar item tetap bisa diedit & dihitung ulang kalau supplier/harga berubah.
+
+Doctype: **Costing** (`CST-.YYMM.-`), dengan child table **Costing Item** dan
+**Costing Additional Cost**.
+
+Rumus:
+
+```
+Total Buying Amount        = sum(Rate x Qty)
+Total Additional Costs     = sum(Additional Costs)
+Additional Cost Percentage = Total Additional Costs / Total Buying Amount x 100
+
+per item:
+Distributed Cost Rate = Rate x Additional Cost Percentage x (1 + Additional Percentage)
+HPP Rate              = Rate + Distributed Cost Rate
+Selling Rate          = HPP Rate / (1 - Margin %)
+Profit Amount         = Selling Amount - HPP Amount
+Profit %              = Profit Amount / HPP Amount x 100
+```
+
+Additional cost dibagi proporsional lewat rate tiap item, jadi total distributed cost =
+`Total Additional Costs x (1 + Additional Percentage)`. **Additional Percentage** itu buffer
+manual di atas distribusi additional cost (alasannya ditulis di field Remarks).
+
+Contoh (persis kayak sheet 5a — Additional Costs: Freight 3.000 + Selling 2.000 + Komisi 1.000,
+Additional Percentage 5%):
+
+| Item | Rate | Qty | Dist. Cost Rate | HPP Rate | Margin % | Selling Rate | Profit % |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Item A | 2.000 | 2 | 630 | 2.630 | 20 | 3.287,50 | 25,00 |
+| Item B | 4.000 | 4 | 1.260 | 5.260 | 15 | 6.188,24 | 17,65 |
+
+Total: buying 20.000, additional cost 6.000 (30%), distributed 6.300, HPP 26.300,
+selling 31.327,96, profit 5.027,96 (19,12%).
+
+**Quotation Rate** default ngikut Selling Rate (termasuk kalau margin/rate diubah), karena
+angka inilah yang kebawa ke Quotation ke customer. Kalau user isi manual (harga nego), field
+`Quotation Rate Manually Set` otomatis nyala dan nilainya berhenti ngikut Selling Rate.
+Kosongin Quotation Rate-nya buat balik ke mode auto.
+
+**Ambil item dari Supplier Quotation**, dua arah:
+
+- Dari form Costing: tombol **Get Items from Supplier Quotation**, bisa pilih beberapa SQTN
+  sekaligus (satu costing boleh campur beberapa supplier).
+- Dari form Supplier Quotation yang udah submit: tombol **Create > Costing**.
+
+Yang ditarik: item, qty, rate, Supplier Quotation ID, supplier, dan baris item SQTN-nya
+(buat jejak audit).
+
+Rate yang dipakai adalah **net rate** SQTN, yaitu harga setelah diskon bertingkat per item
+**dan** diskon tambahan atas net total — jadi HPP-nya sesuai harga beli yang beneran dibayar.
+
+Implementasi:
+
+- `vic_addon/vic/doctype/costing/costing.py` — kalkulasi, validasi margin, fetch item SQTN,
+  mapper `make_costing` buat tombol Create di SQTN
+- `vic_addon/vic/doctype/costing/costing.js` — kalkulasi live + dialog pilih SQTN
+- `vic_addon/public/js/supplier_quotation.js` — tombol Create > Costing
+
+Belum termasuk (nunggu prioritas):
+
+- Buffer exchange rate buat pembelian impor (R&C 2 & 3 di sheet bispro)
+- Tab/report rekap HPP & harga jual per periode (TAB 2 Summary masih kosong di sheet)
+- Pembatasan permission biar tim Sales gak lihat rate beli / costing / profit %
+  (perlu permlevel + role, sengaja belum dipasang biar gak ngunci field ke semua user)
+- Workflow approval (doctype-nya udah non-submittable, tinggal bikin Workflow-nya)
 
 #### DPP Nilai Lain (PPN 12%)
 

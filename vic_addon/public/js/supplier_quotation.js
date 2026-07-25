@@ -27,6 +27,22 @@ function apply_discount_levels(cdt, cdn) {
 	);
 }
 
+frappe.ui.form.on("Supplier Quotation", {
+	refresh(frm) {
+		if (frm.doc.docstatus !== 1) return;
+
+		frm.add_custom_button(
+			__("Costing"),
+			() =>
+				frappe.model.open_mapped_doc({
+					method: "vic_addon.vic.doctype.costing.costing.make_costing",
+					frm: frm,
+				}),
+			__("Create")
+		);
+	},
+});
+
 frappe.ui.form.on("Supplier Quotation Item", {
 	custom_discount_level_1: (frm, cdt, cdn) => apply_discount_levels(cdt, cdn),
 	custom_discount_level_2: (frm, cdt, cdn) => apply_discount_levels(cdt, cdn),
