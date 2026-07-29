@@ -155,6 +155,82 @@ Belum termasuk (nunggu prioritas):
   (perlu permlevel + role, sengaja belum dipasang biar gak ngunci field ke semua user)
 - Workflow approval (doctype-nya udah non-submittable, tinggal bikin Workflow-nya)
 
+#### DP Invoice (Payment Request) + sisa PPN/PPh di invoice final
+
+Alur: **PO/SO → Payment Request (DP Invoice) → Payment Entry (DP) → Invoice final**
+
+Field baru di **Payment Request**:
+
+| Field | Isi |
+| --- | --- |
+| DP Type | `Purchase` / `Sales`, otomatis dari dokumen referensi (PO = Purchase, SO = Sales) |
+| DP Amount (relabel dari Amount) | nilai DP |
+| DP Percentage | isi persen → DP Amount kehitung dari grand total dokumen referensi |
+| Purchase / Sales Taxes and Charges Template | template PPN/PPh atas DP |
+| Advance Taxes and Charges | tabel PPN/PPh atas nilai DP |
+| Total Taxes and Charges, Total Payable | total pajak dan total yang dibayar (DP + pajak) |
+
+Persentase dan amount selalu nyambung: di form, ngisi persen bakal ngisi amount-nya; di
+server, persen selalu dihitung balik dari amount, jadi angkanya gak pernah beda.
+
+**Kalau dokumen referensinya punya payment terms**, ERPNext ngisi tabel Payment Reference dan
+maksa totalnya sama persis dengan DP Amount (*"Grand Total must match sum of Payment
+References"*). Tabel itu read only di form, jadi tiap DP Amount berubah, barisnya disamain
+otomatis (diprorata kalau terminnya lebih dari satu).
+
+Nilai DP-nya sengaja **gak dikunci ke payment term** — DP hasil nego sering beda dari termin,
+dan ngunci berarti tiap ganti DP harus cancel + amend SO/PO. Gantinya ada dua penjaga:
+
+- **Gak boleh over-request**: total DP (yang udah submitted + dokumen ini) gak boleh lebih
+  dari sisa nilai dokumen referensi. ERPNext ngelewatin pengecekan ini begitu tabel Payment
+  Reference keisi (`validate_payment_request_amount` langsung return), jadi dicek ulang di
+  addon pakai hitungan yang sama.
+- **Selisih dari termin dikasih tau**: kalau DP-nya beda dari nilai termin, muncul pesan info
+  (bukan blokir) yang nyebutin sisa yang belum ditagih.
+
+**Email pas submit dimatiin.** Payment Request tipe `Inward` bawaannya ngirim email ke
+customer pas submit (butuh default outgoing Email Account + PDF dokumen referensi). DP Invoice
+itu dokumen internal ke tim Finance, jadi field `Mute Email` default-nya dinyalain — sekalian
+dimunculin di form (bawaannya hidden) biar tetap bisa dikirim manual per dokumen kalau perlu.
+Tipe `Outward` emang gak pernah ngirim email.
+
+Waktu Payment Entry dibikin dari DP Invoice itu, **tabel pajaknya kebawa otomatis** (cuma
+kalau Payment Entry-nya belum punya baris pajak, jadi editan manual gak ketiban). Dokumen DP
+Invoice sendiri gak posting jurnal — jurnalnya kebentuk di Payment Entry, sesuai R&C.
+
+**Sisa PPN/PPh di invoice final.** Sales Invoice & Purchase Invoice punya checkbox
+**Deduct Taxes Paid on DP** (default nyala). Kalau ada Payment Entry DP yang dialokasiin ke
+invoice itu, baris pajaknya diubah jadi charge type `Actual` dengan nilai:
+
+```
+tax amount = pajak penuh - pajak yang sudah dibayar di DP
+```
+
+Contoh (SO 100.000 + PPN 11%, DP 30%):
+
+| Dokumen | Nilai |
+| --- | --- |
+| Sales Order | net 100.000, PPN 11.000, grand total 111.000 |
+| DP Invoice 30% | DP 33.300, PPN atas DP 3.663, total payable 36.963 |
+| Payment Entry DP | terima 33.300 + pajak 3.663 = 36.963 |
+| Sales Invoice | PPN ditagih **7.337** (11.000 − 3.663), grand total 107.337, outstanding 74.037 |
+
+Kolom **Paid on DP** di baris pajak nunjukin berapa yang udah dibayar duluan. Kalau satu DP
+dipakai buat beberapa invoice, potongannya diprorata sesuai porsi yang dialokasiin.
+
+Setelan asli baris pajak (charge type + rate) disimpan di field tersembunyi, terus dibalikin
+tiap dokumen disimpan sebelum ERPNext ngitung ulang — jadi potongannya gak numpuk walau
+dokumennya disave berkali-kali, dan matiin checkbox-nya bikin pajak balik penuh.
+
+Implementasi:
+
+- `vic_addon/vic/dp_invoice.py` — Payment Request + auto-fetch pajak ke Payment Entry
+- `vic_addon/vic/advance_tax.py` — sisa PPN/PPh di Sales/Purchase Invoice
+- `vic_addon/public/js/payment_request.js` — persentase DP + load template pajak
+
+Belum: rename doctype Payment Request jadi "DP Invoice" (frappe gak punya field label buat
+doctype, jalurnya lewat record Translation), dan print format refund.
+
 #### Sales Order: PO per supplier + dropship
 
 Info supplier ikut turun sepanjang alur lewat field `Supplier Quotation` + `Supplier` di

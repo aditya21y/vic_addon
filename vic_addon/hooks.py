@@ -76,6 +76,8 @@ after_migrate = "vic_addon.vic.naming.setup_amend_naming_rule"
 # include js in doctype views
 doctype_js = {doctype: ["public/js/dpp_nilai_lain.js"] for doctype in DPP_NILAI_LAIN_DOCTYPES}
 doctype_js["Supplier Quotation"] = ["public/js/supplier_quotation.js"]
+# DP Invoice: persentase DP + template pajak DP
+doctype_js["Payment Request"] = ["public/js/payment_request.js"]
 # tombol bikin PO per supplier
 doctype_js["Sales Order"].append("public/js/sales_order.js")
 # doctype_js = {"doctype" : "public/js/doctype.js"}
@@ -197,6 +199,19 @@ for doctype in DPP_NILAI_LAIN_DOCTYPES:
 # tandai item delivered_by_supplier sesuai tipe transaksi (Reguler / Dropship)
 doc_events["Sales Order"]["validate"].append("vic_addon.vic.sales_order.set_dropship_details")
 
+# DP Invoice: nilai DP + PPN/PPh atas DP, dibawa ke Payment Entry
+doc_events["Payment Request"] = {
+	# jalan duluan: tabel Payment Reference disamain dulu sama DP Amount
+	"before_validate": "vic_addon.vic.dp_invoice.sync_payment_reference",
+	"validate": "vic_addon.vic.dp_invoice.set_dp_details",
+}
+doc_events["Payment Entry"] = {"before_validate": "vic_addon.vic.dp_invoice.set_advance_taxes"}
+
+# invoice final cuma nagih sisa PPN/PPh yang belum dibayar lewat DP
+for doctype in ("Sales Invoice", "Purchase Invoice"):
+	doc_events[doctype]["before_validate"] = "vic_addon.vic.advance_tax.restore_tax_rows"
+	doc_events[doctype]["validate"].append("vic_addon.vic.advance_tax.deduct_advance_taxes")
+
 # doc_events = {
 # 	"*": {
 # 		"on_update": "method",
@@ -242,6 +257,11 @@ doc_events["Sales Order"]["validate"].append("vic_addon.vic.sales_order.set_drop
 # Overriding Methods
 # ------------------------------
 #
+override_whitelisted_methods = {
+	# tombol Create Payment Entry di DP Invoice, biar tabel pajak DP langsung keisi di form
+	"erpnext.accounts.doctype.payment_request.payment_request.make_payment_entry": "vic_addon.vic.dp_invoice.make_payment_entry",
+}
+
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "vic_addon.event.get_events"
 # }
