@@ -9,6 +9,19 @@ frappe.ui.form.on("Costing", {
 		frm.add_custom_button(__("Get Items from Supplier Quotation"), () =>
 			get_items_from_supplier_quotation(frm)
 		);
+
+		if (!frm.doc.__islocal) {
+			frm.add_custom_button(
+				__("Quotation"),
+				() =>
+					frappe.model.open_mapped_doc({
+						method: "vic_addon.vic.doctype.costing.costing.make_quotation",
+						frm: frm,
+					}),
+				__("Create")
+			);
+		}
+
 		calculate(frm);
 	},
 

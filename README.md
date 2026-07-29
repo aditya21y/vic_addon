@@ -132,6 +132,21 @@ Implementasi:
 - `vic_addon/vic/doctype/costing/costing.js` — kalkulasi live + dialog pilih SQTN
 - `vic_addon/public/js/supplier_quotation.js` — tombol Create > Costing
 
+**Bikin Quotation ke customer**: tombol **Create > Quotation** di form Costing. Yang dibawa:
+
+| Costing | Quotation |
+| --- | --- |
+| Customer | Quotation To = Customer + Party Name |
+| Quotation Rate per item | Price List Rate **dan** Rate item Quotation |
+| Qty, UOM | Qty, UOM |
+| Supplier Quotation + Supplier per item | field SQTN + Supplier di Quotation Item |
+| Nama costing | field Costing di Quotation (jejak balik) |
+
+Quotation Rate masuk sebagai **Price List Rate sekaligus Rate**, jadi diskon per item di
+Quotation ngurangin dari harga costing, terus masih bisa ditambah diskon atas total quotation
+(Apply Additional Discount On = Net Total). Contoh: rate costing 3.287,50 → diskon item 10%
+jadi 2.958,75 → diskon total 5% → net total turun lagi, dan DPP Nilai Lain ikut nyesuaiin.
+
 Belum termasuk (nunggu prioritas):
 
 - Buffer exchange rate buat pembelian impor (R&C 2 & 3 di sheet bispro)
@@ -140,9 +155,45 @@ Belum termasuk (nunggu prioritas):
   (perlu permlevel + role, sengaja belum dipasang biar gak ngunci field ke semua user)
 - Workflow approval (doctype-nya udah non-submittable, tinggal bikin Workflow-nya)
 
+#### Sales Order: PO per supplier + dropship
+
+Info supplier ikut turun sepanjang alur lewat field `Supplier Quotation` + `Supplier` di
+tabel item:
+
+```
+SQTN -> Costing -> Quotation -> Sales Order -> Purchase Order
+```
+
+**Create > Purchase Order (per Supplier)** di Sales Order yang udah submit: item digrup per
+supplier, satu draft PO per supplier, harga belinya diambil dari SQTN (net rate) dan PO item
+langsung nyimpen link `Supplier Quotation` + balik ke Sales Order.
+
+Contoh: SO isi 2 item dari 2 supplier beda → jadi 2 draft PO, masing-masing pakai harga beli
+dari SQTN-nya sendiri (bukan harga jual di SO).
+
+Dokumennya tetap dibikin `make_purchase_order` bawaan ERPNext, jadi handling currency,
+exchange rate, alamat kirim buat dropship, dan sisa qty yang belum di-PO ikut kebawa. Kalau
+satu item ada di dua supplier berbeda dalam satu SO, prosesnya ditolak dengan pesan jelas
+(ERPNext ngegrup per item code, jadi harus dipisah SO).
+
+Referensi SQTN di PO item pakai custom field (`custom_supplier_quotation`), **bukan** field
+bawaan `supplier_quotation`. Field bawaan bikin ERPNext maksa PO item sama persis dengan
+SQTN-nya di `project`, `uom`, dan `conversion_factor` — padahal project di PO ngikut Sales
+Order, jadi PO gagal disimpan kalau SQTN-nya punya project yang beda.
+
+**Transaction Type** (Reguler / Dropship) di header Sales Order. Kalau Dropship, semua item
+otomatis ditandai `Delivered By Supplier` + suppliernya diisi dari SQTN, jadi flow drop ship
+bawaan ERPNext jalan (alamat kirim PO ke customer, item dropship gak masuk Delivery Note).
+Balik ke Reguler, tanda itu dilepas lagi.
+
+Implementasi: `vic_addon/vic/sales_order.py` + `vic_addon/public/js/sales_order.js`.
+
+Belum: print format Proforma Invoice (di sheet masih "Awaiting"). Auto reserve stock pas SO
+submit / Purchase Receipt submit gak perlu custom, tinggal nyalain di Stock Settings.
+
 #### DPP Nilai Lain (PPN 12%)
 
-Field baru di **Sales Order, Sales Invoice, Purchase Order, Purchase Invoice**:
+Field baru di **Quotation, Sales Order, Sales Invoice, Purchase Order, Purchase Invoice**:
 
 | Field | Isi |
 | --- | --- |
@@ -177,7 +228,7 @@ Implementasi:
 
 - `vic_addon/vic/dpp_nilai_lain.py` — kalkulasi (hook `validate`)
 - `vic_addon/public/js/dpp_nilai_lain.js` — update angkanya live di form
-- `vic_addon/fixtures/custom_field.json` — 8 custom field (2 per doctype)
+- `vic_addon/fixtures/custom_field.json` — 10 custom field (2 per doctype)
 
 #### Naming series reset per bulan + amend suffix R
 

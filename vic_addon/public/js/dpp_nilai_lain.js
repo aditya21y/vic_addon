@@ -4,7 +4,9 @@
 
 const DPP_NILAI_LAIN_RATIO = 11 / 12;
 
+// harus sama dengan DPP_NILAI_LAIN_DOCTYPES di vic_addon/vic/dpp_nilai_lain.py
 const DPP_NILAI_LAIN_DOCTYPES = [
+	"Quotation",
 	"Sales Order",
 	"Sales Invoice",
 	"Purchase Order",

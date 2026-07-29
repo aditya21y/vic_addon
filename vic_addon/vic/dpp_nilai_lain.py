@@ -19,6 +19,7 @@ from frappe.utils import flt
 DPP_NILAI_LAIN_RATIO = 11 / 12
 
 DPP_NILAI_LAIN_DOCTYPES = (
+	"Quotation",
 	"Sales Order",
 	"Sales Invoice",
 	"Purchase Order",

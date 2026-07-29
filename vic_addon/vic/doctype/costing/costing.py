@@ -146,6 +146,49 @@ class Costing(Document):
 
 
 @frappe.whitelist()
+def make_quotation(source_name, target_doc=None):
+	"""Bikin Quotation ke customer dari Costing.
+
+	Harga jualnya diambil dari Quotation Rate (yang default-nya ngikut Selling Rate), plus
+	SQTN ID dan supplier per item biar ketahuan harga belinya dari mana. Diskon per item dan
+	diskon atas total quotation tetap diisi di dokumen Quotation-nya.
+	"""
+	from frappe.model.mapper import get_mapped_doc
+
+	def set_missing_values(source, target):
+		if source.customer:
+			target.quotation_to = "Customer"
+			target.party_name = source.customer
+
+		target.custom_costing = source.name
+		target.run_method("set_missing_values")
+		target.run_method("calculate_taxes_and_totals")
+
+	def update_item(source_item, target_item, source_parent):
+		target_item.rate = source_item.quotation_rate
+		target_item.price_list_rate = source_item.quotation_rate
+		target_item.custom_supplier_quotation = source_item.supplier_quotation
+		target_item.custom_supplier = source_item.supplier
+
+	return get_mapped_doc(
+		"Costing",
+		source_name,
+		{
+			"Costing": {
+				"doctype": "Quotation",
+			},
+			"Costing Item": {
+				"doctype": "Quotation Item",
+				"field_map": {"qty": "qty", "uom": "uom"},
+				"postprocess": update_item,
+			},
+		},
+		target_doc,
+		set_missing_values,
+	)
+
+
+@frappe.whitelist()
 def make_costing(source_name, target_doc=None):
 	"""Bikin Costing dari satu Supplier Quotation (tombol Create di form SQTN)."""
 	from frappe.model.mapper import get_mapped_doc
