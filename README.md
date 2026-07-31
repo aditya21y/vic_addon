@@ -257,15 +257,100 @@ bawaan `supplier_quotation`. Field bawaan bikin ERPNext maksa PO item sama persi
 SQTN-nya di `project`, `uom`, dan `conversion_factor` — padahal project di PO ngikut Sales
 Order, jadi PO gagal disimpan kalau SQTN-nya punya project yang beda.
 
-**Transaction Type** (Reguler / Dropship) di header Sales Order. Kalau Dropship, semua item
-otomatis ditandai `Delivered By Supplier` + suppliernya diisi dari SQTN, jadi flow drop ship
-bawaan ERPNext jalan (alamat kirim PO ke customer, item dropship gak masuk Delivery Note).
-Balik ke Reguler, tanda itu dilepas lagi.
-
 Implementasi: `vic_addon/vic/sales_order.py` + `vic_addon/public/js/sales_order.js`.
 
 Belum: print format Proforma Invoice (di sheet masih "Awaiting"). Auto reserve stock pas SO
 submit / Purchase Receipt submit gak perlu custom, tinggal nyalain di Stock Settings.
+
+#### Customer WAPU
+
+WAPU (Wajib Pungut): PPN-nya dipungut dan disetor sendiri sama customer — biasanya instansi
+pemerintah atau BUMN — bukan sama kita.
+
+| Doctype | Field |
+| --- | --- |
+| Customer | **WAPU Status** (Select: `Non WAPU` / `WAPU`), di tab Tax |
+| Sales Invoice | **Customer WAPU** (checkbox, read only), diambil dari master Customer |
+
+Checkbox-nya keisi otomatis waktu customer dipilih di form, dan di-set ulang tiap invoice
+disimpan — jadi kalau status customernya berubah, invoice yang belum submit ikut nyesuaiin.
+Dua-duanya bisa dipakai filter di list view.
+
+Implementasi: `vic_addon/vic/sales_invoice.py` + `vic_addon/public/js/sales_invoice.js`.
+
+#### Harga dikunci ke dokumen sumbernya
+
+Tiap dokumen baru kebuka di form, ERPNext jalanin trigger `currency` → `apply_price_list()`
+yang narik ulang harga dari Item Price, terus **maksa `rate = price_list_rate`**
+(`transaction.js`, `_set_values_for_item_list`). Di alur VIC harganya bukan dari price list,
+jadi harga hasil costing/SQTN bisa ketiban Item Price yang kebetulan ada.
+
+Makanya tiap simpan, harganya dipasang lagi dari sumbernya:
+
+| Dokumen | Sumber harga |
+| --- | --- |
+| Quotation, Sales Order | Quotation Rate di **Costing** (lewat field Costing yang ikut turun) |
+| Purchase Order | **net rate** di Supplier Quotation baris itemnya |
+
+Nego harga tetap bisa lewat kolom diskon per item (dan diskon atas total) — dihitung dari
+harga sumber ini. Kalau harga belinya beneran beda dari penawaran supplier, yang bener revisi
+SQTN lalu hitung ulang costing, bukan diubah diam-diam di PO.
+
+Rate-nya sengaja gak dihitung sendiri, cuma `price_list_rate` yang dipasang lalu dikosongin
+rate-nya biar ERPNext yang ngitung — beda pembulatan 1 sen aja bikin diskon persennya kereset.
+
+Implementasi: `vic_addon/vic/rate_lock.py`.
+
+Catatan: buat item yang harganya per-proyek, mending gak usah punya Item Price di price list
+yang dipakai transaksi. Kalau tetap butuh harga acuan, taruh di Price List terpisah yang gak
+pernah dipilih di dokumen — Item Price di price list yang gak kepilih gak akan ke-fetch.
+
+#### Skema Dropship (dokumennya tetap lengkap)
+
+Barang dikirim supplier langsung ke lapangan/proyek, **tapi Purchase Receipt dan Delivery Note
+tetap ada**. Dropship bawaan ERPNext (`delivered_by_supplier`) sengaja **gak dipakai**, karena
+justru ngebuang dua dokumen itu:
+
+| Perilaku native | Lokasi | Akibat |
+| --- | --- | --- |
+| item dropship dikecualikan dari Delivery Note | `sales_order.py:1228` | DN gak bisa dibikin |
+| item dropship dikecualikan dari Purchase Receipt | `purchase_order.py:413` | stok gak pernah masuk |
+| `delivered_qty` SO diambil dari PO, bukan DN | `sales_order.py:686` | SO langsung "Delivered" pas PO submit |
+| warehouse gak wajib di SO item | `sales_order.py:451` | stok gak kecatat |
+
+Di sini dropship cuma atribut pengiriman, rantai dokumennya tetap standar:
+
+```
+Sales Order (tipe per item)
+  └─ Create > Purchase Order (per Supplier)   → PO dipisah per supplier DAN per tipe
+       └─ PO Dropship: Create > Delivery Note
+            └─ pas DN disubmit: Purchase Receipt dibuat & disubmit otomatis
+```
+
+**Tipe transaksi ada di baris item** (`Transaction Type`: Reguler / Dropship), karena satu SO
+bisa campur — sebagian dikirim dari gudang sendiri, sebagian dropship dari supplier lain.
+Field di header cuma ringkasan read-only: `Reguler`, `Dropship`, atau `Mixed`.
+
+Barang dropship lewat **gudang transit** (default dibikin otomatis `Dropship - {abbr}`, bisa
+diganti lewat field *Dropship Warehouse* di Company): masuk lewat Purchase Receipt, keluar
+lewat Delivery Note di tanggal yang sama — saldo nol, tapi stock ledger & valuasi tetap kecatat.
+
+**Naming series kepisah** biar nomor dropship gak ganggu transaksi reguler, dan seriesnya
+dipilih otomatis dari tipe dokumen:
+
+| Dokumen | Reguler | Dropship |
+| --- | --- | --- |
+| Delivery Note | `MAT-DN-.YYMM.-` | `MAT-DN-DS-.YYMM.-` |
+| Purchase Receipt | `MAT-PRE-.YYMM.-` | `MAT-PRE-DS-.YYMM.-` |
+
+Di PO dropship, tombol **Create > Purchase Receipt** disembunyiin (PR-nya otomatis), diganti
+tombol **Create > Delivery Note**. PO dropship juga otomatis dapat alamat kirim + kontak
+customer, jadi supplier tau kirimnya ke mana.
+
+Implementasi: `vic_addon/vic/dropship.py` + `vic_addon/public/js/purchase_order.js`.
+
+Catatan: Purchase Receipt gak boleh bertanggal masa depan (aturan ERPNext), jadi kalau posting
+date DN di masa depan, submitnya ditolak dengan pesan yang jelas.
 
 #### DPP Nilai Lain (PPN 12%)
 

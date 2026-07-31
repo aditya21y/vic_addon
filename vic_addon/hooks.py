@@ -80,6 +80,10 @@ doctype_js["Supplier Quotation"] = ["public/js/supplier_quotation.js"]
 doctype_js["Payment Request"] = ["public/js/payment_request.js"]
 # tombol bikin PO per supplier
 doctype_js["Sales Order"].append("public/js/sales_order.js")
+# PO dropship: tombol bikin Delivery Note, tombol Purchase Receipt disembunyiin
+doctype_js["Purchase Order"].append("public/js/purchase_order.js")
+# penanda customer WAPU
+doctype_js["Sales Invoice"].append("public/js/sales_invoice.js")
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -196,8 +200,38 @@ for doctype in DPP_NILAI_LAIN_DOCTYPES:
 		"vic_addon.vic.dpp_nilai_lain.set_dpp_nilai_lain"
 	]
 
-# tandai item delivered_by_supplier sesuai tipe transaksi (Reguler / Dropship)
-doc_events["Sales Order"]["validate"].append("vic_addon.vic.sales_order.set_dropship_details")
+# Dropship: tipe transaksi ada di baris item, header cuma ringkasannya
+for doctype in ("Sales Order", "Purchase Order", "Delivery Note", "Purchase Receipt"):
+	events = doc_events.setdefault(doctype, {})
+	if isinstance(events.get("validate"), str):
+		events["validate"] = [events["validate"]]
+
+	events.setdefault("validate", []).append("vic_addon.vic.dropship.set_transaction_type")
+
+for doctype in ("Delivery Note", "Purchase Receipt"):
+	# seri nomor dropship dipilih duluan, baru counternya disinkronin
+	doc_events[doctype]["before_naming"] = [
+		"vic_addon.vic.dropship.set_dropship_naming_series",
+		"vic_addon.vic.naming.sync_series_counter",
+	]
+
+# barang dropship keluar dari gudang transit, dan stoknya dimasukin dulu lewat
+# Purchase Receipt yang dibuat otomatis tepat sebelum Delivery Note disubmit
+doc_events["Delivery Note"]["validate"].append(
+	"vic_addon.vic.dropship.set_dropship_warehouse_on_items"
+)
+doc_events["Delivery Note"]["before_submit"] = "vic_addon.vic.dropship.make_dropship_purchase_receipt"
+
+# penanda customer WAPU, diambil dari master Customer
+doc_events["Sales Invoice"]["validate"].append("vic_addon.vic.sales_invoice.set_customer_wapu")
+
+# harga dikunci ke dokumen sumbernya, jangan ketiban Item Price
+for doctype in ("Quotation", "Sales Order"):
+	doc_events[doctype]["before_validate"] = "vic_addon.vic.rate_lock.set_selling_rate_from_costing"
+
+doc_events["Purchase Order"]["before_validate"] = (
+	"vic_addon.vic.rate_lock.set_buying_rate_from_supplier_quotation"
+)
 
 # DP Invoice: nilai DP + PPN/PPh atas DP, dibawa ke Payment Entry
 doc_events["Payment Request"] = {
