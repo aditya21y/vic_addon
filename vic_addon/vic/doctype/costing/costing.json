@@ -8,6 +8,7 @@
  "field_order": [
   "naming_series",
   "posting_date",
+  "status",
   "column_break_header",
   "company",
   "customer",
@@ -49,6 +50,18 @@
    "in_list_view": 1,
    "label": "Posting Date",
    "reqd": 1
+  },
+  {
+   "default": "Not Quoted",
+   "description": "Terisi otomatis: Quoted kalau costing ini udah dibikinin Quotation",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "no_copy": 1,
+   "options": "Not Quoted\nQuoted",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_header",

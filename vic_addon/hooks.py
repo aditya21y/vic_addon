@@ -68,10 +68,14 @@ naming_series_variables = {
 
 # Installation
 # ------------
-# aturan amend naming ada di Single doctype (Document Naming Settings), gak bisa jadi fixture
+# aturan amend naming ada di Single doctype (Document Naming Settings), label doctype ada di
+# Translation (gak punya field Module) - dua-duanya gak bisa jadi fixture
 
-after_install = "vic_addon.vic.naming.setup_amend_naming_rule"
-after_migrate = "vic_addon.vic.naming.setup_amend_naming_rule"
+after_install = [
+	"vic_addon.vic.naming.setup_amend_naming_rule",
+	"vic_addon.vic.labels.setup_document_labels",
+]
+after_migrate = after_install
 
 # include js in doctype views
 doctype_js = {doctype: ["public/js/dpp_nilai_lain.js"] for doctype in DPP_NILAI_LAIN_DOCTYPES}
@@ -189,6 +193,10 @@ doc_events = {
 	for doctype in NAMING_DOCTYPES
 }
 
+# status Costing ngikut ada/enggaknya Quotation yang nempel ke costing itu
+for event in ("on_update", "on_cancel", "after_delete"):
+	doc_events["Quotation"][event] = "vic_addon.vic.doctype.costing.costing.update_status_from_quotation"
+
 doc_events["Supplier Quotation"]["before_validate"] = [
 	"vic_addon.vic.multi_level_discount.validate_discount_levels",
 	"vic_addon.vic.multi_level_discount.apply_multi_level_discount",
@@ -231,6 +239,11 @@ for doctype in ("Quotation", "Sales Order"):
 
 doc_events["Purchase Order"]["before_validate"] = (
 	"vic_addon.vic.rate_lock.set_buying_rate_from_supplier_quotation"
+)
+
+# qty & link PO dicek balik ke Supplier Quotation-nya
+doc_events["Purchase Order"]["validate"].append(
+	"vic_addon.vic.purchase_order.validate_supplier_quotation"
 )
 
 # DP Invoice: nilai DP + PPN/PPh atas DP, dibawa ke Payment Entry

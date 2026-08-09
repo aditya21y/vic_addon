@@ -498,7 +498,7 @@
   "columns": 0,
   "default": null,
   "depends_on": null,
-  "description": "Isi persentase buat ngitung DP Amount dari nilai dokumen referensi",
+  "description": "Isi persentase buat ngitung DP Amount dari Net Total dokumen referensi (belum termasuk PPN)",
   "docstatus": 0,
   "doctype": "Custom Field",
   "dt": "Payment Request",

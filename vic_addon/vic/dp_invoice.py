@@ -74,41 +74,25 @@ def set_dp_details(doc, method=None):
 
 
 def validate_dp_amount(doc):
-	"""Total DP gak boleh lebih dari sisa nilai dokumen referensi.
+	"""Total DP gak boleh lebih dari Net Total dokumen referensi.
 
-	ERPNext ngelewatin pengecekan ini kalau dokumen referensinya punya payment terms
-	(`validate_payment_request_amount` langsung return begitu tabel Payment Reference keisi),
-	jadi dicek ulang di sini pakai hitungan yang sama.
+	DP dihitung dari Net Total (nilai sebelum PPN), jadi batasnya juga Net Total - bukan Grand
+	Total kayak pengecekan bawaan ERPNext. Pengecekan bawaan juga dilewatin ERPNext kalau
+	dokumen referensinya punya payment terms (`validate_payment_request_amount` langsung return
+	begitu tabel Payment Reference keisi), jadi dicek ulang di sini.
 	"""
-	if not doc.get("payment_reference"):
-		# tanpa payment terms, ERPNext udah ngecek sendiri
-		return
-
-	from erpnext.accounts.doctype.payment_request.payment_request import (
-		get_existing_payment_request_amount,
-	)
-	from erpnext.accounts.doctype.payment_request.payment_request import get_amount as get_reference_amount
-
-	reference = frappe.get_doc(doc.reference_doctype, doc.reference_name)
-	if getattr(reference, "order_type", None) == "Shopping Cart":
-		return
-
-	reference_amount = flt(get_reference_amount(reference, doc.payment_account))
+	reference_amount = get_reference_total(doc)
 	if not reference_amount:
 		return
 
-	already_requested = flt(get_existing_payment_request_amount(reference))
-	if doc.docstatus == 1:
-		# dokumen ini sendiri udah keitung di angka di atas
-		already_requested -= flt(doc.outstanding_amount)
-
+	already_requested = get_requested_amount(doc)
 	precision = doc.precision("grand_total")
 	total_requested = flt(already_requested + flt(doc.grand_total), precision)
 
 	if total_requested > flt(reference_amount, precision):
 		frappe.throw(
 			_(
-				"Total DP against {0} {1} would be {2}, more than the remaining amount {3} (already requested: {4})."
+				"Total DP against {0} {1} would be {2}, more than its Net Total {3} (already requested: {4})."
 			).format(
 				_(doc.reference_doctype),
 				doc.reference_name,
@@ -118,6 +102,26 @@ def validate_dp_amount(doc):
 			),
 			title=_("DP Amount Too Big"),
 		)
+
+
+def get_requested_amount(doc):
+	"""Total DP yang udah diminta lewat DP Invoice lain atas dokumen referensi yang sama.
+
+	Yang dijumlah nilai DP-nya (`grand_total`), bukan sisa tagihannya kayak hitungan ERPNext -
+	DP yang udah dibayar tetap kepakai jatahnya.
+	"""
+	rows = frappe.get_all(
+		"Payment Request",
+		filters={
+			"reference_doctype": doc.reference_doctype,
+			"reference_name": doc.reference_name,
+			"docstatus": 1,
+			"name": ["!=", doc.name or ""],
+		},
+		fields=["grand_total"],
+	)
+
+	return sum(flt(row.grand_total) for row in rows)
 
 
 def warn_if_different_from_payment_term(doc):
@@ -176,10 +180,19 @@ def set_dp_percentage(doc):
 
 
 def get_reference_total(doc):
+	"""Nilai dokumen referensi yang jadi dasar DP: Net Total, bukan Grand Total.
+
+	Grand Total udah termasuk PPN, padahal PPN atas DP dicatat sendiri di tabel Advance Taxes
+	and Charges. Kalau DP-nya diambil dari Grand Total, PPN-nya keitung dua kali.
+	"""
 	if not (doc.reference_doctype and doc.reference_name):
 		return 0
 
-	return flt(frappe.db.get_value(doc.reference_doctype, doc.reference_name, "grand_total"))
+	fieldname = (
+		"net_total" if frappe.get_meta(doc.reference_doctype).has_field("net_total") else "grand_total"
+	)
+
+	return flt(frappe.db.get_value(doc.reference_doctype, doc.reference_name, fieldname))
 
 
 def calculate_taxes(doc):

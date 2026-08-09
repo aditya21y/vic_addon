@@ -23,11 +23,18 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt
 
+NOT_QUOTED = "Not Quoted"
+QUOTED = "Quoted"
+
 
 class Costing(Document):
 	def validate(self):
 		self.validate_margin_percentage()
 		self.calculate()
+		self.set_status()
+
+	def set_status(self):
+		self.status = NOT_QUOTED if self.is_new() else get_status(self.name)
 
 	def validate_margin_percentage(self):
 		for item in self.items:
@@ -143,6 +150,32 @@ class Costing(Document):
 			if self.total_hpp_amount
 			else 0
 		)
+
+
+def get_status(costing):
+	"""`Quoted` kalau costing ini udah punya Quotation yang belum dibatalin."""
+	quoted = frappe.db.exists("Quotation", {"custom_costing": costing, "docstatus": ["<", 2]})
+
+	return QUOTED if quoted else NOT_QUOTED
+
+
+def update_status(costing):
+	if not (costing and frappe.db.exists("Costing", costing)):
+		return
+
+	frappe.db.set_value("Costing", costing, "status", get_status(costing), update_modified=False)
+
+
+def update_status_from_quotation(doc, method=None):
+	"""Hook Quotation (`on_update`, `on_cancel`, `after_delete`): segarin status costing.
+
+	Costing sebelumnya ikut diupdate juga, buat kasus link Costing-nya dipindah ke costing lain.
+	"""
+	previous = doc.get_doc_before_save()
+	costings = {doc.custom_costing, previous.custom_costing if previous else None}
+
+	for costing in costings:
+		update_status(costing)
 
 
 @frappe.whitelist()

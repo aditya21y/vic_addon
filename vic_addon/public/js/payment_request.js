@@ -48,12 +48,14 @@ frappe.ui.form.on("Payment Request", {
 	},
 });
 
+// DP dihitung dari Net Total dokumen referensi (belum kena PPN), karena PPN atas DP
+// dicatat sendiri di tabel Advance Taxes and Charges - lihat vic_addon/vic/dp_invoice.py.
 function get_reference_total(frm) {
 	if (!frm.doc.reference_doctype || !frm.doc.reference_name) return Promise.resolve(0);
 
 	return frappe.db
-		.get_value(frm.doc.reference_doctype, frm.doc.reference_name, "grand_total")
-		.then(({ message }) => flt(message && message.grand_total));
+		.get_value(frm.doc.reference_doctype, frm.doc.reference_name, "net_total")
+		.then(({ message }) => flt(message && message.net_total));
 }
 
 function load_taxes(frm, template_doctype, template) {
