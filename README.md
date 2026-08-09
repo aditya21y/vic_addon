@@ -132,6 +132,12 @@ Implementasi:
 - `vic_addon/vic/doctype/costing/costing.js` — kalkulasi live + dialog pilih SQTN
 - `vic_addon/public/js/supplier_quotation.js` — tombol Create > Costing
 
+**Status** (`Not Quoted` / `Quoted`) kebentuk otomatis: begitu ada Quotation yang nempel ke
+costing ini (field `Costing` di Quotation), statusnya jadi `Quoted`; balik ke `Not Quoted`
+kalau quotation-nya dibatalin atau dihapus. Field-nya read only, ada di list view sebagai
+indikator warna, dan bisa dipakai filter buat lihat costing mana yang belum ditawarin ke
+customer.
+
 **Bikin Quotation ke customer**: tombol **Create > Quotation** di form Costing. Yang dibawa:
 
 | Costing | Quotation |
@@ -159,13 +165,17 @@ Belum termasuk (nunggu prioritas):
 
 Alur: **PO/SO → Payment Request (DP Invoice) → Payment Entry (DP) → Invoice final**
 
+Di desk doctype-nya muncul sebagai **Advance Invoice**, bukan "Payment Request" — frappe gak
+punya field label buat doctype, jadi labelnya diganti lewat record `Translation` yang dipasang
+pas install/migrate (`vic_addon/vic/labels.py`).
+
 Field baru di **Payment Request**:
 
 | Field | Isi |
 | --- | --- |
 | DP Type | `Purchase` / `Sales`, otomatis dari dokumen referensi (PO = Purchase, SO = Sales) |
 | DP Amount (relabel dari Amount) | nilai DP |
-| DP Percentage | isi persen → DP Amount kehitung dari grand total dokumen referensi |
+| DP Percentage | isi persen → DP Amount kehitung dari **net total** dokumen referensi |
 | Purchase / Sales Taxes and Charges Template | template PPN/PPh atas DP |
 | Advance Taxes and Charges | tabel PPN/PPh atas nilai DP |
 | Total Taxes and Charges, Total Payable | total pajak dan total yang dibayar (DP + pajak) |
@@ -182,9 +192,11 @@ Nilai DP-nya sengaja **gak dikunci ke payment term** — DP hasil nego sering be
 dan ngunci berarti tiap ganti DP harus cancel + amend SO/PO. Gantinya ada dua penjaga:
 
 - **Gak boleh over-request**: total DP (yang udah submitted + dokumen ini) gak boleh lebih
-  dari sisa nilai dokumen referensi. ERPNext ngelewatin pengecekan ini begitu tabel Payment
-  Reference keisi (`validate_payment_request_amount` langsung return), jadi dicek ulang di
-  addon pakai hitungan yang sama.
+  dari **Net Total** dokumen referensi. Batasnya net total, bukan grand total, karena DP-nya
+  emang dihitung dari net total — PPN/PPh atas DP kecatat sendiri di tabel Advance Taxes and
+  Charges, jadi kalau DP diambil dari grand total PPN-nya keitung dua kali. ERPNext juga
+  ngelewatin pengecekan bawaannya begitu tabel Payment Reference keisi
+  (`validate_payment_request_amount` langsung return), jadi tetap dicek ulang di addon.
 - **Selisih dari termin dikasih tau**: kalau DP-nya beda dari nilai termin, muncul pesan info
   (bukan blokir) yang nyebutin sisa yang belum ditagih.
 
@@ -226,10 +238,10 @@ Implementasi:
 
 - `vic_addon/vic/dp_invoice.py` — Payment Request + auto-fetch pajak ke Payment Entry
 - `vic_addon/vic/advance_tax.py` — sisa PPN/PPh di Sales/Purchase Invoice
+- `vic_addon/vic/labels.py` — label doctype "Advance Invoice"
 - `vic_addon/public/js/payment_request.js` — persentase DP + load template pajak
 
-Belum: rename doctype Payment Request jadi "DP Invoice" (frappe gak punya field label buat
-doctype, jalurnya lewat record Translation), dan print format refund.
+Belum: print format refund.
 
 #### Sales Order: PO per supplier + dropship
 
@@ -252,12 +264,35 @@ exchange rate, alamat kirim buat dropship, dan sisa qty yang belum di-PO ikut ke
 satu item ada di dua supplier berbeda dalam satu SO, prosesnya ditolak dengan pesan jelas
 (ERPNext ngegrup per item code, jadi harus dipisah SO).
 
+**PO dobel dicegah.** ERPNext cuma ngitung PO yang udah submit (lewat `Sales Order
+Item.ordered_qty`), jadi tombolnya diklik dua kali bikin draft PO kembar. Di addon, PO draft
+**dan** submitted dua-duanya dihitung: item yang udah ketutup PO aktif dilewatin (dikasih tau
+item mana aja), dan kalau semua item udah ada PO-nya prosesnya ditolak sekalian nyebutin PO
+mana yang udah ada.
+
+**PO yang dibatalin boleh dibikin ulang.** PO dengan docstatus 2 sengaja gak dihitung, jadi
+begitu PO di-cancel, tombolnya bikin PO baru cuma buat item dari PO yang batal itu — item lain
+yang PO-nya masih aktif gak ikut kebikin lagi. Ini yang dipakai buat kasus supplier ganti
+(R&C ke-6 di sheet Costing).
+
+**Qty & link PO dicek balik ke SQTN** tiap PO disimpan (`vic_addon/vic/purchase_order.py`):
+
+| Cek | Kalau gak lolos |
+| --- | --- |
+| SQTN-nya ada dan udah disubmit | ditolak |
+| Supplier SQTN = supplier PO | ditolak |
+| Item code-nya ada di SQTN itu | ditolak |
+| SQTN sama dengan yang dipilih di baris Sales Order-nya | ditolak |
+| Total qty di semua PO aktif ≤ qty di SQTN | ditolak |
+| Baris SO punya SQTN tapi baris PO-nya kosong | cuma diingetin (gak diblokir) |
+
 Referensi SQTN di PO item pakai custom field (`custom_supplier_quotation`), **bukan** field
 bawaan `supplier_quotation`. Field bawaan bikin ERPNext maksa PO item sama persis dengan
 SQTN-nya di `project`, `uom`, dan `conversion_factor` — padahal project di PO ngikut Sales
 Order, jadi PO gagal disimpan kalau SQTN-nya punya project yang beda.
 
-Implementasi: `vic_addon/vic/sales_order.py` + `vic_addon/public/js/sales_order.js`.
+Implementasi: `vic_addon/vic/sales_order.py` + `vic_addon/vic/purchase_order.py` +
+`vic_addon/public/js/sales_order.js`.
 
 Belum: print format Proforma Invoice (di sheet masih "Awaiting"). Auto reserve stock pas SO
 submit / Purchase Receipt submit gak perlu custom, tinggal nyalain di Stock Settings.
