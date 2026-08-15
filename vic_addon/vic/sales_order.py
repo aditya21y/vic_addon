@@ -13,16 +13,56 @@ from vic_addon.vic.dropship import DROPSHIP, REGULER
 
 
 @frappe.whitelist()
-def make_purchase_orders(sales_order):
+def get_items_for_purchase_order(sales_order):
+	"""Baris SO yang masih bisa di-PO, buat isi tabel di modal `Purchase Order (per Supplier)`.
+
+	Supplier-nya diisi dari SQTN yang nempel di baris item, tapi di modal masih bisa diganti -
+	kasus barang habis di supplier pertama (R&C ke-6 di sheet Costing). Baris yang gak punya
+	supplier tetap dibalikin dengan kolom supplier kosong, biar user yang milih di modal.
+	"""
+	doc = frappe.get_doc("Sales Order", sales_order)
+	doc.check_permission("read")
+
+	pending_qty = get_pending_qty(doc)
+	rows = []
+
+	for item in doc.items:
+		remaining = pending_qty.get(item.name)
+		if not remaining:
+			continue
+
+		rows.append(
+			{
+				"sales_order_item": item.name,
+				"item_code": item.item_code,
+				"item_name": item.item_name,
+				"uom": item.uom,
+				"pending_qty": flt(
+					remaining / (flt(item.conversion_factor) or 1), item.precision("qty")
+				),
+				"transaction_type": item.custom_transaction_type or REGULER,
+				"supplier": item.custom_supplier,
+				"supplier_quotation": item.custom_supplier_quotation,
+			}
+		)
+
+	return rows
+
+
+@frappe.whitelist()
+def make_purchase_orders(sales_order, selected_items=None):
 	"""Bikin draft PO dari Sales Order: item digrup per supplier + per tipe transaksi.
 
 	Digrup per tipe juga karena satu SO bisa campur: sebagian dikirim ke gudang sendiri
 	(Reguler), sebagian dikirim supplier langsung ke lapangan (Dropship). Dua-duanya beda
 	alamat kirim dan beda alur dokumen, jadi PO-nya juga dipisah.
 
+	`selected_items` itu isian dari modal: baris mana aja yang mau di-PO plus suppliernya.
+	Kalau gak dikasih (dipanggil dari script), suppliernya diambil dari SQTN di baris item.
+
 	Yang bikin dokumennya tetap `make_purchase_order` bawaan ERPNext (biar dapet handling
-	currency dan exchange rate), kita yang nentuin suppliernya dari SQTN, ngisi harga beli,
-	link SQTN, tipe transaksi, dan sisa qty yang beneran belum di-PO.
+	currency dan exchange rate), kita yang nentuin suppliernya, ngisi harga beli, link SQTN,
+	tipe transaksi, dan sisa qty yang beneran belum di-PO.
 	"""
 	from erpnext.selling.doctype.sales_order.sales_order import make_purchase_order
 
@@ -30,7 +70,10 @@ def make_purchase_orders(sales_order):
 	doc.check_permission("read")
 
 	pending_qty = get_pending_qty(doc)
-	items_by_type = get_items_by_transaction_type(doc, pending_qty)
+	validate_pending_qty(doc, pending_qty)
+
+	supplier_by_row = get_supplier_by_row(doc, pending_qty, selected_items)
+	items_by_type = get_items_by_transaction_type(doc, supplier_by_row)
 
 	if not items_by_type:
 		frappe.throw(
@@ -40,23 +83,25 @@ def make_purchase_orders(sales_order):
 
 	purchase_orders = []
 	for transaction_type, supplier_by_item in items_by_type.items():
-		selected_items = [
+		selected = [
 			{"item_code": item_code, "supplier": supplier}
 			for item_code, supplier in supplier_by_item.items()
 		]
 		# `make_purchase_order` milih baris SO cuma dari item code, padahal item code yang sama
-		# bisa muncul di baris Reguler dan Dropship sekaligus - jadi barisnya disaring lagi
+		# bisa muncul di baris Reguler dan Dropship sekaligus - jadi barisnya disaring lagi,
+		# sekalian dibatesin ke baris yang dipilih user di modal
 		rows_of_type = {
 			item.name
 			for item in doc.items
-			if (item.custom_transaction_type or REGULER) == transaction_type
+			if item.name in supplier_by_row
+			and (item.custom_transaction_type or REGULER) == transaction_type
 		}
 
 		# `make_purchase_order` nge-insert dokumennya di dalam sana, jadi penyesuaian tanggalnya
 		# nebeng hook `before_validate` lewat flag ini
 		frappe.flags.purchase_order_from_sales_order = True
 		try:
-			created = make_purchase_order(sales_order, selected_items) or []
+			created = make_purchase_order(sales_order, selected) or []
 		finally:
 			frappe.flags.purchase_order_from_sales_order = False
 
@@ -103,16 +148,17 @@ def get_pending_qty(doc):
 	"""Sisa qty (stock uom) tiap baris SO yang belum ada PO aktifnya."""
 	ordered_qty = get_ordered_qty(doc.name)
 	pending_qty = {}
-	ordered_items = []
 
 	for item in doc.items:
 		remaining = flt(item.stock_qty) - ordered_qty.get(item.name, 0)
-
 		if remaining > 0:
 			pending_qty[item.name] = remaining
-		elif item.custom_supplier:
-			ordered_items.append(item)
 
+	return pending_qty
+
+
+def validate_pending_qty(doc, pending_qty):
+	"""Tolak kalau semua item udah ada PO-nya, dan kasih tau baris mana yang dilewatin."""
 	if not pending_qty:
 		frappe.throw(
 			_(
@@ -121,6 +167,9 @@ def get_pending_qty(doc):
 			title=_("Purchase Order Already Exists"),
 		)
 
+	ordered_items = [
+		item for item in doc.items if item.name not in pending_qty and item.custom_supplier
+	]
 	if ordered_items:
 		frappe.msgprint(
 			_("These items already have an active Purchase Order and are skipped: {0}").format(
@@ -130,7 +179,26 @@ def get_pending_qty(doc):
 			indicator="orange",
 		)
 
-	return pending_qty
+
+def get_supplier_by_row(doc, pending_qty, selected_items=None):
+	"""Supplier per baris SO: dari modal kalau ada, kalau enggak dari SQTN di baris itemnya."""
+	if isinstance(selected_items, str):
+		selected_items = frappe.parse_json(selected_items)
+
+	if not selected_items:
+		return {
+			item.name: item.custom_supplier
+			for item in doc.items
+			if item.custom_supplier and item.name in pending_qty
+		}
+
+	supplier_by_row = {}
+	for row in selected_items:
+		row = frappe._dict(row)
+		if row.supplier and row.sales_order_item in pending_qty:
+			supplier_by_row[row.sales_order_item] = row.supplier
+
+	return supplier_by_row
 
 
 def get_active_purchase_orders(sales_order):
@@ -199,26 +267,27 @@ def set_schedule_date(doc, method=None):
 	purchase_order.schedule_date = min(getdate(item.schedule_date) for item in purchase_order.items)
 
 
-def get_items_by_transaction_type(doc, pending_qty):
+def get_items_by_transaction_type(doc, supplier_by_row):
 	"""Supplier per item, dikelompokin dulu per tipe transaksi."""
 	items_by_type = {}
 
 	for item in doc.items:
-		if not item.custom_supplier or item.name not in pending_qty:
+		supplier = supplier_by_row.get(item.name)
+		if not supplier:
 			continue
 
 		transaction_type = item.custom_transaction_type or REGULER
 		supplier_by_item = items_by_type.setdefault(transaction_type, {})
 
 		existing_supplier = supplier_by_item.get(item.item_code)
-		if existing_supplier and existing_supplier != item.custom_supplier:
+		if existing_supplier and existing_supplier != supplier:
 			frappe.throw(
 				_(
 					"Item {0} comes from two different suppliers ({1} and {2}). Use separate Sales Orders for each supplier."
-				).format(item.item_code, existing_supplier, item.custom_supplier)
+				).format(item.item_code, existing_supplier, supplier)
 			)
 
-		supplier_by_item[item.item_code] = item.custom_supplier
+		supplier_by_item[item.item_code] = supplier
 
 	return items_by_type
 
@@ -255,12 +324,18 @@ def set_supplier_quotation_details(purchase_order, sales_order):
 	Link SQTN-nya ditaruh di custom field, bukan di field bawaan `supplier_quotation`.
 	Field bawaan bikin ERPNext maksa PO item sama persis dengan SQTN (project, uom,
 	conversion factor), padahal project di PO ngikut Sales Order, bukan SQTN.
+
+	Baris yang suppliernya diganti di modal dilewatin: penawaran itu punya supplier lain, jadi
+	harga maupun link-nya gak nyambung lagi.
 	"""
 	sales_order_items = {item.name: item for item in sales_order.items}
 
 	for item in purchase_order.items:
 		sales_order_item = sales_order_items.get(item.sales_order_item)
 		if not (sales_order_item and sales_order_item.custom_supplier_quotation):
+			continue
+
+		if sales_order_item.custom_supplier and sales_order_item.custom_supplier != purchase_order.supplier:
 			continue
 
 		quotation = sales_order_item.custom_supplier_quotation

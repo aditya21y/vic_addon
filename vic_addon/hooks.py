@@ -254,6 +254,8 @@ for doctype in ("Quotation", "Sales Order"):
 	doc_events[doctype]["before_validate"] = "vic_addon.vic.rate_lock.set_selling_rate_from_costing"
 
 doc_events["Purchase Order"]["before_validate"] = [
+	# jalan duluan: link SQTN disamain dulu sama supplier PO-nya, baru harganya dipasang
+	"vic_addon.vic.purchase_order.sync_supplier_quotation",
 	"vic_addon.vic.rate_lock.set_buying_rate_from_supplier_quotation",
 	# PO dari tombol di Sales Order: Required By yang udah lewat dimajuin ke tanggal PO
 	"vic_addon.vic.sales_order.set_schedule_date",

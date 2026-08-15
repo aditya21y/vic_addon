@@ -138,6 +138,15 @@ kalau quotation-nya dibatalin atau dihapus. Field-nya read only, ada di list vie
 indikator warna, dan bisa dipakai filter buat lihat costing mana yang belum ditawarin ke
 customer.
 
+**Tab Connections** di form Costing nampilin dokumen yang nyambung, dua arahnya beda cara:
+
+| Dokumen | Cara nyambungnya |
+| --- | --- |
+| Quotation | Quotation nyimpen nomor costing di field `custom_costing` — link biasa |
+| Supplier Quotation | SQTN gak nyimpen apa-apa soal costing; justru Costing yang nyimpen nomor SQTN di tiap baris item, jadi dibaca lewat `internal_links` (`Costing Item.supplier_quotation`) |
+
+Konfigurasinya di `vic_addon/vic/doctype/costing/costing_dashboard.py`.
+
 **Bikin Quotation ke customer**: tombol **Create > Quotation** di form Costing. Yang dibawa:
 
 | Costing | Quotation |
@@ -282,9 +291,16 @@ tabel item:
 SQTN -> Costing -> Quotation -> Sales Order -> Purchase Order
 ```
 
-**Create > Purchase Order (per Supplier)** di Sales Order yang udah submit: item digrup per
-supplier, satu draft PO per supplier, harga belinya diambil dari SQTN (net rate) dan PO item
-langsung nyimpen link `Supplier Quotation` + balik ke Sales Order.
+**Create > Purchase Order (per Supplier)** di Sales Order yang udah submit: muncul **modal**
+berisi baris SO yang sisa qty-nya masih ada, lengkap dengan Pending Qty, tipe transaksi,
+Supplier, dan SQTN-nya. Semua baris kecentang duluan; user tinggal ngurangin, ganti supplier per
+baris (atau borongan lewat *Set Supplier for Selected Rows*), baru klik Create. Item yang belum
+punya SQTN kolom suppliernya kosong dan wajib diisi sebelum lanjut.
+
+Habis itu item digrup per supplier, satu draft PO per supplier, harga belinya diambil dari SQTN
+(net rate) dan PO item langsung nyimpen link `Supplier Quotation` + balik ke Sales Order. Baris
+yang suppliernya diganti di modal gak dikasih link SQTN dan harganya dikosongin — penawaran itu
+punya supplier lain, jadi harga belinya diisi manual sesuai penawaran supplier baru.
 
 Contoh: SO isi 2 item dari 2 supplier beda → jadi 2 draft PO, masing-masing pakai harga beli
 dari SQTN-nya sendiri (bukan harga jual di SO).
@@ -304,6 +320,23 @@ mana yang udah ada.
 begitu PO di-cancel, tombolnya bikin PO baru cuma buat item dari PO yang batal itu — item lain
 yang PO-nya masih aktif gak ikut kebikin lagi. Ini yang dipakai buat kasus supplier ganti
 (R&C ke-6 di sheet Costing).
+
+**Modal bawaan `Create > Purchase Order`** juga kepakai, kolom Supplier-nya keisi otomatis dari
+`custom_supplier` tiap baris item (item tanpa SQTN dibiarin kosong biar user yang milih). Nilainya
+dioper tepat sebelum modal kebuka dan cuma di memori, jadi dokumen Sales Order-nya gak ikut
+berubah.
+
+**Supplier di PO boleh diganti.** Barang habis di supplier pertama itu kasus normal (R&C ke-6 di
+sheet Costing). Tiap PO disimpan, link SQTN-nya disamain dulu sama suppliernya:
+
+| Kondisi | Yang terjadi |
+| --- | --- |
+| Supplier PO beda dari supplier SQTN | Link SQTN dilepas + dikasih tau, harga beli bebas diisi sesuai penawaran supplier baru |
+| Baris dari SO belum punya link tapi suppliernya sama | Link SQTN-nya diambil dari baris Sales Order (biar PO dari modal bawaan tetap kekunci harganya) |
+
+Ini jalan **sebelum** `rate_lock`, jadi harga belinya gak ketarik balik dari penawaran supplier
+lama. Nomor supplier di Sales Order-nya sendiri gak ikut berubah — SO udah submitted, dan yang
+diganti emang cuma keputusan beli di PO itu.
 
 **Qty & link PO dicek balik ke SQTN** tiap PO disimpan (`vic_addon/vic/purchase_order.py`):
 
