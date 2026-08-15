@@ -7,7 +7,13 @@
  "field_order": [
   "auto_create_serial_no",
   "serial_no_naming_series",
-  "naming_series_help"
+  "naming_series_help",
+  "label_section",
+  "label_width",
+  "label_height",
+  "label_column_break",
+  "label_show_item_name",
+  "label_font_size"
  ],
  "fields": [
   {
@@ -24,6 +30,46 @@
    "fieldtype": "Data",
    "label": "Serial No Naming Series",
    "mandatory_depends_on": "auto_create_serial_no"
+  },
+  {
+   "description": "Ukuran kertas label buat print format Serial No Label (satu label per serial number).",
+   "fieldname": "label_section",
+   "fieldtype": "Section Break",
+   "label": "Serial No Label"
+  },
+  {
+   "default": "50",
+   "description": "mm",
+   "fieldname": "label_width",
+   "fieldtype": "Float",
+   "label": "Label Width",
+   "non_negative": 1
+  },
+  {
+   "default": "30",
+   "description": "mm",
+   "fieldname": "label_height",
+   "fieldtype": "Float",
+   "label": "Label Height",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "label_column_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "label_show_item_name",
+   "fieldtype": "Check",
+   "label": "Show Item Name on Label"
+  },
+  {
+   "default": "7",
+   "description": "pt",
+   "fieldname": "label_font_size",
+   "fieldtype": "Float",
+   "label": "Label Font Size",
+   "non_negative": 1
   },
   {
    "fieldname": "naming_series_help",

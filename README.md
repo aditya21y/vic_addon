@@ -503,7 +503,56 @@ kalau enggak ERPNext nolak bikin Serial and Batch Bundle sama sekali.
 Implementasi: `vic_addon/vic/serial_no.py` +
 `vic_addon/vic/doctype/serial_number_settings/`, nyambung ke `dropship.py`.
 
-Belum: print format QR Code + Serial No di Purchase Receipt.
+#### Print Format: Goods Received (Purchase Receipt)
+
+Print format **Goods Received** buat Purchase Receipt, ngikutin format GR yang dipakai VIC:
+logo di kiri, identitas perusahaan di kanan, kotak judul GOODS RECEIVED di tengah dengan GR No.
+& tanggal di bawahnya, terus tabel item bergaris putus-putus.
+
+| Bagian | Diambil dari |
+| --- | --- |
+| Logo | `/assets/vic_addon/img/vic logo.png` |
+| Nama & alamat perusahaan | Company + Address utama yang kelink ke Company itu |
+| Phone / Fax | `Company.phone_no` & `Company.fax`, fallback ke Address |
+| GR No. / Date | `name` & `posting_date` (format `August 16, 2026`) |
+| PO No. | daftar Purchase Order unik dari baris item |
+| Heat Number | `custom_heat_number` kalau ada, kalau enggak `batch_no` |
+| Description | nama item + daftar Serial No barisnya (kalau ada) |
+| Qty | qty 2 desimal + UOM |
+
+Ada blok tanda tangan (Received / Checked / Approved) di bawah. Waktu ngeprint, **matiin Letter
+Head** — print format-nya udah punya kop sendiri, nanti dobel.
+
+Isi print format-nya ditulis di `vic_addon/vic/print_format/goods_received/goods_received.html`.
+Frappe cuma baca file `.json` waktu migrate (HTML-nya kesimpan sebagai satu string panjang di
+situ), jadi file `.html` disalin ke dokumen Print Format tiap install & migrate lewat
+`vic_addon/vic/print_formats.py` — **yang diedit file `.html`-nya**, `.json` cuma buat install
+pertama.
+
+#### Print Format: Serial No Label (stiker QR)
+
+Print format kedua di Purchase Receipt, **Serial No Label** — buat stiker yang ditempel ke
+barangnya. Satu Serial No = satu label, isinya nama item di atas, QR code di tengah, nomor seri
+di bawah. QR-nya isi nomor seri itu sendiri, jadi bisa langsung discan buat nyari barangnya.
+
+QR-nya digambar sendiri pakai `pyqrcode` (udah kebawa frappe buat 2FA), jadi labelnya tetap bisa
+dicetak tanpa internet dan gak nitip ke layanan QR luar. Gambarnya nempel di HTML sebagai data
+URI, bukan file.
+
+**Ukuran labelnya diatur di master `Serial Number Settings`**, jadi gak perlu ngoding kalau
+kertasnya ganti:
+
+| Field | Default |
+| --- | --- |
+| Label Width | 50 mm |
+| Label Height | 30 mm |
+| Label Font Size | 7 pt |
+| Show Item Name on Label | ya |
+
+Ukuran itu dipakai buat `@page` sekaligus ukuran kotak labelnya, dan tiap label pindah halaman
+sendiri. Buat cetak lewat browser (label printer), ukuran ini langsung kepakai. Buat download
+PDF-nya wkhtmltopdf, samain juga **Print Settings > PDF Page Size = Custom** dengan angka yang
+sama, karena ukuran halaman PDF diambil dari sana.
 
 #### DPP Nilai Lain (PPN 12%)
 

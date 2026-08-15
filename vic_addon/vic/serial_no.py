@@ -229,6 +229,46 @@ def update_serial_no_warranty(doc, method=None):
 		)
 
 
+def get_row_serial_nos(item):
+	"""Versi buat print format (didaftarin sebagai jinja method di hooks)."""
+	return get_serial_nos(item)
+
+
+def get_qr_code(text, scale=4):
+	"""QR code sebagai data URI, dipakai di print format label Serial No.
+
+	Digambar sendiri pakai `pyqrcode` (udah kebawa frappe buat 2FA), jadi labelnya tetap bisa
+	dicetak tanpa internet dan gak nitip ke layanan QR luar.
+	"""
+	import pyqrcode
+
+	if not text:
+		return ""
+
+	code = pyqrcode.create(str(text), error="M")
+
+	return "data:image/png;base64," + code.png_as_base64_str(scale=cint(scale) or 4, quiet_zone=1)
+
+
+def get_label_rows(doc):
+	"""Satu baris per Serial No di dokumen - dipakai print format label."""
+	rows = []
+
+	for item in doc.items:
+		for serial_no in get_serial_nos(item):
+			rows.append(
+				frappe._dict(
+					{
+						"serial_no": serial_no,
+						"item_code": item.item_code,
+						"item_name": item.item_name,
+					}
+				)
+			)
+
+	return rows
+
+
 def get_serial_nos(item):
 	"""Serial No di satu baris dokumen, dari field `serial_no` atau dari bundle-nya."""
 	if item.get("serial_no"):

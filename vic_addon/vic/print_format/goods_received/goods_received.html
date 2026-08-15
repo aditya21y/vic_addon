@@ -1,0 +1,153 @@
+{%- set company = frappe.get_cached_doc("Company", doc.company) -%}
+{%- set address_name = frappe.db.get_value("Dynamic Link", {"link_doctype": "Company", "link_name": doc.company, "parenttype": "Address"}, "parent") -%}
+{%- set address = frappe.db.get_value("Address", address_name, ["address_line1", "address_line2", "city", "state", "pincode", "phone", "fax"], as_dict=True) if address_name else None -%}
+{%- set purchase_orders = doc.items | map(attribute="purchase_order") | select | unique | list -%}
+
+<style>
+	.vic-gr {
+		color: #000;
+		font-family: Arial, Helvetica, "Helvetica Neue", sans-serif;
+		font-size: 11px;
+		line-height: 1.45;
+	}
+	.vic-gr table { border-collapse: collapse; }
+	.vic-gr .head { width: 100%; }
+	.vic-gr .head td { vertical-align: top; }
+	.vic-gr .logo img { max-height: 72px; max-width: 220px; }
+	.vic-gr .company { text-align: right; }
+	.vic-gr .company .name { font-size: 15px; font-weight: 700; letter-spacing: 0.2px; }
+	.vic-gr .company .line { font-size: 9.5px; }
+	.vic-gr .title-wrap { text-align: center; margin-top: 26px; }
+	/* kotak judul di atas, GR No. & Date persis di bawahnya */
+	.vic-gr .title-block { display: inline-block; text-align: left; }
+	.vic-gr .title {
+		border: 1px solid #000;
+		padding: 7px 34px;
+		font-size: 13px;
+		font-weight: 700;
+		letter-spacing: 0.5px;
+		text-align: center;
+	}
+	.vic-gr .meta { margin-top: 10px; margin-left: 6px; }
+	.vic-gr .meta td { padding: 1px 0; color: #000; }
+	.vic-gr .meta .label { width: 62px; }
+	.vic-gr .meta .sep { width: 12px; }
+	.vic-gr .po { margin-top: 12px; }
+	.vic-gr .po .label { display: inline-block; width: 62px; }
+	.vic-gr .items { width: 100%; margin-top: 18px; }
+	.vic-gr .items th {
+		border-top: 1px solid #000;
+		border-bottom: 1px dotted #444;
+		padding: 7px 4px;
+		font-size: 11px;
+		font-weight: 700;
+		color: #000;
+	}
+	.vic-gr .items td {
+		border-bottom: 1px dotted #444;
+		padding: 10px 4px;
+		vertical-align: top;
+		color: #000;
+	}
+	.vic-gr .items .num { text-align: center; }
+	.vic-gr .items .qty { text-align: right; white-space: nowrap; }
+	.vic-gr .serials { margin-top: 4px; font-size: 9px; color: #333; }
+	.vic-gr .serials span { display: inline-block; margin-right: 10px; }
+	.vic-gr .remarks { margin-top: 14px; font-size: 10px; }
+	.vic-gr .sign { width: 100%; margin-top: 48px; text-align: center; font-size: 10px; }
+	.vic-gr .sign td { width: 33%; padding: 0 10px; }
+	.vic-gr .sign .space { height: 62px; border-bottom: 1px solid #000; }
+	.vic-gr .sign .role { padding-top: 5px; }
+</style>
+
+<div class="vic-gr">
+	<table class="head">
+		<tr>
+			<td class="logo">
+				<img src="/assets/vic_addon/img/vic%20logo.png" alt="{{ doc.company }}" />
+			</td>
+			<td class="company">
+				<div class="name">{{ company.company_name | upper }}</div>
+				{%- if address %}
+					<div class="line">{{ address.address_line1 }}</div>
+					{%- if address.address_line2 %}<div class="line">{{ address.address_line2 }}</div>{% endif %}
+					<div class="line">
+						{{ [address.city, address.state, address.pincode] | select | join(", ") }}
+					</div>
+				{%- endif %}
+				{%- set phone = company.phone_no or (address.phone if address else None) %}
+				{%- if phone %}<div class="line">Phone : {{ phone }}</div>{% endif %}
+				{%- set fax = company.fax or (address.fax if address else None) %}
+				{%- if fax %}<div class="line">Fax : {{ fax }}</div>{% endif %}
+			</td>
+		</tr>
+	</table>
+
+	<div class="title-wrap">
+		<div class="title-block">
+			<div class="title">GOODS RECEIVED</div>
+			<table class="meta">
+				<tr>
+					<td class="label">GR No.</td>
+					<td class="sep">:</td>
+					<td>{{ doc.name }}</td>
+				</tr>
+				<tr>
+					<td class="label">Date</td>
+					<td class="sep">:</td>
+					<td>{{ frappe.utils.formatdate(doc.posting_date, "MMMM d, yyyy") }}</td>
+				</tr>
+			</table>
+		</div>
+	</div>
+
+	<div class="po">
+		<span class="label">PO No.</span>: {{ purchase_orders | join(", ") if purchase_orders else "-" }}
+	</div>
+
+	<table class="items">
+		<thead>
+			<tr>
+				<th style="width: 8%">Item</th>
+				<th style="width: 20%">Heat Number</th>
+				<th style="width: 50%; text-align: left">Description</th>
+				<th style="width: 22%; text-align: right">Qty</th>
+			</tr>
+		</thead>
+		<tbody>
+			{%- for item in doc.items %}
+				<tr>
+					<td class="num">{{ loop.index }}</td>
+					<td class="num">{{ item.get("custom_heat_number") or item.batch_no or "" }}</td>
+					<td>
+						{{ item.item_name }}
+						{%- set serials = get_row_serial_nos(item) %}
+						{%- if serials %}
+							<div class="serials">
+								{%- for serial_no in serials %}<span>{{ serial_no }}</span>{% endfor %}
+							</div>
+						{%- endif %}
+					</td>
+					<td class="qty">{{ "%.2f" | format(item.qty | float) }} {{ item.uom }}</td>
+				</tr>
+			{%- endfor %}
+		</tbody>
+	</table>
+
+	{%- if doc.remarks and doc.remarks != "No Remarks" %}
+		<div class="remarks"><b>Remarks:</b> {{ doc.remarks }}</div>
+	{%- endif %}
+
+	<table class="sign">
+		<tr>
+			<td class="space"></td>
+			<td class="space"></td>
+			<td class="space"></td>
+		</tr>
+		<tr>
+			<td class="role">Received By</td>
+			<td class="role">Checked By</td>
+			<td class="role">Approved By</td>
+		</tr>
+	</table>
+</div>

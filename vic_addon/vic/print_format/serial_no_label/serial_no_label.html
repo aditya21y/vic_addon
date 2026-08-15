@@ -1,0 +1,101 @@
+{%- set settings = frappe.get_cached_doc("Serial Number Settings") -%}
+{%- set width = settings.label_width or 50 -%}
+{%- set height = settings.label_height or 30 -%}
+{%- set font_size = settings.label_font_size or 7 -%}
+{%- set labels = get_label_rows(doc) -%}
+
+<style>
+	/* satu label = satu halaman, ukurannya diatur di master Serial Number Settings */
+	@page {
+		size: {{ width }}mm {{ height }}mm;
+		margin: 0;
+	}
+
+	.vic-labels { font-family: Arial, Helvetica, sans-serif; color: #000; }
+
+	.vic-labels .label {
+		width: {{ width }}mm;
+		height: {{ height }}mm;
+		box-sizing: border-box;
+		padding: 1.5mm;
+		text-align: center;
+		overflow: hidden;
+		page-break-after: always;
+		break-after: page;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.vic-labels .label:last-child {
+		page-break-after: auto;
+		break-after: auto;
+	}
+
+	/* Lebarnya dipatok mm, bukan 100%: sebagai flex item, lebar teks ngikut isinya - teks
+	   panjang malah manjangin kotaknya sendiri terus kepotong, bukan turun ke baris baru.
+	   Angka mm bikin hasilnya sama di browser, wkhtmltopdf, maupun printer label. */
+	.vic-labels .item,
+	.vic-labels .serial {
+		width: {{ (width | float) - 3 }}mm;
+		max-width: {{ (width | float) - 3 }}mm;
+		min-width: 0;
+		overflow-wrap: anywhere;
+		word-wrap: break-word;
+		word-break: break-all;
+		white-space: normal;
+	}
+
+	.vic-labels .item {
+		font-size: {{ font_size }}pt;
+		font-weight: 700;
+		line-height: 1.15;
+		margin-bottom: 0.8mm;
+		max-height: {{ (height | float) * 0.22 }}mm;
+		overflow: hidden;
+	}
+
+	.vic-labels .qr img {
+		height: {{ (height | float) * 0.5 }}mm;
+		width: {{ (height | float) * 0.5 }}mm;
+		image-rendering: pixelated;
+	}
+
+	.vic-labels .serial {
+		margin-top: 0.8mm;
+		font-size: {{ (font_size | float) + 1 }}pt;
+		letter-spacing: 0.3px;
+		font-family: "Courier New", monospace;
+		line-height: 1.15;
+	}
+
+	/* seri nomor panjang: hurufnya dikecilin biar gak makan tempat QR-nya */
+	.vic-labels .serial.sm { font-size: {{ font_size }}pt; letter-spacing: 0; }
+	.vic-labels .serial.xs { font-size: {{ (font_size | float) - 1 }}pt; letter-spacing: 0; }
+
+	.vic-labels .empty { padding: 8mm; font-size: 10pt; text-align: center; }
+
+	@media screen {
+		/* di layar dikasih garis biar kelihatan batas labelnya */
+		.vic-labels .label { border: 1px dashed #bbb; margin: 0 auto 4mm; }
+	}
+</style>
+
+<div class="vic-labels">
+	{%- if not labels %}
+		<div class="empty">Gak ada Serial No di dokumen ini.</div>
+	{%- endif %}
+
+	{%- for label in labels %}
+		<div class="label">
+			{%- if settings.label_show_item_name %}
+				<div class="item">{{ label.item_name or label.item_code }}</div>
+			{%- endif %}
+			<div class="qr">
+				<img src="{{ get_qr_code(label.serial_no) }}" alt="{{ label.serial_no }}" />
+			</div>
+			<div class="serial {% if label.serial_no | length > 32 %}xs{% elif label.serial_no | length > 20 %}sm{% endif %}">{{ label.serial_no }}</div>
+		</div>
+	{%- endfor %}
+</div>

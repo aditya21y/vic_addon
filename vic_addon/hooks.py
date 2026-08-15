@@ -74,6 +74,8 @@ naming_series_variables = {
 after_install = [
 	"vic_addon.vic.naming.setup_amend_naming_rule",
 	"vic_addon.vic.labels.setup_document_labels",
+	# isi print format diambil dari file .html-nya (lihat vic/print_formats.py)
+	"vic_addon.vic.print_formats.sync_print_formats",
 ]
 after_migrate = after_install
 
@@ -120,12 +122,15 @@ doctype_js["Sales Invoice"].append("public/js/sales_invoice.js")
 
 # Jinja
 # ----------
+# dipakai di print format Goods Received (Serial No per baris) dan label Serial No (QR code)
 
-# add methods and filters to jinja environment
-# jinja = {
-# 	"methods": "vic_addon.utils.jinja_methods",
-# 	"filters": "vic_addon.utils.jinja_filters"
-# }
+jinja = {
+	"methods": [
+		"vic_addon.vic.serial_no.get_row_serial_nos",
+		"vic_addon.vic.serial_no.get_label_rows",
+		"vic_addon.vic.serial_no.get_qr_code",
+	]
+}
 
 # Installation
 # ------------
