@@ -4,8 +4,19 @@
 // Perhitungan finalnya tetap di server (costing.py), yang di sini biar angkanya langsung
 // keupdate waktu rate / qty / margin / additional cost diubah.
 
+// Angka ringkasan yang ditebelin di section Totals
+const BOLD_FIELDS = [
+	"total_hpp_amount",
+	"total_selling_amount",
+	"total_quotation_amount",
+	"total_profit_amount",
+	"total_profit_percentage",
+];
+
 frappe.ui.form.on("Costing", {
 	refresh(frm) {
+		bold_total_fields(frm);
+
 		frm.add_custom_button(__("Get Items from Supplier Quotation"), () =>
 			get_items_from_supplier_quotation(frm)
 		);
@@ -48,6 +59,30 @@ frappe.ui.form.on("Costing Additional Cost", {
 	amount: calculate,
 });
 
+// Tebelin angka totalnya.
+//
+// Class-nya ditempel ke wrapper field (`.frappe-control`), bukan ke elemen nilainya: tiap
+// kalkulasi manggil `frm.refresh_fields()` yang nge-render ulang isi tiap field, jadi apa pun
+// yang nempel di elemen nilai (termasuk properti `bold` bawaan frappe) bakal keganti. Wrapper-nya
+// sendiri gak ikut dibikin ulang selama form kebuka.
+//
+// Style-nya disuntik dari sini juga, bukan lewat app_include_css, biar gak perlu restart bench
+// buat kepakai.
+function bold_total_fields(frm) {
+	if (!document.getElementById("vic-bold-style")) {
+		$(`<style id="vic-bold-style">
+			.vic-bold-value .control-value,
+			.vic-bold-value .like-disabled-input,
+			.vic-bold-value input.form-control { font-weight: 700 !important; }
+		</style>`).appendTo("head");
+	}
+
+	BOLD_FIELDS.forEach((fieldname) => {
+		const field = frm.get_field(fieldname);
+		if (field) field.$wrapper.addClass("vic-bold-value");
+	});
+}
+
 function calculate(frm) {
 	const items = frm.doc.items || [];
 
@@ -65,9 +100,9 @@ function calculate(frm) {
 	);
 	const additional_cost_percentage = total_buying_amount
 		? flt(
-				(total_additional_costs / total_buying_amount) * 100,
-				precision("additional_cost_percentage")
-		  )
+			(total_additional_costs / total_buying_amount) * 100,
+			precision("additional_cost_percentage")
+		)
 		: 0;
 
 	// additional cost yang dibebankan ke tiap rupiah harga beli
@@ -132,9 +167,9 @@ function calculate(frm) {
 		);
 		item.profit_percentage = item.hpp_amount
 			? flt(
-					(flt(item.profit_amount) / flt(item.hpp_amount)) * 100,
-					precision("profit_percentage", item)
-			  )
+				(flt(item.profit_amount) / flt(item.hpp_amount)) * 100,
+				precision("profit_percentage", item)
+			)
 			: 0;
 
 		totals.total_distributed_cost_amount += flt(item.distributed_cost_amount);
@@ -154,9 +189,9 @@ function calculate(frm) {
 
 	frm.doc.total_profit_percentage = frm.doc.total_hpp_amount
 		? flt(
-				(frm.doc.total_profit_amount / frm.doc.total_hpp_amount) * 100,
-				precision("total_profit_percentage")
-		  )
+			(frm.doc.total_profit_amount / frm.doc.total_hpp_amount) * 100,
+			precision("total_profit_percentage")
+		)
 		: 0;
 
 	frm.refresh_fields();
