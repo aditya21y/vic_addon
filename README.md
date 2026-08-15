@@ -183,6 +183,36 @@ Field baru di **Payment Request**:
 Persentase dan amount selalu nyambung: di form, ngisi persen bakal ngisi amount-nya; di
 server, persen selalu dihitung balik dari amount, jadi angkanya gak pernah beda.
 
+**Bikin dari tombol `Create > Payment Request` di SO/PO**, tiga hal diisi otomatis dari
+dokumen referensinya:
+
+| Yang diisi | Dari mana |
+| --- | --- |
+| DP Percentage | `invoice_portion` baris Payment Schedule yang dipilih user |
+| DP Amount | porsi termin x **Net Total** dokumen referensi |
+| Advance Taxes and Charges + template-nya | tabel pajak dokumen referensi, charge type diubah ke `On Paid Amount` |
+
+Ini penting karena nilai termin di Payment Schedule (`payment_amount`) itu porsi dari **grand
+total** yang udah kena PPN. Kalau angka itu dipakai apa adanya jadi DP Amount, PPN-nya keitung
+dua kali — dan buat termin 100% malah ketolak sama validasi (DP 22.200 > net total 20.000).
+Contoh PO net 20.000 + PPN 11% dengan termin 100%:
+
+```
+DP Amount     = 100% x 20.000 = 20.000    (bukan 22.200)
+PPN atas DP   =  11% x 20.000 =  2.200
+Total Payable                 = 22.200    <- pas sama nilai termin di PO
+```
+
+Baris pajak yang basisnya persentase (`On Net Total`, `On Previous Row Total`, dst) jadi
+`On Paid Amount` dengan rate yang sama, sedangkan baris `Actual` diambil sebagian sesuai porsi
+DP. Baris pajak Sales gak punya Add/Deduct (itu cuma ada di Purchase buat PPh), jadi
+default-nya diisi `Add`.
+
+Penyesuaian ini **cuma jalan buat dokumen yang lahir dari tombol Create**, ditandain lewat
+`frappe.flags` — Payment Request yang diketik manual gak diutak-atik, DP Amount-nya persis
+seperti yang diisi user. Untuk yang manual, tabel pajaknya diisi dengan milih template di
+field Purchase/Sales Taxes and Charges Template.
+
 **Kalau dokumen referensinya punya payment terms**, ERPNext ngisi tabel Payment Reference dan
 maksa totalnya sama persis dengan DP Amount (*"Grand Total must match sum of Payment
 References"*). Tabel itu read only di form, jadi tiap DP Amount berubah, barisnya disamain

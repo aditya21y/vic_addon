@@ -248,8 +248,12 @@ doc_events["Purchase Order"]["validate"].append(
 
 # DP Invoice: nilai DP + PPN/PPh atas DP, dibawa ke Payment Entry
 doc_events["Payment Request"] = {
-	# jalan duluan: tabel Payment Reference disamain dulu sama DP Amount
-	"before_validate": "vic_addon.vic.dp_invoice.sync_payment_reference",
+	"before_validate": [
+		# dokumen baru dari tombol Create > Payment Request: DP diambil dari dokumen referensi
+		"vic_addon.vic.dp_invoice.set_dp_from_reference_on_create",
+		# baru tabel Payment Reference disamain sama DP Amount
+		"vic_addon.vic.dp_invoice.sync_payment_reference",
+	],
 	"validate": "vic_addon.vic.dp_invoice.set_dp_details",
 }
 doc_events["Payment Entry"] = {"before_validate": "vic_addon.vic.dp_invoice.set_advance_taxes"}
@@ -307,6 +311,8 @@ for doctype in ("Sales Invoice", "Purchase Invoice"):
 override_whitelisted_methods = {
 	# tombol Create Payment Entry di DP Invoice, biar tabel pajak DP langsung keisi di form
 	"erpnext.accounts.doctype.payment_request.payment_request.make_payment_entry": "vic_addon.vic.dp_invoice.make_payment_entry",
+	# tombol Create Payment Request di SO/PO: DP dihitung dari net total + tabel pajak keisi
+	"erpnext.accounts.doctype.payment_request.payment_request.make_payment_request": "vic_addon.vic.dp_invoice.make_payment_request",
 }
 
 # override_whitelisted_methods = {

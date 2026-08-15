@@ -31,6 +31,164 @@ TAX_FIELDS_TO_COPY = (
 	"cost_center",
 )
 
+# field template pajak di Payment Request, per jenis DP
+TAX_TEMPLATE_FIELD = {
+	"Sales": "custom_sales_taxes_and_charges_template",
+	"Purchase": "custom_purchase_taxes_and_charges_template",
+}
+
+# charge type di dokumen referensi -> charge type di tabel Advance Taxes and Charges.
+# Tabel DP cuma kenal Actual & On Paid Amount, jadi semua pajak yang basisnya persentase
+# dihitung dari nilai DP yang dibayar.
+ADVANCE_CHARGE_TYPE = {
+	"Actual": "Actual",
+	"On Net Total": "On Paid Amount",
+	"On Paid Amount": "On Paid Amount",
+	"On Previous Row Amount": "On Paid Amount",
+	"On Previous Row Total": "On Paid Amount",
+	"On Item Quantity": "Actual",
+}
+
+
+@frappe.whitelist()
+def make_payment_request(**args):
+	"""Tombol `Create > Payment Request` di SO/PO.
+
+	Sama kayak versi ERPNext, cuma nilai DP-nya dibalikin ke basis Net Total: ERPNext ngisi
+	DP Amount dari payment schedule (atau grand total dokumen referensi) yang angkanya udah
+	termasuk PPN, padahal PPN atas DP dicatat sendiri di tabel Advance Taxes and Charges.
+	Tabel pajaknya sekalian diisi dari dokumen referensinya.
+
+	Contoh PO net 20.000 + PPN 11% (grand 22.200) dengan termin 100%:
+
+		DP Amount   = 20.000   (100% x net total)
+		PPN atas DP =  2.200   (11% x 20.000)
+		Total Payable = 22.200 -> sama persis dengan nilai terminnya
+	"""
+	from erpnext.accounts.doctype.payment_request.payment_request import (
+		make_payment_request as make_erpnext_payment_request,
+	)
+
+	# ERPNext bisa langsung nge-insert dokumennya di sini (Accounts Settings > Create Payment
+	# Request in Draft Status), jadi penyesuaiannya nebeng hook `before_validate` lewat flag ini
+	frappe.flags.dp_invoice_from_reference = True
+	try:
+		result = make_erpnext_payment_request(**args)
+	finally:
+		frappe.flags.dp_invoice_from_reference = False
+
+	if not isinstance(result, dict):
+		# `return_doc` / redirect Shopping Cart: dibiarin apa adanya
+		return result
+
+	if result.get("name") and frappe.db.exists("Payment Request", result["name"]):
+		# udah di-insert ERPNext, berarti udah lewat hook `before_validate`
+		return frappe.get_doc("Payment Request", result["name"]).as_dict()
+
+	# dokumennya belum disimpan (dibuka dulu di form), disesuaiin di sini
+	doc = frappe.get_doc(result)
+	set_dp_from_reference(doc)
+
+	return doc.as_dict()
+
+
+def set_dp_from_reference_on_create(doc, method=None):
+	"""Hook `before_validate`: isi DP dari dokumen referensi pas dokumennya baru dibikin.
+
+	Cuma jalan buat dokumen yang lahir dari tombol `Create > Payment Request` (ditandain
+	`frappe.flags`), jadi Payment Request yang diisi manual gak ikut ketimpa.
+	"""
+	if doc.is_new() and frappe.flags.get("dp_invoice_from_reference"):
+		set_dp_from_reference(doc)
+
+
+def set_dp_from_reference(doc):
+	"""Isi DP Amount, persentase, dan tabel pajak dari dokumen referensinya."""
+	reference = get_reference_doc(doc)
+	if not reference:
+		return
+
+	set_dp_type(doc)
+	set_dp_amount_from_schedule(doc, reference)
+	set_taxes_from_reference(doc, reference)
+
+
+def set_dp_amount_from_schedule(doc, reference):
+	"""DP Amount = porsi termin x Net Total dokumen referensi.
+
+	Porsinya diambil dari baris Payment Schedule yang dipilih user (`invoice_portion`), jadi
+	termin 30% tetap kebaca 30% - bukan 30% dari grand total yang udah kena PPN. Kalau DP-nya
+	gak lewat payment schedule, porsinya dihitung dari nilai yang diisi ERPNext.
+	"""
+	net_total = flt(reference.get("net_total"))
+	grand_total = flt(reference.get("grand_total"))
+
+	if not (net_total and grand_total):
+		return
+
+	portion = get_schedule_portion(doc)
+	if portion is None:
+		# tanpa payment schedule: buang porsi pajaknya dari angka yang diisi ERPNext
+		portion = flt(doc.grand_total) / grand_total * 100
+
+	doc.grand_total = flt(net_total * portion / 100, doc.precision("grand_total"))
+	doc.custom_dp_percentage = flt(portion, doc.precision("custom_dp_percentage"))
+
+
+def get_schedule_portion(doc):
+	"""Total porsi (%) dari baris Payment Schedule yang dipilih, `None` kalau gak ada."""
+	schedules = [row.payment_schedule for row in doc.get("payment_reference") or [] if row.payment_schedule]
+	if not schedules:
+		return None
+
+	portions = frappe.get_all(
+		"Payment Schedule", filters={"name": ["in", schedules]}, fields=["invoice_portion"]
+	)
+	if not portions:
+		return None
+
+	return sum(flt(row.invoice_portion) for row in portions)
+
+
+def set_taxes_from_reference(doc, reference):
+	"""Tarik PPN/PPh dari dokumen referensi ke tabel Advance Taxes and Charges.
+
+	Cuma diisi kalau tabelnya masih kosong, biar editan manual user gak ketiban.
+	"""
+	if doc.get("custom_taxes") or not reference.get("taxes"):
+		return
+
+	template_field = TAX_TEMPLATE_FIELD.get(doc.custom_dp_type)
+	if template_field and reference.get("taxes_and_charges"):
+		doc.set(template_field, reference.taxes_and_charges)
+
+	portion = flt(doc.custom_dp_percentage) / 100
+
+	for tax in reference.taxes:
+		charge_type = ADVANCE_CHARGE_TYPE.get(tax.charge_type)
+		if not charge_type:
+			continue
+
+		row = {fieldname: tax.get(fieldname) for fieldname in TAX_FIELDS_TO_COPY}
+		row["charge_type"] = charge_type
+		# baris pajak Sales gak punya Add/Deduct (itu cuma ada di Purchase, buat PPh),
+		# padahal di tabel Advance Taxes and Charges field-nya wajib
+		row["add_deduct_tax"] = tax.get("add_deduct_tax") or "Add"
+
+		if charge_type == "Actual":
+			# nilainya gak bisa dihitung dari DP, jadi diambil sebagian sesuai porsi DP
+			row["tax_amount"] = flt(flt(tax.tax_amount) * portion, doc.precision("grand_total"))
+			row["rate"] = 0
+
+		doc.append("custom_taxes", row)
+
+
+def get_reference_doc(doc):
+	if not (doc.reference_doctype and doc.reference_name):
+		return None
+
+	return frappe.get_doc(doc.reference_doctype, doc.reference_name)
+
 
 def sync_payment_reference(doc, method=None):
 	"""Hook `before_validate`: samain tabel Payment Reference sama DP Amount.
@@ -129,7 +287,14 @@ def warn_if_different_from_payment_term(doc):
 
 	Gak diblokir - DP hasil nego emang boleh beda - cuma biar selisih yang belum ditagih
 	kelihatan, bukan lewat diam-diam.
+
+	Yang dibandingin porsi net-nya (`invoice_portion` x Net Total), bukan `payment_amount`
+	terminnya - nilai termin itu udah termasuk PPN, sedangkan DP di sini basisnya Net Total.
 	"""
+	net_total = get_reference_total(doc)
+	if not net_total:
+		return
+
 	for row in doc.get("payment_reference") or []:
 		if not row.payment_schedule:
 			continue
@@ -137,21 +302,22 @@ def warn_if_different_from_payment_term(doc):
 		term = frappe.db.get_value(
 			"Payment Schedule",
 			row.payment_schedule,
-			["payment_term", "payment_amount", "due_date"],
+			["payment_term", "invoice_portion", "due_date"],
 			as_dict=True,
 		)
 		if not term:
 			continue
 
-		difference = flt(term.payment_amount) - flt(row.amount)
-		if not flt(difference, doc.precision("grand_total")):
+		expected = flt(net_total * flt(term.invoice_portion) / 100, doc.precision("grand_total"))
+		difference = flt(expected - flt(row.amount), doc.precision("grand_total"))
+		if not difference:
 			continue
 
 		frappe.msgprint(
 			_("DP {0} differs from payment term {1} ({2}). Difference not yet requested: {3}.").format(
 				frappe.format_value(flt(row.amount), {"fieldtype": "Currency"}, doc),
 				term.payment_term or frappe.format(term.due_date, {"fieldtype": "Date"}),
-				frappe.format_value(flt(term.payment_amount), {"fieldtype": "Currency"}, doc),
+				frappe.format_value(expected, {"fieldtype": "Currency"}, doc),
 				frappe.format_value(difference, {"fieldtype": "Currency"}, doc),
 			),
 			title=_("DP Differs from Payment Term"),
