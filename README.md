@@ -503,6 +503,20 @@ kalau enggak ERPNext nolak bikin Serial and Batch Bundle sama sekali.
 Implementasi: `vic_addon/vic/serial_no.py` +
 `vic_addon/vic/doctype/serial_number_settings/`, nyambung ke `dropship.py`.
 
+#### Print Format Date (Delivery Note)
+
+Field **Print Format Date** di Delivery Note: tanggal yang nanti dipakai di print out, kepisah
+dari Posting Date. Kasusnya dari bispro — barang dikirim 1 Januari tapi DN-nya baru disubmit di
+sistem 2 Februari, sedangkan surat jalannya perlu dicetak dengan tanggal tertentu.
+
+- Kosongin kalau tanggal cetaknya sama dengan Posting Date.
+- **Bisa diubah setelah submit** (`allow_on_submit`), karena kebutuhan cetak ulang biasanya
+  muncul setelah dokumennya jalan.
+- `no_copy`, jadi gak kebawa waktu dokumennya di-amend atau diduplikat.
+
+Print format-nya sendiri belum ada (masih nunggu format dari user), jadi sementara field ini
+belum dipakai di mana-mana.
+
 #### Print Format: Goods Received (Purchase Receipt)
 
 Print format **Goods Received** buat Purchase Receipt, ngikutin format GR yang dipakai VIC:
