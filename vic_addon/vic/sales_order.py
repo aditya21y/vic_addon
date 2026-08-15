@@ -7,7 +7,7 @@ otomatis tanpa milih supplier manual lagi.
 
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import flt, getdate
 
 from vic_addon.vic.dropship import DROPSHIP, REGULER
 
@@ -52,7 +52,15 @@ def make_purchase_orders(sales_order):
 			if (item.custom_transaction_type or REGULER) == transaction_type
 		}
 
-		for purchase_order in make_purchase_order(sales_order, selected_items) or []:
+		# `make_purchase_order` nge-insert dokumennya di dalam sana, jadi penyesuaian tanggalnya
+		# nebeng hook `before_validate` lewat flag ini
+		frappe.flags.purchase_order_from_sales_order = True
+		try:
+			created = make_purchase_order(sales_order, selected_items) or []
+		finally:
+			frappe.flags.purchase_order_from_sales_order = False
+
+		for purchase_order in created:
 			set_supplier_quotation_details(purchase_order, doc)
 			set_transaction_type_details(purchase_order, doc, transaction_type)
 
@@ -166,6 +174,29 @@ def set_pending_qty(purchase_order, pending_qty, rows_of_type):
 	purchase_order.items = items
 
 	return len(items)
+
+
+def set_schedule_date(doc, method=None):
+	"""Hook `before_validate` Purchase Order: Required By minimal sama dengan tanggal PO.
+
+	Tanggalnya ngikut delivery date Sales Order, dan buat SO yang tanggal kirimnya udah lewat
+	ERPNext bakal nolak PO-nya (`Required By cannot be before Date`). Jadi yang udah lewat
+	dimajuin ke tanggal PO - user tinggal ganti manual di draft-nya kalau perlu.
+
+	Cuma jalan buat PO yang lahir dari tombol Create > Purchase Order (per Supplier), jadi PO
+	yang diisi manual tetap divalidasi apa adanya sama ERPNext.
+	"""
+	if not (doc.is_new() and frappe.flags.get("purchase_order_from_sales_order")):
+		return
+
+	purchase_order = doc
+	transaction_date = getdate(purchase_order.transaction_date)
+
+	for item in purchase_order.items:
+		if not item.schedule_date or getdate(item.schedule_date) < transaction_date:
+			item.schedule_date = transaction_date
+
+	purchase_order.schedule_date = min(getdate(item.schedule_date) for item in purchase_order.items)
 
 
 def get_items_by_transaction_type(doc, pending_qty):

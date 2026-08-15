@@ -216,6 +216,9 @@ for doctype in ("Sales Order", "Purchase Order", "Delivery Note", "Purchase Rece
 
 	events.setdefault("validate", []).append("vic_addon.vic.dropship.set_transaction_type")
 
+# dropship bawaan ERPNext dimatiin, tipe pengiriman diambil dari field Transaction Type
+doc_events["Sales Order"]["validate"].append("vic_addon.vic.dropship.clear_delivered_by_supplier")
+
 for doctype in ("Delivery Note", "Purchase Receipt"):
 	# seri nomor dropship dipilih duluan, baru counternya disinkronin
 	doc_events[doctype]["before_naming"] = [
@@ -230,6 +233,14 @@ doc_events["Delivery Note"]["validate"].append(
 )
 doc_events["Delivery Note"]["before_submit"] = "vic_addon.vic.dropship.make_dropship_purchase_receipt"
 
+# Serial No dibikin sendiri (seri nomornya di master Serial Number Settings), bukan lewat
+# field Serial No Series di Item
+doc_events["Purchase Receipt"]["validate"].append("vic_addon.vic.serial_no.set_serial_nos")
+
+# garansi mulai jalan pas barang dikirim, tanggalnya diturunin ke tiap Serial No
+doc_events["Delivery Note"]["validate"].append("vic_addon.vic.serial_no.set_warranty_dates")
+doc_events["Delivery Note"]["on_submit"] = "vic_addon.vic.serial_no.update_serial_no_warranty"
+
 # penanda customer WAPU, diambil dari master Customer
 doc_events["Sales Invoice"]["validate"].append("vic_addon.vic.sales_invoice.set_customer_wapu")
 
@@ -237,9 +248,11 @@ doc_events["Sales Invoice"]["validate"].append("vic_addon.vic.sales_invoice.set_
 for doctype in ("Quotation", "Sales Order"):
 	doc_events[doctype]["before_validate"] = "vic_addon.vic.rate_lock.set_selling_rate_from_costing"
 
-doc_events["Purchase Order"]["before_validate"] = (
-	"vic_addon.vic.rate_lock.set_buying_rate_from_supplier_quotation"
-)
+doc_events["Purchase Order"]["before_validate"] = [
+	"vic_addon.vic.rate_lock.set_buying_rate_from_supplier_quotation",
+	# PO dari tombol di Sales Order: Required By yang udah lewat dimajuin ke tanggal PO
+	"vic_addon.vic.sales_order.set_schedule_date",
+]
 
 # qty & link PO dicek balik ke Supplier Quotation-nya
 doc_events["Purchase Order"]["validate"].append(

@@ -1,0 +1,67 @@
+{
+ "actions": [],
+ "creation": "2026-08-15 21:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "auto_create_serial_no",
+  "serial_no_naming_series",
+  "naming_series_help"
+ ],
+ "fields": [
+  {
+   "default": "1",
+   "description": "Serial No dibikin otomatis sebanyak qty item pas Purchase Receipt disimpan, buat item yang Has Serial No-nya nyala dan Serial No-nya masih kosong.",
+   "fieldname": "auto_create_serial_no",
+   "fieldtype": "Check",
+   "label": "Auto Create Serial No on Purchase Receipt"
+  },
+  {
+   "default": "{item_code}.{po_no}.{po_month}.{po_year}.############",
+   "depends_on": "auto_create_serial_no",
+   "fieldname": "serial_no_naming_series",
+   "fieldtype": "Data",
+   "label": "Serial No Naming Series",
+   "mandatory_depends_on": "auto_create_serial_no"
+  },
+  {
+   "fieldname": "naming_series_help",
+   "fieldtype": "HTML",
+   "options": "<p><b>Variable yang bisa dipakai:</b></p>\n<table class=\"table table-bordered\">\n<tr><td><code>{item_code}</code></td><td>Kode item</td></tr>\n<tr><td><code>{po_no}</code></td><td>Nomor Purchase Order. Kalau Purchase Receipt-nya gak punya PO, dipakai nomor Purchase Receipt-nya</td></tr>\n<tr><td><code>{po_month}</code></td><td>Bulan PO, 2 digit (contoh <code>08</code>)</td></tr>\n<tr><td><code>{po_year}</code></td><td>Tahun PO, 2 digit (contoh <code>26</code>)</td></tr>\n<tr><td><code>{po_date}</code></td><td>Tanggal PO, format YYYY-MM-DD</td></tr>\n<tr><td><code>{supplier}</code></td><td>Supplier di Purchase Receipt</td></tr>\n<tr><td><code>#</code></td><td>Nomor urut. Jumlah <code>#</code> = jumlah digitnya, dan nomornya jalan sendiri per kombinasi variabel di depannya</td></tr>\n</table>\n<p>Contoh <code>{item_code}.{po_no}.{po_month}.{po_year}.############</code> menghasilkan <code>ITM-0042.PUR-ORD-2608-00001.08.26.000000000001</code>.</p>\n<p>Kosongin field <b>Serial No Series</b> di master Item biar penomoran ini yang kepakai, bukan penomoran bawaan ERPNext.</p>"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-08-15 21:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "VIC",
+ "name": "Serial Number Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Stock Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

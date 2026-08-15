@@ -408,6 +408,14 @@ dipilih otomatis dari tipe dokumen:
 | Delivery Note | `MAT-DN-.YYMM.-` | `MAT-DN-DS-.YYMM.-` |
 | Purchase Receipt | `MAT-PRE-.YYMM.-` | `MAT-PRE-DS-.YYMM.-` |
 
+**Checkbox dropship bawaan ERPNext disembunyiin** (`Delivered by Supplier` di Item, Sales Order
+Item, Sales Invoice Item, dan Packed Item), termasuk field `Supplier` bawaan di Sales Order Item
+yang dobel sama `custom_supplier` punya kita. Kalau checkbox itu nyala, ERPNext ngecualiin
+barisnya dari Delivery Note — tombol **Create > Delivery Note** di SO ikut ilang kalau semua
+barisnya kecentang, dan kalaupun dipaksa, DN-nya keluar kosong. Selain disembunyiin, flag-nya
+juga dimatiin tiap Sales Order disimpan (sekalian dikasih pesan), buat jaga-jaga dokumen lama
+atau data hasil import. Yang dipakai cuma **Transaction Type** + **Supplier** di baris item.
+
 Di PO dropship, tombol **Create > Purchase Receipt** disembunyiin (PR-nya otomatis), diganti
 tombol **Create > Delivery Note**. PO dropship juga otomatis dapat alamat kirim + kontak
 customer, jadi supplier tau kirimnya ke mana.
@@ -416,6 +424,86 @@ Implementasi: `vic_addon/vic/dropship.py` + `vic_addon/public/js/purchase_order.
 
 Catatan: Purchase Receipt gak boleh bertanggal masa depan (aturan ERPNext), jadi kalau posting
 date DN di masa depan, submitnya ditolak dengan pesan yang jelas.
+
+**Item dropship wajib udah punya PO sebelum DN-nya disubmit.** Purchase Receipt dropship dibikin
+di atas PO — tanpa PO gak ada yang bisa diterima, dan gagalnya baru kelihatan jauh di belakang
+(ERPNext ngamuk nyari Serial No yang harusnya lahir dari Purchase Receipt itu). Jadi dicegat di
+`before_submit` dengan pesan yang nyebut baris, item, dan SO-nya.
+
+**Required By di PO** ngikut delivery date Sales Order. Buat SO yang tanggal kirimnya udah lewat,
+ERPNext bakal nolak PO-nya (`Required By cannot be before Date`), jadi tanggal yang udah lewat
+dimajuin otomatis ke tanggal PO — cuma buat PO yang lahir dari tombol Create, PO manual tetap
+divalidasi apa adanya.
+
+#### Serial Number: penomoran sendiri + alirannya di dropship
+
+**Penomorannya diatur di master `Serial Number Settings`** (Single doctype), bukan lewat field
+`Serial No Series` di Item — penomoran bawaan ERPNext gak bisa nyelipin nomor & tanggal PO ke
+dalam serial number. Field Serial No Series di Item dikosongin, biar yang kepakai seri ini.
+
+Default seri nomornya:
+
+```
+{item_code}.{po_no}.{po_month}.{po_year}.############
+
+-> VIC-SN-TEST.PUR-ORD-2608-00002.08.26.000000000001
+```
+
+| Variabel | Isi |
+| --- | --- |
+| `{item_code}` | Kode item |
+| `{po_no}` | Nomor Purchase Order; kalau PR-nya gak punya PO, dipakai nomor Purchase Receipt |
+| `{po_month}` / `{po_year}` | Bulan & tahun PO, 2 digit |
+| `{po_date}` | Tanggal PO (YYYY-MM-DD) |
+| `{supplier}` | Supplier di Purchase Receipt |
+| `#` | Nomor urut, jumlah `#` = jumlah digit |
+
+Nomor urutnya jalan **per prefix** (jadi per item per PO balik ke 1), pakai tabel `Series` yang
+sama dengan naming series frappe. Variabel yang gak dikenal langsung ditolak waktu master
+setting-nya disimpan.
+
+**Barang masuk gudang (reguler):** begitu Purchase Receipt disimpan, tiap baris item yang
+`Has Serial No`-nya nyala dan Serial No-nya masih kosong langsung diisi sebanyak qty-nya.
+Nomornya ditaruh di field `serial_no` (bukan bikin Serial and Batch Bundle sendiri), jadi
+ERPNext yang tetap ngurus pembuatan record Serial No + bundle-nya waktu submit.
+
+**Dropship:** supplier ngirim barang langsung ke customer beserta serial number-nya, padahal
+Purchase Receipt-nya gak pernah dibikin manual — dokumennya kebuat otomatis tepat sebelum
+Delivery Note disubmit. Dua arah yang dilayanin:
+
+| Kondisi | Yang terjadi |
+| --- | --- |
+| User ngetik Serial No di Delivery Note | Nomornya dioper ke Purchase Receipt dropship, jadi barang "masuk" dengan nomor dari supplier, terus keluar lagi lewat DN |
+| Delivery Note dikosongin | Purchase Receipt yang generate nomornya, terus nomornya ditarik balik ke baris Delivery Note |
+
+Urutannya aman karena Purchase Receipt & Delivery Note dua-duanya bikin Serial and Batch
+Bundle di `on_submit`, sedangkan PR dropship dibuat di `before_submit` DN — jadi Serial No-nya
+udah ada waktu DN butuh. Kalau jumlah Serial No yang diketik gak sama dengan qty barisnya,
+submitnya ditolak dengan pesan yang nyebutin baris dan selisihnya.
+
+**Tanggal garansi.** Sesuai bispro, garansi mulai jalan pas barang dikirim ke customer, jadi
+tanggalnya diisi di Delivery Note terus diturunin ke tiap Serial No waktu DN disubmit:
+
+| Doctype | Field |
+| --- | --- |
+| Delivery Note Item | Warranty Start Date, Warranty End Date |
+| Serial No | Warranty Start Date (ERPNext cuma punya Warranty Expiry Date) |
+
+- Dua field di Delivery Note Item cuma nongol buat item yang `Has Serial No`-nya nyala —
+  penandanya field tersembunyi yang narik `has_serial_no` dari master Item.
+- Start Date boleh dikosongin: otomatis ngikut posting date Delivery Note.
+- End Date lebih awal dari Start Date langsung ditolak.
+- Waktu submit, tiap Serial No di baris itu dapat Warranty Start Date, `Warranty Expiry Date`,
+  dan `Warranty Period (Days)` — field bawaan ERPNext ikut diisi biar hitungannya tetap
+  nyambung. Baris yang tanggal garansinya kosong gak nyentuh Serial No-nya sama sekali.
+
+Prasyarat di site: **Stock Settings > Activate Serial and Batch No for Item** harus nyala,
+kalau enggak ERPNext nolak bikin Serial and Batch Bundle sama sekali.
+
+Implementasi: `vic_addon/vic/serial_no.py` +
+`vic_addon/vic/doctype/serial_number_settings/`, nyambung ke `dropship.py`.
+
+Belum: print format QR Code + Serial No di Purchase Receipt.
 
 #### DPP Nilai Lain (PPN 12%)
 

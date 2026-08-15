@@ -17,6 +17,12 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate
 
+from vic_addon.vic.serial_no import (
+	get_serial_nos_by_sales_order_item,
+	set_serial_nos_on_delivery_note,
+	set_serial_nos_on_receipt,
+)
+
 DROPSHIP = "Dropship"
 REGULER = "Reguler"
 MIXED = "Mixed"
@@ -36,6 +42,31 @@ def set_transaction_type(doc, method=None):
 		return
 
 	doc.custom_transaction_type = types.pop() if len(types) == 1 else MIXED
+
+
+def clear_delivered_by_supplier(doc, method=None):
+	"""Hook `validate` Sales Order: matiin skema dropship bawaan ERPNext.
+
+	Checkbox `Delivered By Supplier` itu dropship bawaan - itemnya dikecualiin dari Delivery
+	Note (`make_delivery_note` ngelewatin baris yang flag-nya nyala) dan SO dianggap terkirim
+	begitu PO diterima, makanya tombol Create > Delivery Note ikut ilang kalau semua barisnya
+	kecentang. Di skema kita dokumennya justru harus lengkap, jadi flag-nya dimatiin dan tipe
+	pengiriman diambil dari field Transaction Type.
+	"""
+	rows = [item for item in doc.get("items") or [] if item.get("delivered_by_supplier")]
+	if not rows:
+		return
+
+	for item in rows:
+		item.delivered_by_supplier = 0
+
+	frappe.msgprint(
+		_(
+			"Delivered By Supplier turned off on row {0}. Use Transaction Type {1} instead - that way the Delivery Note and Purchase Receipt still get created."
+		).format(", ".join(str(item.idx) for item in rows), frappe.bold(_(DROPSHIP))),
+		title=_("Dropship Uses Transaction Type"),
+		indicator="orange",
+	)
 
 
 def set_dropship_naming_series(doc, method=None):
@@ -143,6 +174,10 @@ def make_dropship_purchase_receipt(doc, method=None):
 	Barang dropship gak pernah mampir ke gudang fisik, tapi stoknya harus ada sebelum DN
 	disubmit. Jadi Purchase Receipt atas PO-nya dibuat & disubmit otomatis di tanggal yang
 	sama dengan DN.
+
+	Serial number-nya ikut lewat sini juga: nomor yang diketik user di Delivery Note dioper ke
+	Purchase Receipt (barangnya masuk dengan nomor dari supplier), dan kalau user gak ngisi,
+	nomor hasil generate Purchase Receipt ditarik balik ke Delivery Note. Lihat `serial_no.py`.
 	"""
 	if doc.custom_transaction_type != DROPSHIP or doc.custom_dropship_purchase_receipt:
 		return
@@ -163,11 +198,16 @@ def make_dropship_purchase_receipt(doc, method=None):
 			title=_("Dropship Purchase Receipt"),
 		)
 
+	validate_purchase_order_exists(doc, quantity_by_sales_order_item)
+
+	serial_nos = get_serial_nos_by_sales_order_item(doc)
+
 	purchase_receipts = []
 	for purchase_order in get_purchase_orders_to_receive(quantity_by_sales_order_item):
-		receipt = create_purchase_receipt(doc, purchase_order, quantity_by_sales_order_item)
+		receipt = create_purchase_receipt(doc, purchase_order, quantity_by_sales_order_item, serial_nos)
 		if receipt:
 			purchase_receipts.append(receipt.name)
+			set_serial_nos_on_delivery_note(doc, receipt)
 
 	if not purchase_receipts:
 		return
@@ -180,6 +220,42 @@ def make_dropship_purchase_receipt(doc, method=None):
 		title=_("Dropship Purchase Receipt"),
 		indicator="green",
 		alert=True,
+	)
+
+
+def validate_purchase_order_exists(delivery_note, quantity_by_sales_order_item):
+	"""Item dropship harus udah punya Purchase Order sebelum Delivery Note-nya disubmit.
+
+	Purchase Receipt dropship dibikin di atas PO. Tanpa PO gak ada yang bisa diterima, dan
+	kegagalannya baru kelihatan jauh di belakang - waktu ERPNext nyari Serial No yang harusnya
+	kebentuk dari Purchase Receipt itu. Jadi dicegat di sini biar pesannya nunjuk ke penyebabnya.
+	"""
+	ordered = frappe.get_all(
+		"Purchase Order Item",
+		filters={"sales_order_item": ["in", list(quantity_by_sales_order_item)], "docstatus": ["<", 2]},
+		fields=["sales_order_item"],
+	)
+	ordered_rows = {row.sales_order_item for row in ordered}
+
+	missing = [
+		item
+		for item in delivery_note.items
+		if item.custom_transaction_type == DROPSHIP
+		and item.so_detail
+		and item.so_detail not in ordered_rows
+	]
+	if not missing:
+		return
+
+	frappe.throw(
+		_(
+			"Row {0}: item {1} has no Purchase Order yet. Dropship items are received through a Purchase Receipt created from the Purchase Order, so create and submit the Purchase Order from Sales Order {2} first (Create > Purchase Order (per Supplier))."
+		).format(
+			", ".join(f"#{item.idx}" for item in missing),
+			", ".join(sorted({item.item_code for item in missing})),
+			missing[0].against_sales_order or "",
+		),
+		title=_("Purchase Order Not Found"),
 	)
 
 
@@ -197,7 +273,9 @@ def get_purchase_orders_to_receive(quantity_by_sales_order_item):
 	return sorted({row.parent for row in rows if flt(row.qty) > flt(row.received_qty)})
 
 
-def create_purchase_receipt(delivery_note, purchase_order, quantity_by_sales_order_item):
+def create_purchase_receipt(
+	delivery_note, purchase_order, quantity_by_sales_order_item, serial_nos_by_sales_order_item=None
+):
 	from erpnext.buying.doctype.purchase_order.purchase_order import make_purchase_receipt
 
 	receipt = make_purchase_receipt(purchase_order)
@@ -225,6 +303,7 @@ def create_purchase_receipt(delivery_note, purchase_order, quantity_by_sales_ord
 
 	receipt.items = items
 	set_transaction_type(receipt)
+	set_serial_nos_on_receipt(receipt, serial_nos_by_sales_order_item or {})
 	receipt.insert(ignore_permissions=True)
 	receipt.submit()
 
