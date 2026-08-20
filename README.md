@@ -415,6 +415,11 @@ SQTN lalu hitung ulang costing, bukan diubah diam-diam di PO.
 Rate-nya sengaja gak dihitung sendiri, cuma `price_list_rate` yang dipasang lalu dikosongin
 rate-nya biar ERPNext yang ngitung — beda pembulatan 1 sen aja bikin diskon persennya kereset.
 
+**Price List Rate di Quotation & Sales Order bisa diketik manual** (read-only-nya dilepas lewat
+property setter). Berlaku buat dokumen yang **gak** nempel ke Costing. Kalau dokumennya punya
+field Costing, angka ketikan tetap ketiban Quotation Rate dari costing tiap disimpan — itu emang
+gunanya penguncian di atas.
+
 Implementasi: `vic_addon/vic/rate_lock.py`.
 
 Catatan: buat item yang harganya per-proyek, mending gak usah punya Item Price di price list
