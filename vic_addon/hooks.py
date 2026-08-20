@@ -236,6 +236,11 @@ for doctype in ("Delivery Note", "Purchase Receipt"):
 doc_events["Delivery Note"]["validate"].append(
 	"vic_addon.vic.dropship.set_dropship_warehouse_on_items"
 )
+
+# baris DN dropship nyimpen nomor PO-nya, sekalian jadi jembatan Connections PO <-> DN
+doc_events["Delivery Note"]["validate"].append(
+	"vic_addon.vic.dropship.set_purchase_order_on_items"
+)
 doc_events["Delivery Note"]["before_submit"] = "vic_addon.vic.dropship.make_dropship_purchase_receipt"
 
 # Serial No dibikin sendiri (seri nomornya di master Serial Number Settings), bukan lewat
@@ -341,6 +346,11 @@ for doctype in ("Purchase Order", "Purchase Receipt", "Purchase Invoice"):
 # Overriding Methods
 # ------------------------------
 #
+# PO dropship: Delivery Note-nya ikut nongol di tab Connections
+override_doctype_dashboards = {
+	"Purchase Order": "vic_addon.vic.purchase_order.get_dashboard_data",
+}
+
 override_whitelisted_methods = {
 	# tombol Create Payment Entry di DP Invoice, biar tabel pajak DP langsung keisi di form
 	"erpnext.accounts.doctype.payment_request.payment_request.make_payment_entry": "vic_addon.vic.dp_invoice.make_payment_entry",

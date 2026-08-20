@@ -129,6 +129,40 @@ def is_customer_address(address):
 	)
 
 
+def set_purchase_order_on_items(doc, method=None):
+	"""Hook `validate` Delivery Note: baris dropship nyimpen nomor PO-nya.
+
+	Barang dropship dikirim supplier langsung ke lapangan, jadi pas ngecek DN orang butuh tau
+	PO mana yang jadi sumbernya - dan sebaliknya, dari PO harus kelihatan DN mana yang udah
+	jalan (lihat Connections di PO). Field `purchase_order` di Delivery Note Item itu field
+	bawaan yang emang buat ini, cuma di skema kita gak keisi sendiri karena dropship bawaan
+	ERPNext-nya dimatiin.
+	"""
+	for item in doc.get("items") or []:
+		if item.get("custom_transaction_type") != DROPSHIP or not item.get("so_detail"):
+			continue
+
+		purchase_order_item = get_purchase_order_item(item.so_detail)
+		if not purchase_order_item:
+			continue
+
+		item.purchase_order = purchase_order_item.parent
+		item.purchase_order_item = purchase_order_item.name
+
+
+def get_purchase_order_item(sales_order_item):
+	"""Baris PO aktif buat baris Sales Order ini - yang udah disubmit diutamain."""
+	rows = frappe.get_all(
+		"Purchase Order Item",
+		filters={"sales_order_item": sales_order_item, "docstatus": ["<", 2]},
+		fields=["name", "parent"],
+		order_by="docstatus desc, creation desc",
+		limit=1,
+	)
+
+	return rows[0] if rows else None
+
+
 def set_dropship_warehouse_on_items(doc, method=None):
 	"""Item dropship keluar/masuk lewat gudang transit dropship."""
 	warehouse = None

@@ -484,6 +484,15 @@ jalannya **setelah** method controller-nya (`Document.hook` di frappe), jadi cor
 disentuh. Yang disingkirin cuma alamat yang beneran punya Customer — alamat ngawur lain tetap
 ditolak ERPNext kayak biasa.
 
+**PO <-> DN nyambung dua arah.** Tiap Delivery Note disimpan, baris dropship-nya nyimpen nomor
+PO di field bawaan `purchase_order` + `purchase_order_item` (Delivery Note Item) - field itu
+emang buat dropship, cuma gak keisi sendiri karena dropship bawaan ERPNext-nya dimatiin. Hasilnya:
+
+| Dari | Ke | Caranya |
+| --- | --- | --- |
+| Delivery Note | Purchase Order | Connections > Internal Transfer (bawaan ERPNext, tinggal keisi) |
+| Purchase Order | Delivery Note | Connections > **Dropship** (dari `override_doctype_dashboards`) |
+
 Implementasi: `vic_addon/vic/dropship.py` + `vic_addon/public/js/purchase_order.js`.
 
 Catatan: Purchase Receipt gak boleh bertanggal masa depan (aturan ERPNext), jadi kalau posting

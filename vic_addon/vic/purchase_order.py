@@ -308,3 +308,16 @@ def warn_if_quotation_missing(doc, item):
 		title=_("Supplier Quotation Not Linked"),
 		indicator="orange",
 	)
+
+
+def get_dashboard_data(data=None):
+	"""Hook `override_doctype_dashboards`: Delivery Note dropship nongol di Connections PO.
+
+	Link-nya dari `purchase_order` di baris Delivery Note (diisi
+	`dropship.set_purchase_order_on_items`), jadi dari PO dropship langsung kelihatan barangnya
+	udah dikirim lewat DN mana.
+	"""
+	data = frappe._dict(data or {})
+	data.setdefault("transactions", []).append({"label": _("Dropship"), "items": ["Delivery Note"]})
+
+	return data
