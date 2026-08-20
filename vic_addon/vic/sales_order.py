@@ -73,29 +73,24 @@ def make_purchase_orders(sales_order, selected_items=None):
 	validate_pending_qty(doc, pending_qty)
 
 	supplier_by_row = get_supplier_by_row(doc, pending_qty, selected_items)
-	items_by_type = get_items_by_transaction_type(doc, supplier_by_row)
+	groups = get_rows_by_group(doc, supplier_by_row)
 
-	if not items_by_type:
+	if not groups:
 		frappe.throw(
 			_("No item in this Sales Order has a Supplier. Fill Supplier Quotation info first."),
 			title=_("Supplier Not Found"),
 		)
 
 	purchase_orders = []
-	for transaction_type, supplier_by_item in items_by_type.items():
+	for (transaction_type, supplier), rows in groups.items():
 		selected = [
 			{"item_code": item_code, "supplier": supplier}
-			for item_code, supplier in supplier_by_item.items()
+			for item_code in {row.item_code for row in rows}
 		]
 		# `make_purchase_order` milih baris SO cuma dari item code, padahal item code yang sama
-		# bisa muncul di baris Reguler dan Dropship sekaligus - jadi barisnya disaring lagi,
-		# sekalian dibatesin ke baris yang dipilih user di modal
-		rows_of_type = {
-			item.name
-			for item in doc.items
-			if item.name in supplier_by_row
-			and (item.custom_transaction_type or REGULER) == transaction_type
-		}
+		# bisa muncul di beberapa baris dengan supplier atau tipe transaksi beda - jadi barisnya
+		# disaring lagi ke baris punya grup ini
+		rows_of_group = {row.name for row in rows}
 
 		# `make_purchase_order` nge-insert dokumennya di dalam sana, jadi penyesuaian tanggalnya
 		# nebeng hook `before_validate` lewat flag ini
@@ -109,7 +104,7 @@ def make_purchase_orders(sales_order, selected_items=None):
 			set_supplier_quotation_details(purchase_order, doc)
 			set_transaction_type_details(purchase_order, doc, transaction_type)
 
-			if not set_pending_qty(purchase_order, pending_qty, rows_of_type):
+			if not set_pending_qty(purchase_order, pending_qty, rows_of_group):
 				# semua barisnya udah ketutup PO lain, dokumennya gak usah ada
 				purchase_order.delete()
 				continue
@@ -214,7 +209,7 @@ def get_active_purchase_orders(sales_order):
 	)
 
 
-def set_pending_qty(purchase_order, pending_qty, rows_of_type):
+def set_pending_qty(purchase_order, pending_qty, rows_of_group):
 	"""Potong PO ke sisa qty yang belum di-PO, baris yang udah ketutup dibuang.
 
 	Balikin jumlah baris yang tersisa, biar PO kosong bisa dibatalin sama pemanggilnya.
@@ -227,7 +222,7 @@ def set_pending_qty(purchase_order, pending_qty, rows_of_type):
 			items.append(item)
 			continue
 
-		if item.sales_order_item not in rows_of_type:
+		if item.sales_order_item not in rows_of_group:
 			continue
 
 		remaining = pending_qty.get(item.sales_order_item, 0)
@@ -267,29 +262,25 @@ def set_schedule_date(doc, method=None):
 	purchase_order.schedule_date = min(getdate(item.schedule_date) for item in purchase_order.items)
 
 
-def get_items_by_transaction_type(doc, supplier_by_row):
-	"""Supplier per item, dikelompokin dulu per tipe transaksi."""
-	items_by_type = {}
+def get_rows_by_group(doc, supplier_by_row):
+	"""Baris Sales Order dikelompokin per supplier + tipe transaksi - satu grup satu PO.
+
+	Item yang sama boleh nongol di beberapa baris. Selama supplier dan tipe transaksinya sama,
+	barisnya digabung ke PO yang sama. Kalau suppliernya beda - misalnya sebagian dibeli dari
+	Common Supplier, sebagian dari Electrical Supplier - PO-nya kepisah sendiri-sendiri, gitu
+	juga kalau tipe transaksinya beda (Reguler dikirim ke gudang, Dropship langsung ke lapangan).
+	"""
+	groups = {}
 
 	for item in doc.items:
 		supplier = supplier_by_row.get(item.name)
 		if not supplier:
 			continue
 
-		transaction_type = item.custom_transaction_type or REGULER
-		supplier_by_item = items_by_type.setdefault(transaction_type, {})
+		key = (item.custom_transaction_type or REGULER, supplier)
+		groups.setdefault(key, []).append(item)
 
-		existing_supplier = supplier_by_item.get(item.item_code)
-		if existing_supplier and existing_supplier != supplier:
-			frappe.throw(
-				_(
-					"Item {0} comes from two different suppliers ({1} and {2}). Use separate Sales Orders for each supplier."
-				).format(item.item_code, existing_supplier, supplier)
-			)
-
-		supplier_by_item[item.item_code] = supplier
-
-	return items_by_type
+	return groups
 
 
 def set_transaction_type_details(purchase_order, sales_order, transaction_type):

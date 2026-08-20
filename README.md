@@ -297,18 +297,28 @@ Supplier, dan SQTN-nya. Semua baris kecentang duluan; user tinggal ngurangin, ga
 baris (atau borongan lewat *Set Supplier for Selected Rows*), baru klik Create. Item yang belum
 punya SQTN kolom suppliernya kosong dan wajib diisi sebelum lanjut.
 
-Habis itu item digrup per supplier, satu draft PO per supplier, harga belinya diambil dari SQTN
-(net rate) dan PO item langsung nyimpen link `Supplier Quotation` + balik ke Sales Order. Baris
-yang suppliernya diganti di modal gak dikasih link SQTN dan harganya dikosongin — penawaran itu
-punya supplier lain, jadi harga belinya diisi manual sesuai penawaran supplier baru.
+Habis itu barisnya digrup per **supplier + tipe transaksi** — satu grup satu draft PO. Harga
+belinya diambil dari SQTN (net rate) dan PO item langsung nyimpen link `Supplier Quotation` +
+balik ke Sales Order. Baris yang suppliernya diganti di modal gak dikasih link SQTN dan harganya
+dikosongin — penawaran itu punya supplier lain, jadi harga belinya diisi manual sesuai penawaran
+supplier baru.
 
-Contoh: SO isi 2 item dari 2 supplier beda → jadi 2 draft PO, masing-masing pakai harga beli
-dari SQTN-nya sendiri (bukan harga jual di SO).
+Grupnya per baris, bukan per item code, jadi **item yang sama boleh muncul di beberapa baris**:
 
-Dokumennya tetap dibikin `make_purchase_order` bawaan ERPNext, jadi handling currency,
-exchange rate, alamat kirim buat dropship, dan sisa qty yang belum di-PO ikut kebawa. Kalau
-satu item ada di dua supplier berbeda dalam satu SO, prosesnya ditolak dengan pesan jelas
-(ERPNext ngegrup per item code, jadi harus dipisah SO).
+| Baris SO | Hasil |
+| --- | --- |
+| Item sama, supplier sama, tipe sama | Digabung jadi satu PO (beberapa baris di dalam PO yang sama) |
+| Item sama, supplier beda | PO-nya kepisah, satu per supplier |
+| Item sama, tipe transaksi beda (Reguler vs Dropship) | PO-nya kepisah, beda alamat kirim & alur dokumen |
+
+Contoh nyata: SO isi `ITM-EL-00001` di baris #1 (Common Supplier) dan baris #2 (Electrical
+Supplier) → jadi 2 draft PO, masing-masing pakai harga beli dari SQTN-nya sendiri (bukan harga
+jual di SO).
+
+Dokumennya tetap dibikin `make_purchase_order` bawaan ERPNext, jadi handling currency, exchange
+rate, alamat kirim buat dropship, dan sisa qty yang belum di-PO ikut kebawa. Mapper bawaannya
+milih baris SO dari item code doang, jadi tiap PO yang kebentuk disaring lagi ke baris punya
+grupnya — baris nyasar dibuang sebelum PO disimpan, tanpa notif palsu ke user.
 
 **PO dobel dicegah.** ERPNext cuma ngitung PO yang udah submit (lewat `Sales Order
 Item.ordered_qty`), jadi tombolnya diklik dua kali bikin draft PO kembar. Di addon, PO draft
@@ -327,10 +337,11 @@ bukan dari barisnya: kalau satu item muncul di dua baris SO dengan supplier beda
 A ikut kebawa baris punya supplier B. Buat kasus multi-supplier kayak gitu, pakai tombol **Purchase
 Order (per Supplier)** di atas yang nyaringnya per baris.
 
-Pengamannya ada di sisi server: PO baru yang kebawa baris jatah supplier lain - lewat jalur mapping
-apa pun, termasuk tombol bawaan - barisnya dibuang waktu disimpan, sekalian dikasih tau item mana
-yang dibuang. Kecuali kalau semua barisnya begitu: dibiarin, biar dokumennya gak jadi kosong dan
-user bisa lihat sendiri apa yang kejadian.
+Pengamannya ada di sisi server: PO baru dari tombol bawaan yang kebawa baris jatah supplier lain,
+barisnya dibuang waktu disimpan sekalian dikasih tau item mana yang dibuang. Kecuali kalau semua
+barisnya begitu: dibiarin, biar dokumennya gak jadi kosong dan user bisa lihat sendiri apa yang
+kejadian. Pengaman ini gak jalan buat PO dari tombol custom — di sana barisnya udah disaring per
+baris, dan suppliernya emang boleh sengaja diganti di modal.
 
 **Supplier di PO boleh diganti.** Barang habis di supplier pertama itu kasus normal (R&C ke-6 di
 sheet Costing). Tiap PO disimpan, link SQTN-nya disamain dulu sama suppliernya:

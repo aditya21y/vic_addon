@@ -49,7 +49,10 @@ def sync_supplier_quotation(doc, method=None):
 
 		set_supplier_quotation_from_sales_order(doc, item)
 
-	if released:
+	# Pas PO dibikin dari tombol `Purchase Order (per Supplier)`, mapper bawaan sempat narik baris
+	# punya supplier lain (dia milihnya dari item code) - baris itu dibuang lagi habis ini, jadi
+	# gak usah diributin ke user.
+	if released and not frappe.flags.get("purchase_order_from_sales_order"):
 		frappe.msgprint(
 			_("Supplier Quotation link removed on row {0} because it belongs to {1}. Fill the buying rate from {2}'s offer.").format(
 				", ".join(f"#{row[0]}" for row in released),
@@ -73,8 +76,12 @@ def drop_rows_of_other_suppliers(doc):
 	cuma isi barang yang emang dipesan ke supplier ini. Kalau ternyata semua barisnya punya
 	supplier lain, gak ada yang dibuang - biar dokumennya gak jadi kosong dan user bisa lihat
 	sendiri apa yang kejadian.
+
+	Gak jalan buat PO yang lahir dari tombol `Purchase Order (per Supplier)`: di sana barisnya
+	udah disaring per baris (bukan per item code), dan suppliernya boleh sengaja diganti di modal
+	- kalau dibuang di sini malah baris yang bener yang ilang.
 	"""
-	if not doc.is_new():
+	if not doc.is_new() or frappe.flags.get("purchase_order_from_sales_order"):
 		return
 
 	keep, dropped = [], []
