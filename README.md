@@ -293,9 +293,9 @@ SQTN -> Costing -> Quotation -> Sales Order -> Purchase Order
 
 **Create > Purchase Order (per Supplier)** di Sales Order yang udah submit: muncul **modal**
 berisi baris SO yang sisa qty-nya masih ada, lengkap dengan Pending Qty, tipe transaksi,
-Supplier, dan SQTN-nya. Semua baris kecentang duluan; user tinggal ngurangin, ganti supplier per
-baris (atau borongan lewat *Set Supplier for Selected Rows*), baru klik Create. Item yang belum
-punya SQTN kolom suppliernya kosong dan wajib diisi sebelum lanjut.
+Supplier, dan SQTN-nya. Semua baris kecentang duluan; user tinggal ngurangin dan ganti supplier
+per baris langsung di tabelnya, baru klik Create. Item yang belum punya SQTN kolom suppliernya
+kosong dan wajib diisi sebelum lanjut.
 
 Habis itu barisnya digrup per **supplier + tipe transaksi** — satu grup satu draft PO. Harga
 belinya diambil dari SQTN (net rate) dan PO item langsung nyimpen link `Supplier Quotation` +

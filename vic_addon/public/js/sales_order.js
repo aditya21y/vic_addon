@@ -44,21 +44,6 @@ function show_purchase_order_dialog(frm, rows) {
 		size: "large",
 		fields: [
 			{
-				fieldname: "set_supplier",
-				fieldtype: "Link",
-				label: __("Set Supplier for Selected Rows"),
-				options: "Supplier",
-				onchange() {
-					const supplier = dialog.get_value("set_supplier");
-					if (!supplier) return;
-
-					const grid = dialog.fields_dict.items.grid;
-					grid.get_selected_children().forEach((row) => (row.supplier = supplier));
-					grid.refresh();
-				},
-			},
-			{ fieldtype: "Section Break" },
-			{
 				fieldname: "items",
 				fieldtype: "Table",
 				label: __("Items"),
