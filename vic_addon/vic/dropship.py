@@ -82,6 +82,21 @@ def set_dropship_naming_series(doc, method=None):
 		doc.naming_series = series
 
 
+def set_dropship_shipping_address_display(doc, method=None):
+	"""Hook `validate` Purchase Order: render alamat kirim dropship ke field tampilannya.
+
+	Alamat tujuan dropship (customer/proyek) gak bisa ditaruh di `shipping_address` bawaan -
+	ERPNext nolak alamat yang bukan punya Company, kecuali buat dropship bawaan yang gak kita
+	pakai. Jadi alamatnya ditaruh di `custom_dropship_shipping_address`, dan teksnya dirender di
+	sini biar kelihatan di form sama print format.
+	"""
+	from frappe.contacts.doctype.address.address import get_address_display
+
+	address = doc.get("custom_dropship_shipping_address")
+
+	doc.custom_dropship_shipping_address_display = get_address_display(address) if address else None
+
+
 def set_dropship_warehouse_on_items(doc, method=None):
 	"""Item dropship keluar/masuk lewat gudang transit dropship."""
 	warehouse = None

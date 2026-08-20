@@ -470,6 +470,15 @@ Di PO dropship, tombol **Create > Purchase Receipt** disembunyiin (PR-nya otomat
 tombol **Create > Delivery Note**. PO dropship juga otomatis dapat alamat kirim + kontak
 customer, jadi supplier tau kirimnya ke mana.
 
+Alamat kirimnya masuk ke field sendiri: **Ship To (Dropship)**
+(`custom_dropship_shipping_address`) plus tampilannya (`..._display`), bukan ke `Shipping Address`
+bawaan. ERPNext v16 maksa `Shipping Address` di dokumen pembelian diisi alamat yang kedaftar
+di Company (`validate_company_linked_addresses`), dan satu-satunya pengecualian itu dropship
+bawaan (`delivered_by_supplier`) — yang justru kita matiin biar DN & PR tetap kebentuk. Kalau
+alamat customer dipaksa masuk ke field bawaan, PO-nya ditolak dengan *"Shipping Address does not
+belong to the Company"*. Field custom-nya cuma muncul kalau tipe transaksinya Dropship/Mixed, dan
+teksnya dirender ulang tiap PO disimpan.
+
 Implementasi: `vic_addon/vic/dropship.py` + `vic_addon/public/js/purchase_order.js`.
 
 Catatan: Purchase Receipt gak boleh bertanggal masa depan (aturan ERPNext), jadi kalau posting

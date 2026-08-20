@@ -224,6 +224,11 @@ for doctype in ("Sales Order", "Purchase Order", "Delivery Note", "Purchase Rece
 # dropship bawaan ERPNext dimatiin, tipe pengiriman diambil dari field Transaction Type
 doc_events["Sales Order"]["validate"].append("vic_addon.vic.dropship.clear_delivered_by_supplier")
 
+# alamat kirim dropship punya field sendiri, teksnya dirender tiap PO disimpan
+doc_events["Purchase Order"]["validate"].append(
+	"vic_addon.vic.dropship.set_dropship_shipping_address_display"
+)
+
 for doctype in ("Delivery Note", "Purchase Receipt"):
 	# seri nomor dropship dipilih duluan, baru counternya disinkronin
 	doc_events[doctype]["before_naming"] = [
