@@ -1,26 +1,6 @@
 // Bikin draft PO dari Sales Order, satu PO per supplier.
 // Supplier & harga belinya diambil dari SQTN yang nempel di tiap baris item.
 
-// Modal bawaan "Create > Purchase Order" ngisi kolom Supplier-nya dari field `supplier` bawaan
-// SO Item (punya skema dropship bawaan ERPNext, yang di sini disembunyiin), sedangkan supplier
-// hasil costing kita simpen di `custom_supplier`. Nilainya dioper tepat sebelum modalnya kebuka
-// - cuma di memori, jadi dokumen Sales Order-nya sendiri gak ikut berubah.
-//
-// Item yang gak punya SQTN tetap kosong, biar user yang milih suppliernya di modal. Supplier di
-// modal juga bebas diganti: PO-nya ngikut pilihan user, dan link SQTN yang gak nyambung sama
-// supplier baru bakal dilepas otomatis (lihat vic/purchase_order.py).
-if (erpnext.selling?.SalesOrderController) {
-	const make_purchase_order = erpnext.selling.SalesOrderController.prototype.make_purchase_order;
-
-	erpnext.selling.SalesOrderController.prototype.make_purchase_order = function () {
-		(this.frm.doc.items || []).forEach((item) => {
-			if (!item.supplier) item.supplier = item.custom_supplier;
-		});
-
-		make_purchase_order.call(this);
-	};
-}
-
 frappe.ui.form.on("Sales Order", {
 	refresh(frm) {
 		if (frm.doc.docstatus !== 1) return;

@@ -321,10 +321,16 @@ begitu PO di-cancel, tombolnya bikin PO baru cuma buat item dari PO yang batal i
 yang PO-nya masih aktif gak ikut kebikin lagi. Ini yang dipakai buat kasus supplier ganti
 (R&C ke-6 di sheet Costing).
 
-**Modal bawaan `Create > Purchase Order`** juga kepakai, kolom Supplier-nya keisi otomatis dari
-`custom_supplier` tiap baris item (item tanpa SQTN dibiarin kosong biar user yang milih). Nilainya
-dioper tepat sebelum modal kebuka dan cuma di memori, jadi dokumen Sales Order-nya gak ikut
-berubah.
+**Tombol bawaan `Create > Purchase Order` dibiarin apa adanya** - gak di-override, gak
+disembunyiin. Cuma perlu diinget mapper bawaan ERPNext milih baris Sales Order dari **item code**,
+bukan dari barisnya: kalau satu item muncul di dua baris SO dengan supplier beda, PO buat supplier
+A ikut kebawa baris punya supplier B. Buat kasus multi-supplier kayak gitu, pakai tombol **Purchase
+Order (per Supplier)** di atas yang nyaringnya per baris.
+
+Pengamannya ada di sisi server: PO baru yang kebawa baris jatah supplier lain - lewat jalur mapping
+apa pun, termasuk tombol bawaan - barisnya dibuang waktu disimpan, sekalian dikasih tau item mana
+yang dibuang. Kecuali kalau semua barisnya begitu: dibiarin, biar dokumennya gak jadi kosong dan
+user bisa lihat sendiri apa yang kejadian.
 
 **Supplier di PO boleh diganti.** Barang habis di supplier pertama itu kasus normal (R&C ke-6 di
 sheet Costing). Tiap PO disimpan, link SQTN-nya disamain dulu sama suppliernya:
