@@ -32,6 +32,8 @@ def sync_supplier_quotation(doc, method=None):
 
 	Jalan duluan sebelum `rate_lock`, biar harga yang kepasang udah ngikut link yang bener.
 	"""
+	drop_rows_of_other_suppliers(doc)
+
 	released = []
 
 	for item in doc.items:
@@ -57,6 +59,55 @@ def sync_supplier_quotation(doc, method=None):
 			title=_("Supplier Changed"),
 			indicator="orange",
 		)
+
+
+def drop_rows_of_other_suppliers(doc):
+	"""PO baru dari Sales Order: buang baris yang jatahnya supplier lain.
+
+	`make_purchase_order` bawaan ERPNext milih baris Sales Order dari **item code**, bukan dari
+	barisnya. Jadi kalau item yang sama muncul di dua baris SO dengan supplier beda - misalnya
+	sebagian dibeli dari Common Supplier, sebagian dari Electrical Supplier - PO buat supplier
+	yang satu ikut kebawa baris punya supplier satunya, lengkap sama link SQTN yang salah.
+
+	Baris kayak gitu dibuang di sini, bukan cuma dilepas link SQTN-nya, biar PO-nya bener-bener
+	cuma isi barang yang emang dipesan ke supplier ini. Kalau ternyata semua barisnya punya
+	supplier lain, gak ada yang dibuang - biar dokumennya gak jadi kosong dan user bisa lihat
+	sendiri apa yang kejadian.
+	"""
+	if not doc.is_new():
+		return
+
+	keep, dropped = [], []
+
+	for item in doc.items:
+		supplier = (
+			frappe.db.get_value("Sales Order Item", item.sales_order_item, "custom_supplier")
+			if item.get("sales_order_item")
+			else None
+		)
+
+		if supplier and supplier != doc.supplier:
+			dropped.append((item, supplier))
+		else:
+			keep.append(item)
+
+	if not (dropped and keep):
+		return
+
+	doc.items = keep
+	for idx, item in enumerate(doc.items, start=1):
+		item.idx = idx
+
+	frappe.msgprint(
+		_("{0} removed: in {1} those rows are ordered from {2}, not {3}.").format(
+			", ".join(sorted({item.item_code for item, _supplier in dropped})),
+			", ".join(sorted({item.sales_order for item, _supplier in dropped if item.sales_order})),
+			", ".join(sorted({supplier for _item, supplier in dropped})),
+			doc.supplier,
+		),
+		title=_("Rows of Another Supplier Removed"),
+		indicator="orange",
+	)
 
 
 def set_supplier_quotation_from_sales_order(doc, item):
