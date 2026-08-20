@@ -293,13 +293,14 @@ def set_transaction_type_details(purchase_order, sales_order, transaction_type):
 	if transaction_type != DROPSHIP:
 		return
 
-	# Barangnya dikirim supplier langsung ke lapangan, jadi alamat kirimnya ikut customer.
-	# Ditaruh di custom field, bukan di `shipping_address` bawaan: ERPNext maksa field itu diisi
-	# alamat milik Company, dan pengecualiannya cuma buat dropship bawaan (`delivered_by_supplier`)
-	# yang justru kita matiin karena bikin Delivery Note & Purchase Receipt gak kebentuk.
+	# barangnya dikirim supplier langsung ke lapangan, jadi alamat kirim PO ikut customer
+	# (ERPNext-nya sendiri nolak alamat non-Company di sini, lihat `dropship.stash_customer_shipping_address`)
 	shipping_address = sales_order.shipping_address_name or sales_order.customer_address
 	if shipping_address:
-		purchase_order.custom_dropship_shipping_address = shipping_address
+		purchase_order.shipping_address = shipping_address
+		purchase_order.shipping_address_display = (
+			sales_order.shipping_address or sales_order.address_display
+		)
 
 	purchase_order.customer = sales_order.customer
 	purchase_order.customer_name = sales_order.customer_name

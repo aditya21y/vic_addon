@@ -224,11 +224,6 @@ for doctype in ("Sales Order", "Purchase Order", "Delivery Note", "Purchase Rece
 # dropship bawaan ERPNext dimatiin, tipe pengiriman diambil dari field Transaction Type
 doc_events["Sales Order"]["validate"].append("vic_addon.vic.dropship.clear_delivered_by_supplier")
 
-# alamat kirim dropship punya field sendiri, teksnya dirender tiap PO disimpan
-doc_events["Purchase Order"]["validate"].append(
-	"vic_addon.vic.dropship.set_dropship_shipping_address_display"
-)
-
 for doctype in ("Delivery Note", "Purchase Receipt"):
 	# seri nomor dropship dipilih duluan, baru counternya disinkronin
 	doc_events[doctype]["before_naming"] = [
@@ -287,6 +282,19 @@ doc_events["Payment Entry"] = {"before_validate": "vic_addon.vic.dp_invoice.set_
 for doctype in ("Sales Invoice", "Purchase Invoice"):
 	doc_events[doctype]["before_validate"] = "vic_addon.vic.advance_tax.restore_tax_rows"
 	doc_events[doctype]["validate"].append("vic_addon.vic.advance_tax.deduct_advance_taxes")
+
+# alamat kirim dropship itu alamat customer, yang ditolak validasi alamat bawaan ERPNext -
+# disingkirin sebelum validasi inti, dipasang lagi sesudahnya
+for doctype in ("Purchase Order", "Purchase Receipt", "Purchase Invoice"):
+	events = doc_events.setdefault(doctype, {})
+
+	for event in ("before_validate", "validate"):
+		if isinstance(events.get(event), str):
+			events[event] = [events[event]]
+		events.setdefault(event, [])
+
+	events["before_validate"].append("vic_addon.vic.dropship.stash_customer_shipping_address")
+	events["validate"].append("vic_addon.vic.dropship.restore_customer_shipping_address")
 
 # doc_events = {
 # 	"*": {

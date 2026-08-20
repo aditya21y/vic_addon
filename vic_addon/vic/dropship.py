@@ -82,19 +82,51 @@ def set_dropship_naming_series(doc, method=None):
 		doc.naming_series = series
 
 
-def set_dropship_shipping_address_display(doc, method=None):
-	"""Hook `validate` Purchase Order: render alamat kirim dropship ke field tampilannya.
+def stash_customer_shipping_address(doc, method=None):
+	"""Hook `before_validate` dokumen pembelian: alamat customer disingkirin dulu dari validasi.
 
-	Alamat tujuan dropship (customer/proyek) gak bisa ditaruh di `shipping_address` bawaan -
-	ERPNext nolak alamat yang bukan punya Company, kecuali buat dropship bawaan yang gak kita
-	pakai. Jadi alamatnya ditaruh di `custom_dropship_shipping_address`, dan teksnya dirender di
-	sini biar kelihatan di form sama print format.
+	Dropship-nya ngirim ke lapangan, jadi Shipping Address di PO/PR/PI emang harus alamat
+	customer - itu yang dibaca supplier waktu ngirim barang. Tapi ERPNext maksa field itu diisi
+	alamat yang kedaftar di Company (`validate_company_linked_addresses`), dan satu-satunya
+	pengecualian itu dropship bawaan (`delivered_by_supplier`) yang justru kita matiin biar
+	Delivery Note & Purchase Receipt tetap kebentuk.
+
+	Jadi alamatnya dititipin sebentar di sini, terus dipasang lagi sama
+	`restore_customer_shipping_address` - hook `doc_events` jalannya setelah method controller-nya,
+	jadi validasi intinya keburu lewat.
+
+	Yang disingkirin cuma alamat yang beneran punya Customer. Alamat ngawur lain (punya supplier,
+	atau gak nyambung ke siapa-siapa) tetap ditolak ERPNext kayak biasa.
 	"""
+	doc.flags.customer_shipping_address = None
+
+	address = doc.get("shipping_address")
+	if not address or not is_customer_address(address):
+		return
+
+	doc.flags.customer_shipping_address = address
+	doc.shipping_address = None
+
+
+def restore_customer_shipping_address(doc, method=None):
+	"""Hook `validate` dokumen pembelian: alamat customer dipasang lagi habis validasi inti."""
 	from frappe.contacts.doctype.address.address import get_address_display
 
-	address = doc.get("custom_dropship_shipping_address")
+	address = doc.flags.customer_shipping_address
+	if not address:
+		return
 
-	doc.custom_dropship_shipping_address_display = get_address_display(address) if address else None
+	doc.shipping_address = address
+	doc.shipping_address_display = get_address_display(address)
+
+
+def is_customer_address(address):
+	return bool(
+		frappe.db.exists(
+			"Dynamic Link",
+			{"parent": address, "parenttype": "Address", "link_doctype": "Customer"},
+		)
+	)
 
 
 def set_dropship_warehouse_on_items(doc, method=None):
