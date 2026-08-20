@@ -378,6 +378,79 @@ Implementasi: `vic_addon/vic/sales_order.py` + `vic_addon/vic/purchase_order.py`
 Belum: print format Proforma Invoice (di sheet masih "Awaiting"). Auto reserve stock pas SO
 submit / Purchase Receipt submit gak perlu custom, tinggal nyalain di Stock Settings.
 
+#### Loan Memo (custom doctype)
+
+Nota peminjaman barang ke customer: barang dipinjemin dulu buat dicoba di lapangan, ujungnya
+cuma dua — **dibeli** (lanjut ke Sales Order) atau **dibalikin** (masuk lagi ke gudang asal).
+Dokumen ini yang jadi pegangan dua-duanya.
+
+| Field | Isi |
+| --- | --- |
+| Series | `LM-.YYMM.-` (reset per bulan, amend pakai suffix `R`) |
+| Posting Date | Tanggal memo |
+| Expected End Loan Date | Perkiraan barang balik / diputusin dibeli |
+| Company, Customer | Wajib |
+| Sales Person Name | Link ke Sales Person |
+| Loan Memo Status | *Approved to Buy* / *Approved to Return* — keputusan customer, bisa diisi setelah submit |
+| Remarks | Catatan bebas |
+
+Child table **Loan Memo Item**: Item, Item Name, Qty, UOM, From Warehouse, To Warehouse.
+Qty & UOM ditambahin sendiri (gak ada di sheet) karena tanpa itu Stock Entry peminjamannya gak
+bisa dibikin.
+
+Dua gudangnya keisi otomatis tiap memo disimpan, dan tetap bisa diganti manual:
+
+- **From Warehouse** — gudang default item di company itu (`Item Default`), kalau kosong jatuh ke
+  default warehouse di Stock Settings
+- **To Warehouse** — gudang peminjaman customer, diambil dari field **Customer Loan Warehouse**
+  di Company. Belum ada? dibikinin `Customer Loan - {abbr}` terus disimpen balik ke Company —
+  pola yang sama kayak gudang transit dropship
+
+Yang divalidasi: qty harus lebih dari nol, dan From/To Warehouse gak boleh sama.
+
+Implementasi: `vic_addon/vic/doctype/loan_memo/`.
+
+**Statusnya jalan sendiri**, user cuma milih di satu percabangan. Field Loan Memo Status
+read-only, yang ngubah dokumen turunannya:
+
+```
+Draft
+  └─ submit ─────────────────────────────────────► Approved to Deliver
+       └─ Stock Entry (Customer Loan) disubmit ───► Delivered
+            ├─ tombol Approve to Sell ────────────► Approved to Sell
+            │    └─ Sales Order disubmit ─────────► Sold
+            └─ tombol Approve to Return ──────────► Approved to Return
+                 └─ Stock Entry (Customer Loan Return) disubmit ─► Returned
+```
+
+Tombolnya nongol ngikutin status, jadi gak ada jalan pintas:
+
+| Status | Tombol |
+| --- | --- |
+| Approved to Deliver | Create > Stock Entry (Customer Loan) |
+| Delivered | **Approve to Sell** / **Approve to Return** |
+| Approved to Sell | Create > Sales Order |
+| Approved to Return | Create > Stock Entry (Customer Loan Return) |
+
+Dua Stock Entry Type (`Customer Loan`, `Customer Loan Return`) dibikin otomatis waktu
+install/migrate, dua-duanya purpose **Material Transfer** — barangnya cuma pindah gudang, belum
+kejual. Yang balikin gudangnya kebalik sendiri (Customer Loan → gudang asal).
+
+Sales Order-nya ngambil gudang **peminjaman customer** (barangnya emang udah di sana), tanggal
+kirim ikut Expected End Loan Date, dan Sales Person Name masuk ke Sales Team 100%.
+
+Tiap dokumen turunan dibatalin, status memo balik ke langkah sebelumnya — jadi salah submit
+tinggal di-cancel, gak usah bikin memo baru. Memonya sendiri gak bisa dibatalin selama masih ada
+Stock Entry/Sales Order aktif yang lahir dari dia, dan pesannya nyebut dokumen mana yang harus
+dibatalin duluan. Tiap perpindahan status dicatat di timeline.
+
+Tab **Connections** di Loan Memo nampilin Stock Entry & Sales Order-nya (lewat field
+`custom_loan_memo` di dua doctype itu).
+
+> Catatan: di sheet, baris *Characters* nulis statusnya "Approved to **Buy**", baris *Workflow*
+> nulis "Approved to **Sell**". Yang kepakai di sini yang versi Workflow, soalnya di situ semua
+> state-nya lengkap.
+
 #### Customer WAPU
 
 WAPU (Wajib Pungut): PPN-nya dipungut dan disetor sendiri sama customer — biasanya instansi

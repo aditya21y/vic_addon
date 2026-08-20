@@ -76,6 +76,8 @@ after_install = [
 	"vic_addon.vic.labels.setup_document_labels",
 	# isi print format diambil dari file .html-nya (lihat vic/print_formats.py)
 	"vic_addon.vic.print_formats.sync_print_formats",
+	# Stock Entry Type buat alur peminjaman barang (Loan Memo)
+	"vic_addon.vic.doctype.loan_memo.loan_memo.setup_stock_entry_types",
 ]
 after_migrate = after_install
 
@@ -282,6 +284,20 @@ doc_events["Payment Request"] = {
 	"validate": "vic_addon.vic.dp_invoice.set_dp_details",
 }
 doc_events["Payment Entry"] = {"before_validate": "vic_addon.vic.dp_invoice.set_advance_taxes"}
+
+# Loan Memo: statusnya jalan sendiri ngikutin Stock Entry & Sales Order turunannya
+for doctype, handler in (
+	("Stock Entry", "update_status_from_stock_entry"),
+	("Sales Order", "update_status_from_sales_order"),
+):
+	events = doc_events.setdefault(doctype, {})
+
+	for event in ("on_submit", "on_cancel"):
+		if isinstance(events.get(event), str):
+			events[event] = [events[event]]
+		events.setdefault(event, []).append(
+			f"vic_addon.vic.doctype.loan_memo.loan_memo.{handler}"
+		)
 
 # invoice final cuma nagih sisa PPN/PPh yang belum dibayar lewat DP
 for doctype in ("Sales Invoice", "Purchase Invoice"):

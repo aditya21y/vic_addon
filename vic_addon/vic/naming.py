@@ -37,6 +37,8 @@ NAMING_DOCTYPES = (
 	"Material Request",
 	"Stock Entry",
 	"Stock Reconciliation",
+	# VIC
+	"Loan Memo",
 )
 
 # Field tanggal yang jadi acuan bulan. Diambil yang pertama ketemu di dokumen,
