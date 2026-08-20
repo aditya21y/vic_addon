@@ -322,9 +322,10 @@ grupnya — baris nyasar dibuang sebelum PO disimpan, tanpa notif palsu ke user.
 
 **PO dobel dicegah.** ERPNext cuma ngitung PO yang udah submit (lewat `Sales Order
 Item.ordered_qty`), jadi tombolnya diklik dua kali bikin draft PO kembar. Di addon, PO draft
-**dan** submitted dua-duanya dihitung: item yang udah ketutup PO aktif dilewatin (dikasih tau
-item mana aja), dan kalau semua item udah ada PO-nya prosesnya ditolak sekalian nyebutin PO
-mana yang udah ada.
+**dan** submitted dua-duanya dihitung: item yang udah ketutup PO aktif dilewatin, dan pesannya
+nyebut baris, item, plus **nomor PO-nya** (link ke dokumennya, ditandain kalau masih draft) biar
+user gak perlu nyari sendiri. Kalau semua item udah ada PO-nya, prosesnya ditolak sekalian nyebut
+PO mana aja yang udah ada.
 
 **PO yang dibatalin boleh dibikin ulang.** PO dengan docstatus 2 sengaja gak dihitung, jadi
 begitu PO di-cancel, tombolnya bikin PO baru cuma buat item dari PO yang batal itu — item lain

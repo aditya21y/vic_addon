@@ -7,7 +7,7 @@ otomatis tanpa milih supplier manual lagi.
 
 import frappe
 from frappe import _
-from frappe.utils import flt, getdate
+from frappe.utils import flt, get_link_to_form, getdate
 
 from vic_addon.vic.dropship import DROPSHIP, REGULER
 
@@ -154,25 +154,68 @@ def get_pending_qty(doc):
 
 def validate_pending_qty(doc, pending_qty):
 	"""Tolak kalau semua item udah ada PO-nya, dan kasih tau baris mana yang dilewatin."""
+	purchase_orders = get_purchase_orders_by_row(doc.name)
+
 	if not pending_qty:
 		frappe.throw(
 			_(
 				"Every item in this Sales Order already has an active Purchase Order ({0}). Cancel the Purchase Order first if it needs to be recreated."
-			).format(", ".join(get_active_purchase_orders(doc.name))),
+			).format(", ".join(get_purchase_order_links(get_active_purchase_orders(doc.name)))),
 			title=_("Purchase Order Already Exists"),
 		)
 
 	ordered_items = [
 		item for item in doc.items if item.name not in pending_qty and item.custom_supplier
 	]
-	if ordered_items:
-		frappe.msgprint(
-			_("These items already have an active Purchase Order and are skipped: {0}").format(
-				", ".join(f"#{item.idx} {item.item_code}" for item in ordered_items)
-			),
-			title=_("Item Skipped"),
-			indicator="orange",
+	if not ordered_items:
+		return
+
+	# PO-nya ikut disebut biar user gak perlu nyari sendiri baris ini kepakai di PO mana
+	skipped = [
+		"#{0} {1} - {2}".format(
+			item.idx,
+			item.item_code,
+			", ".join(get_purchase_order_links(purchase_orders.get(item.name, []))) or _("no Purchase Order"),
 		)
+		for item in ordered_items
+	]
+
+	frappe.msgprint(
+		_("These items already have an active Purchase Order and are skipped:")
+		+ "<br>"
+		+ "<br>".join(skipped),
+		title=_("Item Skipped"),
+		indicator="orange",
+	)
+
+
+def get_purchase_orders_by_row(sales_order):
+	"""PO aktif (draft + submitted) yang nyantol di tiap baris Sales Order."""
+	rows = frappe.get_all(
+		"Purchase Order Item",
+		filters={"sales_order": sales_order, "docstatus": ["<", 2]},
+		fields=["sales_order_item", "parent"],
+	)
+
+	purchase_orders = {}
+	for row in rows:
+		if row.sales_order_item:
+			purchase_orders.setdefault(row.sales_order_item, set()).add(row.parent)
+
+	return purchase_orders
+
+
+def get_purchase_order_links(purchase_orders):
+	"""Nomor PO yang bisa diklik, sekalian ditandain yang masih draft."""
+	links = []
+
+	for name in sorted(purchase_orders):
+		link = get_link_to_form("Purchase Order", name)
+		if frappe.db.get_value("Purchase Order", name, "docstatus") == 0:
+			link += " ({0})".format(_("Draft"))
+		links.append(link)
+
+	return links
 
 
 def get_supplier_by_row(doc, pending_qty, selected_items=None):
