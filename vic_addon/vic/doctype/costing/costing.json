@@ -53,7 +53,7 @@
   },
   {
    "default": "Not Quoted",
-   "description": "Terisi otomatis: Quoted kalau costing ini udah dibikinin Quotation",
+   "description": "Terisi otomatis: Quoted apabila costing ini sudah dibuatkan Quotation",
    "fieldname": "status",
    "fieldtype": "Select",
    "in_list_view": 1,
@@ -77,7 +77,7 @@
    "reqd": 1
   },
   {
-   "description": "Dipakai waktu bikin Quotation",
+   "description": "Dipakai saat membuat Quotation",
    "fieldname": "customer",
    "fieldtype": "Link",
    "label": "Customer",
@@ -97,7 +97,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "Catatan costing",
+   "description": "Catatan tambahan untuk costing ini",
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
@@ -126,7 +126,7 @@
    "options": "Costing Additional Cost"
   },
   {
-   "description": "Buffer tambahan di atas distribusi additional cost (input manual)",
+   "description": "Buffer tambahan di atas distribusi additional cost (diisi manual)",
    "fieldname": "additional_percentage",
    "fieldtype": "Percent",
    "label": "Additional Percentage"

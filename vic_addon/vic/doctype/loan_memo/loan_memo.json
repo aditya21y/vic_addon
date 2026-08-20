@@ -40,7 +40,7 @@
    "reqd": 1
   },
   {
-   "description": "Perkiraan barang pinjaman balik atau diputusin dibeli",
+   "description": "Perkiraan tanggal barang pinjaman dikembalikan atau diputuskan dibeli",
    "fieldname": "expected_end_loan_date",
    "fieldtype": "Date",
    "label": "Expected End Loan Date",
@@ -79,7 +79,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "Jalan sendiri ngikutin dokumen turunannya, lihat tombol di atas",
+   "description": "Terisi otomatis mengikuti dokumen turunannya. Keputusan Sell atau Return dipilih lewat tombol di atas.",
    "fieldname": "loan_memo_status",
    "fieldtype": "Select",
    "in_list_view": 1,

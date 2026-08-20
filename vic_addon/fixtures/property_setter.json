@@ -13,7 +13,7 @@
   "property": "description",
   "property_type": "Text",
   "row_name": null,
-  "value": "DP Invoice dokumen internal, email ke customer dimatiin secara default"
+  "value": "DP Invoice merupakan dokumen internal, sehingga email ke customer dimatikan secara default"
  },
  {
   "default_value": null,
@@ -493,7 +493,7 @@
   "property": "description",
   "property_type": "Text",
   "row_name": null,
-  "value": "Diambil dari tipe baris item"
+  "value": "Diambil dari tipe transaksi pada baris item"
  },
  {
   "default_value": null,

@@ -198,7 +198,7 @@
             "label": "Quotation & Profit"
         },
         {
-            "description": "Default Selling Rate, Ubah untuk (harga nego ke customer)",
+            "description": "Default mengikuti Selling Rate. Ubah bila ada harga hasil negosiasi dengan customer.",
             "fieldname": "quotation_rate",
             "fieldtype": "Currency",
             "label": "Quotation Rate",

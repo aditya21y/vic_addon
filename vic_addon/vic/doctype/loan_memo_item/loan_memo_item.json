@@ -66,7 +66,7 @@
   },
   {
    "columns": 3,
-   "description": "Gudang asal barangnya. Keisi otomatis dari gudang default item, boleh diganti.",
+   "description": "Gudang asal barang. Terisi otomatis dari gudang default item dan masih bisa diubah.",
    "fieldname": "from_warehouse",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -80,7 +80,7 @@
   },
   {
    "columns": 3,
-   "description": "Gudang peminjaman customer. Keisi otomatis dari setelan Company.",
+   "description": "Gudang peminjaman customer. Terisi otomatis dari setelan Company.",
    "fieldname": "to_warehouse",
    "fieldtype": "Link",
    "in_list_view": 1,
