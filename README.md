@@ -78,6 +78,32 @@ jual dari margin. Rumusnya ngikut sheet **5a. COSTING** di source of truth. Non-
 Doctype: **Costing** (`CST-.YYMM.-`), dengan child table **Costing Item** dan
 **Costing Additional Cost**.
 
+Tiap baris Costing Item punya field **Warehouse** yang keisi otomatis: gudang default item di
+company itu (`Item Default`) dulu, kalau item gak punya baru ikut default warehouse di Stock
+Settings. Kalau dua-duanya gak diset, field-nya dibiarin kosong. Gudang Stock Settings yang
+punya company lain sengaja gak dipakai. Diisi waktu item dipilih (biar langsung kelihatan) dan
+dipasang lagi tiap dokumen disimpan, tapi cuma buat baris yang masih kosong — pilihan manual
+user gak ketiban.
+
+**Barang stok yang gak lewat SQTN harganya dari gudang.** Baris Costing yang kolom Supplier
+Quotation-nya kosong ngambil Rate dari **valuation rate item di gudang baris itu** (`Bin`) —
+barang yang udah nangkring di gudang emang gak punya penawaran supplier, jadi harga pokoknya
+ya nilai persediaannya. Aturannya:
+
+| Baris | Rate-nya |
+| --- | --- |
+| Ada Supplier Quotation | Dari net rate SQTN, gak disentuh |
+| Tanpa SQTN, Rate masih kosong | Valuation rate item di gudang baris itu |
+| Tanpa SQTN, Rate diisi manual | Angka user dipertahanin |
+| Tanpa SQTN, gudangnya belum punya nilai persediaan | Dibiarin 0 buat diisi manual |
+
+Angkanya per gudang, jadi item yang sama di gudang beda bisa beda harga pokok. Di form, gudang
+dan rate-nya keisi begitu item dipilih dan ditarik ulang kalau gudangnya diganti; server ngisi
+lagi tiap dokumen disimpan.
+
+Helper-nya di `vic_addon/vic/warehouse.py` (`get_default_warehouse`, `get_valuation_rate`) —
+yang gudang dipakai bareng sama Loan Memo buat gudang asal barang pinjaman.
+
 Rumus:
 
 ```

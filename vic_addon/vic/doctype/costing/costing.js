@@ -42,6 +42,17 @@ frappe.ui.form.on("Costing", {
 });
 
 frappe.ui.form.on("Costing Item", {
+	// Item stok yang gak lewat SQTN: gudang + harga pokoknya diambil dari nilai persediaan
+	// gudang itu, biar kelihatan langsung tanpa nunggu disimpan (server ngisi ulang tiap simpan).
+	item_code(frm, cdt, cdn) {
+		fetch_stock_item_details(frm, cdt, cdn);
+	},
+
+	// ganti gudang = ganti sumber harga, jadi rate-nya ditarik ulang
+	warehouse(frm, cdt, cdn) {
+		fetch_stock_item_details(frm, cdt, cdn, { keep_warehouse: true });
+	},
+
 	qty: calculate,
 	rate: calculate,
 	margin_percentage: calculate,
@@ -54,6 +65,34 @@ frappe.ui.form.on("Costing Item", {
 		calculate(frm);
 	},
 });
+
+function fetch_stock_item_details(frm, cdt, cdn, { keep_warehouse = false } = {}) {
+	const item = locals[cdt][cdn];
+
+	// baris dari Supplier Quotation harganya udah dikunci ke penawaran, jangan diutak-atik
+	if (!item.item_code || item.supplier_quotation) return;
+	if (keep_warehouse && !item.warehouse) return;
+
+	frappe.call({
+		method: "vic_addon.vic.doctype.costing.costing.get_stock_item_details",
+		args: {
+			item_code: item.item_code,
+			company: frm.doc.company,
+			warehouse: keep_warehouse ? item.warehouse : null,
+		},
+		callback({ message }) {
+			if (!message) return;
+
+			if (!keep_warehouse && message.warehouse) {
+				frappe.model.set_value(cdt, cdn, "warehouse", message.warehouse);
+			}
+
+			if (message.rate) {
+				frappe.model.set_value(cdt, cdn, "rate", message.rate);
+			}
+		},
+	});
+}
 
 frappe.ui.form.on("Costing Additional Cost", {
 	amount: calculate,

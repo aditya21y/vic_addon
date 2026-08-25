@@ -23,6 +23,8 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt
 
+from vic_addon.vic.warehouse import get_default_warehouse, get_valuation_rate
+
 NOT_QUOTED = "Not Quoted"
 QUOTED = "Quoted"
 
@@ -30,8 +32,34 @@ QUOTED = "Quoted"
 class Costing(Document):
 	def validate(self):
 		self.validate_margin_percentage()
+		self.set_warehouses()
+		self.set_rates_from_valuation()
 		self.calculate()
 		self.set_status()
+
+	def set_warehouses(self):
+		"""Gudang stok tiap baris, dipakai buat narik harga barang yang gak lewat SQTN.
+
+		Cuma diisi kalau kosong, jadi pilihan user gak ketiban. Kalau item sama Stock Settings
+		dua-duanya gak punya gudang default, baris itu dibiarin kosong.
+		"""
+		for item in self.items:
+			if not item.warehouse:
+				item.warehouse = get_default_warehouse(item.item_code, self.company)
+
+	def set_rates_from_valuation(self):
+		"""Baris tanpa Supplier Quotation ambil harga pokok dari valuation rate gudangnya.
+
+		Barang stok yang udah nangkring di gudang gak punya penawaran supplier, jadi harga
+		pokoknya diambil dari nilai persediaan di gudang itu. Cuma diisi kalau Rate-nya masih
+		kosong: harga dari SQTN maupun angka yang diketik user gak ketiban. Kalau di gudang itu
+		item-nya belum punya nilai persediaan, Rate-nya dibiarin buat diisi manual.
+		"""
+		for item in self.items:
+			if item.supplier_quotation or flt(item.rate):
+				continue
+
+			item.rate = flt(get_valuation_rate(item.item_code, item.warehouse))
 
 	def set_status(self):
 		self.status = NOT_QUOTED if self.is_new() else get_status(self.name)
@@ -280,3 +308,18 @@ def get_supplier_quotation_items(supplier_quotations):
 			)
 
 	return items
+
+
+@frappe.whitelist()
+def get_stock_item_details(item_code, company, warehouse=None):
+	"""Gudang + harga pokok buat baris Costing yang gak lewat Supplier Quotation.
+
+	Dipanggil form waktu item atau gudangnya diganti, biar angkanya langsung kelihatan tanpa
+	nunggu dokumennya disimpan.
+	"""
+	warehouse = warehouse or get_default_warehouse(item_code, company)
+
+	return {
+		"warehouse": warehouse,
+		"rate": flt(get_valuation_rate(item_code, warehouse)),
+	}

@@ -23,6 +23,8 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, flt, nowdate
 
+from vic_addon.vic.warehouse import get_default_warehouse
+
 # gudang penampung barang yang lagi dipinjem customer, satu per company
 CUSTOMER_LOAN_WAREHOUSE = "Customer Loan"
 
@@ -106,19 +108,6 @@ class LoanMemo(Document):
 					),
 					title=_("Same Warehouse"),
 				)
-
-
-def get_default_warehouse(item_code, company):
-	"""Gudang default item di company ini, kalau gak ada ikut default Stock Settings."""
-	warehouse = frappe.db.get_value(
-		"Item Default", {"parent": item_code, "company": company}, "default_warehouse"
-	)
-	if warehouse:
-		return warehouse
-
-	warehouse = frappe.db.get_single_value("Stock Settings", "default_warehouse")
-
-	return warehouse if warehouse and frappe.db.get_value("Warehouse", warehouse, "company") == company else None
 
 
 def get_customer_loan_warehouse(company):
