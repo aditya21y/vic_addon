@@ -69,6 +69,11 @@ def make_payment_request(**args):
 		make_payment_request as make_erpnext_payment_request,
 	)
 
+	# DP Invoice itu dokumen internal, emailnya dimatiin. Default field-nya emang udah 1 lewat
+	# property setter, tapi `make_payment_request` bawaan nimpa nilainya pakai `args.mute_email` -
+	# dan itu kosong kalau dokumennya lahir dari tombol di Sales Order / Purchase Order.
+	args.setdefault("mute_email", 1)
+
 	# ERPNext bisa langsung nge-insert dokumennya di sini (Accounts Settings > Create Payment
 	# Request in Draft Status), jadi penyesuaiannya nebeng hook `before_validate` lewat flag ini
 	frappe.flags.dp_invoice_from_reference = True

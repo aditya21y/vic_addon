@@ -245,6 +245,12 @@ itu dokumen internal ke tim Finance, jadi field `Mute Email` default-nya dinyala
 dimunculin di form (bawaannya hidden) biar tetap bisa dikirim manual per dokumen kalau perlu.
 Tipe `Outward` emang gak pernah ngirim email.
 
+Property setter `default = 1` doang gak cukup buat dokumen yang lahir dari tombol **Create >
+Payment Request**: `make_payment_request` bawaan ERPNext nimpa field-nya pakai `args.mute_email`
+yang kosong, jadi centangnya balik mati. Makanya override kita ngisi `mute_email` di args
+sebelum manggil versi bawaannya — kalau pemanggilnya udah ngisi sendiri (webshop), nilainya
+dihormati.
+
 Waktu Payment Entry dibikin dari DP Invoice itu, **tabel pajaknya kebawa otomatis** (cuma
 kalau Payment Entry-nya belum punya baris pajak, jadi editan manual gak ketiban). Dokumen DP
 Invoice sendiri gak posting jurnal — jurnalnya kebentuk di Payment Entry, sesuai R&C.
