@@ -14,6 +14,14 @@ import frappe
 PRINT_FORMATS = {
 	"Goods Received": "goods_received",
 	"Serial No Label": "serial_no_label",
+	"Delivery Order": "delivery_order",
+	"Quotation (VIC)": "quotation",
+	"Purchase Order (VIC)": "purchase_order",
+	"Purchase Request": "purchase_request",
+	"Inquiry": "inquiry",
+	"Request For Quotation (Customer)": "opportunity_rfq",
+	"Costing (Sales)": "costing_sales",
+	"Costing (Import)": "costing_import",
 }
 
 

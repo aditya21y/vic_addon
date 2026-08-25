@@ -54,5 +54,8 @@ jspm_packages/
 # Aider AI Chat
 .aider*
 
-VIC - Source of Truth.xlsx
-VIC - Source of Truth (2).xlsx
+# Referensi dari user, bukan bagian app-nya
+VIC - Source of Truth*.xlsx
+
+# Contoh print format dari user (PDF scan/export), acuan doang
+/Print Format/

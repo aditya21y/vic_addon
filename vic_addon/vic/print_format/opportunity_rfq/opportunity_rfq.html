@@ -1,0 +1,79 @@
+{#- Permintaan penawaran yang masuk dari customer, dicetak dari Opportunity -#}
+
+<div class="vic-pf">
+	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
+
+	<div class="title-wrap">
+		<div class="title-block">
+			<div class="doc-title">REQUEST FOR QUOTATION</div>
+			<table class="meta">
+				<tr>
+					<td class="lbl">RFQ No.</td>
+					<td class="sep">:</td>
+					<td>{{ doc.name }}</td>
+				</tr>
+				<tr>
+					<td class="lbl">Date</td>
+					<td class="sep">:</td>
+					<td>{{ frappe.utils.formatdate(doc.transaction_date, "MMMM d, yyyy") }}</td>
+				</tr>
+			</table>
+		</div>
+	</div>
+
+	<table class="terms">
+		<tr>
+			<td class="lbl">From</td>
+			<td class="sep">:</td>
+			<td>{{ doc.customer_name or doc.party_name or "" }}</td>
+		</tr>
+		{%- if doc.contact_display %}
+			<tr>
+				<td class="lbl">Attn</td>
+				<td class="sep">:</td>
+				<td>{{ doc.contact_display }}</td>
+			</tr>
+		{%- endif %}
+		{%- if doc.contact_mobile or doc.contact_email %}
+			<tr>
+				<td class="lbl">Contact</td>
+				<td class="sep">:</td>
+				<td>{{ [doc.contact_mobile, doc.contact_email] | select | join(" / ") }}</td>
+			</tr>
+		{%- endif %}
+	</table>
+
+	<table class="items">
+		<thead>
+			<tr>
+				<th style="width: 8%">Item</th>
+				<th style="width: 62%; text-align: left">Description</th>
+				<th style="width: 30%">Qty</th>
+			</tr>
+		</thead>
+		<tbody>
+			{%- for item in doc.items %}
+				{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
+				{%- set qty = item.qty | float %}
+				<tr>
+					<td class="num">{{ loop.index }}</td>
+					<td>
+						<div class="desc">{{ item.item_name or item.item_code }}</div>
+						{%- if size %}<div>Size : {{ size }}</div>{% endif %}
+					</td>
+					<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
+				</tr>
+			{%- endfor %}
+		</tbody>
+	</table>
+
+	<table class="sign">
+		<tr>
+			<td style="width: 60%"></td>
+			<td>
+				<div class="role">SALES</div>
+				<div>{{ frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
+			</td>
+		</tr>
+	</table>
+</div>

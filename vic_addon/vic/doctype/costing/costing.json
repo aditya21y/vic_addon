@@ -12,6 +12,7 @@
   "column_break_header",
   "company",
   "customer",
+  "subject",
   "currency",
   "column_break_remarks",
   "remarks",
@@ -30,7 +31,14 @@
   "total_selling_amount",
   "total_quotation_amount",
   "total_profit_amount",
-  "total_profit_percentage"
+  "total_profit_percentage",
+  "terms_section",
+  "mark_up",
+  "delivery_time",
+  "delivery_point",
+  "column_break_terms",
+  "payment",
+  "validity"
  ],
  "fields": [
   {
@@ -82,6 +90,12 @@
    "fieldtype": "Link",
    "label": "Customer",
    "options": "Customer"
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Small Text",
+   "label": "Subject",
+   "description": "Judul pekerjaan, dicetak di print format Costing"
   },
   {
    "fetch_from": "company.default_currency",
@@ -202,6 +216,41 @@
    "fieldtype": "Percent",
    "label": "Total Profit %",
    "read_only": 1
+  },
+  {
+   "fieldname": "terms_section",
+   "fieldtype": "Section Break",
+   "label": "Terms & Conditions",
+   "description": "Dicetak di print format Costing (Sales)"
+  },
+  {
+   "fieldname": "mark_up",
+   "fieldtype": "Data",
+   "label": "Mark Up"
+  },
+  {
+   "fieldname": "delivery_time",
+   "fieldtype": "Data",
+   "label": "Delivery Time"
+  },
+  {
+   "fieldname": "delivery_point",
+   "fieldtype": "Data",
+   "label": "Delivery Point"
+  },
+  {
+   "fieldname": "column_break_terms",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "payment",
+   "fieldtype": "Data",
+   "label": "Payment"
+  },
+  {
+   "fieldname": "validity",
+   "fieldtype": "Data",
+   "label": "Validity"
   }
  ],
  "grid_page_length": 50,

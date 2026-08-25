@@ -1,0 +1,100 @@
+{#- Costing versi ke customer: cuma harga jual + syarat penawaran -#}
+
+<div class="vic-pf">
+	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
+
+	<div class="title-wrap">
+		<div class="title-block">
+			<div class="doc-title">COSTING</div>
+			<table class="meta">
+				<tr>
+					<td class="lbl">Our Ref</td>
+					<td class="sep">:</td>
+					<td>{{ doc.name }}</td>
+				</tr>
+				<tr>
+					<td class="lbl">Date</td>
+					<td class="sep">:</td>
+					<td>{{ frappe.utils.formatdate(doc.posting_date, "MMMM d, yyyy") }}</td>
+				</tr>
+			</table>
+		</div>
+	</div>
+
+	{%- if doc.customer %}
+		<div class="party">{{ frappe.db.get_value("Customer", doc.customer, "customer_name") or doc.customer }}</div>
+	{%- endif %}
+	{%- if doc.get("subject") %}
+		<table class="terms">
+			<tr>
+				<td class="lbl">Subject</td>
+				<td class="sep">:</td>
+				<td>{{ doc.subject }}</td>
+			</tr>
+		</table>
+	{%- endif %}
+
+	<table class="items">
+		<thead>
+			<tr>
+				<th style="width: 6%">No</th>
+				<th style="width: 44%; text-align: left">Description</th>
+				<th style="width: 14%">Qty</th>
+				<th style="width: 18%; text-align: right">Selling Price<div>{{ doc.currency }}</div></th>
+				<th style="width: 18%; text-align: right">Total Selling Price<div>{{ doc.currency }}</div></th>
+			</tr>
+		</thead>
+		<tbody>
+			{%- for item in doc.items %}
+				{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
+				{%- set qty = item.qty | float %}
+				<tr>
+					<td class="num">{{ loop.index }}</td>
+					<td>
+						<div class="desc">{{ item.item_name }}</div>
+						{%- if size %}<div>Size : {{ size }}</div>{% endif %}
+					</td>
+					<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
+					<td class="money">{{ frappe.utils.fmt_money(item.quotation_rate) }}</td>
+					<td class="money">{{ frappe.utils.fmt_money(item.quotation_amount) }}</td>
+				</tr>
+			{%- endfor %}
+		</tbody>
+	</table>
+
+	<table class="totals">
+		<tr class="grand">
+			<td class="lbl">TOTAL</td>
+			<td class="money">{{ frappe.utils.fmt_money(doc.total_quotation_amount) }}</td>
+		</tr>
+	</table>
+
+	<div class="note"><b>Terms &amp; Conditions :</b></div>
+	<table class="terms">
+		<tr>
+			<td class="lbl">1. Mark Up</td>
+			<td class="sep">:</td>
+			<td>{{ doc.get("mark_up") or "" }}</td>
+		</tr>
+		<tr>
+			<td class="lbl">2. Delivery Time</td>
+			<td class="sep">:</td>
+			<td>{{ doc.get("delivery_time") or "" }}</td>
+		</tr>
+		<tr>
+			<td class="lbl">3. Delivery Point</td>
+			<td class="sep">:</td>
+			<td>{{ doc.get("delivery_point") or "" }}</td>
+		</tr>
+		<tr>
+			<td class="lbl">4. Payment</td>
+			<td class="sep">:</td>
+			<td>{{ doc.get("payment") or "" }}</td>
+		</tr>
+		<tr>
+			<td class="lbl">5. Validity</td>
+			<td class="sep">:</td>
+			<td>{{ doc.get("validity") or "" }}</td>
+		</tr>
+	</table>
+</div>

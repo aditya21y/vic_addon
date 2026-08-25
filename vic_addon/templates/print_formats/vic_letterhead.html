@@ -1,0 +1,96 @@
+{#-
+	Kop surat VIC + gaya dasar print format, dipakai bareng semua print format di app ini.
+
+	Taruh include ini DI DALAM `<div class="vic-pf">`, jangan di luar - semua gayanya diikat ke
+	kelas itu. Butuh `doc` di context.
+
+	Catatan: Print Style bawaan (Redesign dkk) maksa `padding: 10px !important` di semua td/th
+	dan ngasih warna abu-biru ke th, jadi reset di bawah ikut pakai `!important`.
+-#}
+{%- set company = frappe.get_cached_doc("Company", doc.company) -%}
+{%- set address_name = frappe.db.get_value("Dynamic Link", {"link_doctype": "Company", "link_name": doc.company, "parenttype": "Address"}, "parent") -%}
+{%- set address = frappe.db.get_value("Address", address_name, ["address_line1", "address_line2", "city", "state", "pincode", "phone", "fax"], as_dict=True) if address_name else None -%}
+
+<style>
+	.vic-pf {
+		font-family: Arial, Helvetica, "Helvetica Neue", sans-serif;
+		font-size: 11px;
+		line-height: 1.45;
+	}
+	.vic-pf, .vic-pf td, .vic-pf th, .vic-pf div, .vic-pf span { color: #000 !important; }
+	.vic-pf table { border-collapse: collapse; width: auto; }
+	.vic-pf td, .vic-pf th {
+		padding: 1px 0 !important;
+		border: 0;
+		background: none;
+		font-size: 11px;
+		vertical-align: top;
+	}
+	.vic-pf th { font-weight: 700; }
+	.vic-pf .head { width: 100%; }
+	.vic-pf .logo img { max-height: 68px; max-width: 200px; }
+	.vic-pf .company { text-align: right; }
+	.vic-pf .company .name { font-size: 14px; font-weight: 700; }
+	.vic-pf .company .line { font-size: 9.5px; }
+	/* kotak judul, nomor & tanggal nempel persis di bawahnya */
+	.vic-pf .title-wrap { text-align: center; margin-top: 20px; }
+	.vic-pf .title-block { display: inline-block; text-align: left; }
+	.vic-pf .doc-title {
+		border: 1px solid #000;
+		padding: 6px 34px;
+		font-size: 13px;
+		font-weight: 700;
+		letter-spacing: 0.5px;
+		text-align: center;
+	}
+	.vic-pf .meta { margin-top: 8px; margin-left: 4px; }
+	.vic-pf .meta .lbl { width: 80px; }
+	.vic-pf .meta .sep { width: 12px; }
+	/* daftar "label : isi" buat blok syarat penawaran */
+	.vic-pf .terms { margin-top: 14px; }
+	.vic-pf .terms .lbl { width: 115px; }
+	.vic-pf .terms .sep { width: 12px; }
+	.vic-pf .party { margin-top: 16px; font-weight: 700; font-size: 12px; }
+	.vic-pf .items { width: 100%; margin-top: 14px; }
+	.vic-pf .items th {
+		border-top: 1px solid #000;
+		border-bottom: 1px solid #000;
+		padding: 6px 4px !important;
+	}
+	.vic-pf .items td { padding: 8px 4px !important; }
+	.vic-pf .items tbody tr:last-child td { border-bottom: 1px solid #000; }
+	.vic-pf .items .num { text-align: center; }
+	.vic-pf .items .qty { text-align: center; white-space: nowrap; }
+	.vic-pf .items .money { text-align: right; white-space: nowrap; }
+	.vic-pf .items .desc { font-weight: 700; }
+	/* total nempel di kanan, selebar dua kolom terakhir tabel item */
+	.vic-pf .totals { width: 100%; margin-top: 6px; }
+	.vic-pf .totals td { padding: 3px 4px !important; }
+	.vic-pf .totals .lbl { text-align: right; font-weight: 700; }
+	.vic-pf .totals .money { text-align: right; white-space: nowrap; width: 18%; }
+	.vic-pf .totals .grand td { border-top: 1px solid #000; border-bottom: 1px solid #000; }
+	.vic-pf .sign { width: 100%; margin-top: 28px; font-size: 10px; }
+	.vic-pf .sign td { text-align: center; padding: 0 6px !important; }
+	.vic-pf .sign .role { padding-bottom: 58px; }
+	.vic-pf .note { margin-top: 12px; font-size: 10px; }
+</style>
+
+<table class="head">
+	<tr>
+		<td class="logo">
+			<img src="/assets/vic_addon/img/vic%20logo.png" alt="{{ doc.company }}" />
+		</td>
+		<td class="company">
+			<div class="name">{{ company.company_name | upper }}</div>
+			{%- if address %}
+				<div class="line">{{ address.address_line1 }}</div>
+				{%- if address.address_line2 %}<div class="line">{{ address.address_line2 }}</div>{% endif %}
+				<div class="line">{{ [address.city, address.state, address.pincode] | select | join(", ") }}</div>
+			{%- endif %}
+			{%- set phone = company.phone_no or (address.phone if address else None) %}
+			{%- if phone %}<div class="line">Phone : {{ phone }}</div>{% endif %}
+			{%- set fax = company.fax or (address.fax if address else None) %}
+			{%- if fax %}<div class="line">Fax : {{ fax }}</div>{% endif %}
+		</td>
+	</tr>
+</table>

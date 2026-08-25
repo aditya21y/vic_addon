@@ -1,0 +1,88 @@
+{#- Permintaan penawaran ke supplier, dicetak dari Request for Quotation -#}
+
+{%- set material_requests = doc.items | map(attribute="material_request") | select | unique | list -%}
+
+<div class="vic-pf">
+	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
+
+	<div class="title-wrap">
+		<div class="title-block">
+			<div class="doc-title">INQUIRY</div>
+			<table class="meta">
+				<tr>
+					<td class="lbl">Inquiry No.</td>
+					<td class="sep">:</td>
+					<td>{{ doc.name }}</td>
+				</tr>
+				<tr>
+					<td class="lbl">Date</td>
+					<td class="sep">:</td>
+					<td>{{ frappe.utils.formatdate(doc.transaction_date, "MMMM d, yyyy") }}</td>
+				</tr>
+				{%- if material_requests %}
+					<tr>
+						<td class="lbl">Our Ref</td>
+						<td class="sep">:</td>
+						<td>{{ material_requests | join(", ") }}</td>
+					</tr>
+				{%- endif %}
+			</table>
+		</div>
+	</div>
+
+	{%- if doc.get("custom_subject") %}
+		<table class="terms">
+			<tr>
+				<td class="lbl">Subject</td>
+				<td class="sep">:</td>
+				<td>{{ doc.custom_subject }}</td>
+			</tr>
+		</table>
+	{%- endif %}
+
+	<div class="note">Please quote us your best price &amp; delivery time as follows :</div>
+
+	<table class="items">
+		<thead>
+			<tr>
+				<th style="width: 6%">Item</th>
+				<th style="width: 34%; text-align: left">Description</th>
+				<th style="width: 12%">Qty</th>
+				<th style="width: 18%; text-align: right">Unit Price</th>
+				<th style="width: 12%">Weight</th>
+				<th style="width: 18%">Remarks</th>
+			</tr>
+		</thead>
+		<tbody>
+			{%- for item in doc.items %}
+				{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
+				{%- set qty = item.qty | float %}
+				<tr>
+					<td class="num">{{ loop.index }}</td>
+					<td>
+						<div class="desc">{{ item.item_name or item.item_code }}</div>
+						{%- if size %}<div>Size : {{ size }}</div>{% endif %}
+					</td>
+					<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
+					{#- Unit Price sengaja kosong, itu jatah supplier yang ngisi -#}
+					<td></td>
+					<td class="qty">{{ item.get("custom_weight") or "" }}</td>
+					<td>{{ item.get("custom_remarks") or "" }}</td>
+				</tr>
+			{%- endfor %}
+		</tbody>
+	</table>
+
+	<div class="note">Wait for your reply immediately</div>
+
+	<table class="sign">
+		<tr>
+			<td style="width: 60%"></td>
+			<td>
+				<div>Best regards,</div>
+				<div class="role"></div>
+				<div>{{ frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
+			</td>
+		</tr>
+	</table>
+</div>

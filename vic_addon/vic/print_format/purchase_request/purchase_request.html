@@ -1,0 +1,85 @@
+{#- Permintaan pembelian internal, dicetak dari Material Request -#}
+
+<div class="vic-pf">
+	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
+
+	<div class="title-wrap">
+		<div class="title-block">
+			<div class="doc-title">PURCHASE REQUEST</div>
+			<table class="meta">
+				<tr>
+					<td class="lbl">Request No.</td>
+					<td class="sep">:</td>
+					<td>{{ doc.name }}</td>
+				</tr>
+				<tr>
+					<td class="lbl">Date</td>
+					<td class="sep">:</td>
+					<td>{{ frappe.utils.formatdate(doc.transaction_date, "MMMM d, yyyy") }}</td>
+				</tr>
+			</table>
+		</div>
+	</div>
+
+	<table class="terms">
+		{%- if doc.get("custom_subject") %}
+			<tr>
+				<td class="lbl">Subject</td>
+				<td class="sep">:</td>
+				<td>{{ doc.custom_subject }}</td>
+			</tr>
+		{%- endif %}
+		{%- if doc.get("custom_po_no") %}
+			<tr>
+				<td class="lbl">PO No.</td>
+				<td class="sep">:</td>
+				<td>{{ doc.custom_po_no }}</td>
+			</tr>
+		{%- endif %}
+		{%- if doc.customer %}
+			<tr>
+				<td class="lbl">Customer</td>
+				<td class="sep">:</td>
+				<td>{{ frappe.db.get_value("Customer", doc.customer, "customer_name") or doc.customer }}</td>
+			</tr>
+		{%- endif %}
+	</table>
+
+	<table class="items">
+		<thead>
+			<tr>
+				<th style="width: 8%">Item</th>
+				<th style="width: 62%; text-align: left">Description</th>
+				<th style="width: 30%">Qty</th>
+			</tr>
+		</thead>
+		<tbody>
+			{%- for item in doc.items %}
+				{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
+				{%- set qty = item.qty | float %}
+				<tr>
+					<td class="num">{{ loop.index }}</td>
+					<td>
+						<div class="desc">{{ item.item_name or item.item_code }}</div>
+						{%- if size %}<div>Size : {{ size }}</div>{% endif %}
+					</td>
+					<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
+				</tr>
+			{%- endfor %}
+		</tbody>
+	</table>
+
+	{#- nama di bawah SALES diambil dari pembuat dokumen, dua sisanya tanda tangan basah -#}
+	<table class="sign">
+		<tr>
+			<td class="role">SALES</td>
+			<td class="role">ACKNOWLEDGMENT</td>
+			<td class="role">APPROVED BY</td>
+		</tr>
+		<tr>
+			<td>{{ frappe.db.get_value("User", doc.owner, "full_name") or "" }}</td>
+			<td></td>
+			<td></td>
+		</tr>
+	</table>
+</div>

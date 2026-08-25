@@ -285,6 +285,11 @@ doc_events["Payment Request"] = {
 }
 doc_events["Payment Entry"] = {"before_validate": "vic_addon.vic.dp_invoice.set_advance_taxes"}
 
+# Purchase Request dari Sales Order: nomor PO customer ikut kebawa
+doc_events["Material Request"] = {
+	"before_validate": "vic_addon.vic.material_request.set_customer_po_no",
+}
+
 # Loan Memo: statusnya jalan sendiri ngikutin Stock Entry & Sales Order turunannya
 for doctype, handler in (
 	("Stock Entry", "update_status_from_stock_entry"),

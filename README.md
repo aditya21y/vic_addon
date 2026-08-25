@@ -700,6 +700,73 @@ sistem 2 Februari, sedangkan surat jalannya perlu dicetak dengan tanggal tertent
 Print format-nya sendiri belum ada (masih nunggu format dari user), jadi sementara field ini
 belum dipakai di mana-mana.
 
+#### Print Format: form VIC lainnya
+
+Lima form kertas VIC yang lain ikut dibikin, semuanya pakai kop surat + gaya yang sama dari
+`vic_addon/templates/print_formats/vic_letterhead.html` (satu file, dipakai bareng lewat
+`{% include %}`).
+
+| Print Format | Doctype | Judul di kertas |
+| --- | --- | --- |
+| Quotation (VIC) | **Sales Order** | QUOTATION |
+| Purchase Order (VIC) | Purchase Order | PURCHASE ORDER |
+| Purchase Request | Material Request | PURCHASE REQUEST |
+| Inquiry | Request for Quotation | INQUIRY |
+| Request For Quotation (Customer) | Opportunity | REQUEST FOR QUOTATION |
+| Costing (Sales) | Costing | COSTING (harga jual + Terms & Conditions) |
+| Costing (Import) | Costing | COSTING (harga beli, harga jual, profit) |
+
+Field yang ditambah buat nutupin isian di kertas:
+
+| Doctype | Field | Isinya |
+| --- | --- | --- |
+| Material Request | Subject, Customer's Purchase Order | Nomor PO customer keisi otomatis dari Sales Order (lihat di bawah) |
+| Request for Quotation | Subject | Judul inquiry |
+| Request for Quotation Item | Weight, Remarks | Kolom tambahan di tabel inquiry |
+| Costing | Subject, Mark Up, Delivery Time, Delivery Point, Payment, Validity | Blok Terms & Conditions di Costing (Sales) |
+
+**Nomor PO customer ikut turun ke Purchase Request.** Material Request yang lahir dari Sales
+Order (Create > Material Request) narik `po_no` dari Sales Order-nya lewat field `sales_order` di
+baris item — kalau permintaannya diketik manual, field-nya dibiarin buat diisi sendiri, dan angka
+yang udah diketik user gak pernah ketiban. Implementasi: `vic_addon/vic/material_request.py`.
+
+**Customer's Purchase Order di Sales Order dipindah ke tab Details** (bawaannya nyempil di tab
+More Info), lewat property setter `field_order` — cara yang sama dipakai Customize Form.
+
+**Purchase Order (VIC)** nampilin terbilang dari field `in_words` bawaan ERPNext, blok tanda
+tangan Supplier Approved + Director, dan baris warna salinan (Putih = Supplier, Merah =
+Purchasing, Kuning = Accounting, Hijau = Finance). Delivery Time-nya ngambil **Required By**
+(`schedule_date`), bukan teks hardcode.
+
+Catatan isian di **Quotation (VIC)**: Payment Terms dari `payment_terms_template`, Delivery Point
+dari alamat pengiriman, Validity dari `valid_till` Quotation asalnya (kalau SO-nya lahir dari
+Quotation), Your Ref dari contact person, Subject dari Project. **Delivery Time di-hardcode**
+"Reconfrom stock before PO" sesuai contoh PDF.
+
+#### Print Format: Delivery Order (Delivery Note)
+
+Ngikutin form DO yang selama ini dipakai VIC: kop surat + logo, kotak judul **DELIVERY ORDER**
+dengan DO No. & Date di bawahnya, blok bergaris **Customer** (nama + alamat) dan **Delivered To**,
+di kanannya Vehicle No. & PO No. Tabel itemnya Item / Description / Qty / Remarks — kolom Remarks
+sengaja dikosongin buat ditulis tangan.
+
+Isinya diambil dari data yang emang udah ada di Delivery Note:
+
+| Di kertas | Sumbernya |
+| --- | --- |
+| Date | **Print Format Date** kalau diisi, kalau enggak Posting Date |
+| Customer | `customer_name` + `address_display` |
+| Delivered To | Alamat pengiriman (kalau beda dari alamat customer), kalau gak ada ikut nama Project |
+| Vehicle No. / PO No. | `vehicle_no` / `po_no` bawaan Delivery Note |
+| Size | Field **Size** di master Item, dicetak cuma kalau item-nya punya |
+| Serial Number | Serial No baris itu, dilist di bawah deskripsi |
+| Qty | Angka bulat tanpa desimal (`1 Nos`), pecahan tetap 2 desimal (`47.52 Nos`) |
+
+Baris tanda tangannya 5 kolom — Issued By / Approved by / Warehouse / Delivered by / Received by.
+Nama di bawah **Issued By** diambil dari pembuat dokumen; empat sisanya sengaja kosong buat tanda
+tangan basah (nama otomatisnya nyusul bareng tiket signature Purchasing Manager & Warehouse
+Captain).
+
 #### Print Format: Goods Received (Purchase Receipt)
 
 Print format **Goods Received** buat Purchase Receipt, ngikutin format GR yang dipakai VIC:
