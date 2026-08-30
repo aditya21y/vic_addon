@@ -2,9 +2,8 @@
 
 {#- Syarat penawarannya diketik di Quotation asalnya (kalau SO ini lahir dari Quotation) -#}
 {%- set quotation = doc.items[0].prevdoc_docname if doc.items and doc.items[0].prevdoc_docname else None -%}
-{%- set source = frappe.db.get_value("Quotation", quotation, ["valid_till", "custom_payment_terms", "custom_delivery_point", "custom_delivery_time", "custom_validity"], as_dict=True) if quotation else None -%}
+{%- set source = frappe.db.get_value("Quotation", quotation, ["valid_till", "custom_payment_terms", "custom_delivery_point", "custom_delivery_time", "custom_validity", "custom_subject"], as_dict=True) if quotation else None -%}
 {%- set valid_till = source.valid_till if source else None -%}
-{%- set project_name = frappe.db.get_value("Project", doc.project, "project_name") if doc.project else None -%}
 {%- set currency = doc.currency -%}
 
 <div class="vic-pf">
@@ -60,7 +59,7 @@
 		<tr>
 			<td class="lbl">Subject</td>
 			<td class="sep">:</td>
-			<td>{{ project_name or "" }}</td>
+			<td>{{ (source.custom_subject if source else None) or "" }}</td>
 		</tr>
 	</table>
 

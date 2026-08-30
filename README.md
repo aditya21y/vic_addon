@@ -739,11 +739,11 @@ Purchasing, Kuning = Accounting, Hijau = Finance). Delivery Time-nya ngambil **R
 (`schedule_date`), bukan teks hardcode.
 
 Isian syarat di **Quotation (VIC)** diambil dari **Quotation asal**-nya (SO nyimpen nomor
-Quotation di baris item), lewat empat field di doctype Quotation: **Payment Terms**, **Delivery
-Point**, **Delivery Time**, **Validity**. Kalau field-nya kosong atau SO-nya gak lahir dari
-Quotation, jatuh ke cadangan: `payment_terms_template`, alamat pengiriman, teks
-"Reconfrom stock before PO", dan tanggal `valid_till`. Your Ref dari contact person, Subject dari
-Project.
+Quotation di baris item), lewat lima field di doctype Quotation: **Payment Terms**, **Delivery
+Point**, **Delivery Time**, **Validity**, dan **Subject**. Kalau field-nya kosong atau SO-nya gak
+lahir dari Quotation, tiga di antaranya jatuh ke cadangan: `payment_terms_template`, alamat
+pengiriman, dan tanggal `valid_till`; Delivery Time jatuh ke teks "Reconfrom stock before PO".
+Your Ref dari contact person.
 
 #### Print Format: Delivery Order (Delivery Note)
 
