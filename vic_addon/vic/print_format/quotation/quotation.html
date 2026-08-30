@@ -1,8 +1,14 @@
 {#- Penawaran ke customer, dicetak dari Sales Order -#}
 
-{#- Syarat penawarannya diketik di Quotation asalnya (kalau SO ini lahir dari Quotation) -#}
-{%- set quotation = doc.items[0].prevdoc_docname if doc.items and doc.items[0].prevdoc_docname else None -%}
-{%- set source = frappe.db.get_value("Quotation", quotation, ["valid_till", "custom_payment_terms", "custom_delivery_point", "custom_delivery_time", "custom_validity", "custom_subject"], as_dict=True) if quotation else None -%}
+{#-
+	Syarat penawarannya diketik di Quotation. Print format ini bisa dipasang di dua doctype:
+
+	- dicetak dari Quotation   -> field-nya dibaca dari dokumen itu sendiri
+	- dicetak dari Sales Order -> dibaca dari Quotation asalnya (nomornya nempel di baris item)
+-#}
+{%- set terms = ["valid_till", "custom_payment_terms", "custom_delivery_point", "custom_delivery_time", "custom_validity", "custom_subject"] -%}
+{%- set quotation = doc.name if doc.doctype == "Quotation" else (doc.items[0].prevdoc_docname if doc.items and doc.items[0].prevdoc_docname else None) -%}
+{%- set source = frappe.db.get_value("Quotation", quotation, terms, as_dict=True) if quotation else None -%}
 {%- set valid_till = source.valid_till if source else None -%}
 {%- set currency = doc.currency -%}
 
@@ -27,18 +33,18 @@
 		</div>
 	</div>
 
-	<div class="party">{{ doc.customer_name or doc.customer }}</div>
+	<div class="party">{{ doc.customer_name or doc.get("customer") or doc.get("party_name") }}</div>
 
 	<table class="terms">
 		<tr>
 			<td class="lbl">Payment Terms</td>
 			<td class="sep">:</td>
-			<td>{{ (source.custom_payment_terms if source else None) or doc.payment_terms_template or doc.tc_name or "" }}</td>
+			<td>{{ (source.custom_payment_terms if source else None) or doc.get("payment_terms_template") or doc.get("tc_name") or "" }}</td>
 		</tr>
 		<tr>
 			<td class="lbl">Delivery Point</td>
 			<td class="sep">:</td>
-			<td>{{ (source.custom_delivery_point if source else None) or doc.shipping_address_name or "" }}</td>
+			<td>{{ (source.custom_delivery_point if source else None) or doc.get("shipping_address_name") or "" }}</td>
 		</tr>
 		<tr>
 			<td class="lbl">Validity</td>
@@ -54,7 +60,7 @@
 		<tr>
 			<td class="lbl">Your Ref</td>
 			<td class="sep">:</td>
-			<td>{{ doc.contact_display or doc.po_no or "" }}</td>
+			<td>{{ doc.contact_display or doc.get("po_no") or "" }}</td>
 		</tr>
 		<tr>
 			<td class="lbl">Subject</td>

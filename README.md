@@ -708,7 +708,7 @@ Lima form kertas VIC yang lain ikut dibikin, semuanya pakai kop surat + gaya yan
 
 | Print Format | Doctype | Judul di kertas |
 | --- | --- | --- |
-| Quotation (VIC) | **Sales Order** | QUOTATION |
+| Quotation (VIC) | **Quotation** (bisa juga dipasang di Sales Order) | QUOTATION |
 | Purchase Order (VIC) | Purchase Order | PURCHASE ORDER |
 | Purchase Request | Material Request | PURCHASE REQUEST |
 | Inquiry | Request for Quotation | INQUIRY |
@@ -738,12 +738,16 @@ tangan Supplier Approved + Director, dan baris warna salinan (Putih = Supplier, 
 Purchasing, Kuning = Accounting, Hijau = Finance). Delivery Time-nya ngambil **Required By**
 (`schedule_date`), bukan teks hardcode.
 
-Isian syarat di **Quotation (VIC)** diambil dari **Quotation asal**-nya (SO nyimpen nomor
-Quotation di baris item), lewat lima field di doctype Quotation: **Payment Terms**, **Delivery
-Point**, **Delivery Time**, **Validity**, dan **Subject**. Kalau field-nya kosong atau SO-nya gak
-lahir dari Quotation, tiga di antaranya jatuh ke cadangan: `payment_terms_template`, alamat
-pengiriman, dan tanggal `valid_till`; Delivery Time jatuh ke teks "Reconfrom stock before PO".
-Your Ref dari contact person.
+Isian syarat di **Quotation (VIC)** diketik di lima field doctype Quotation: **Payment Terms**,
+**Delivery Point**, **Delivery Time**, **Validity**, dan **Subject**. Template-nya sadar dokumen,
+jadi satu file bisa dipasang di dua doctype:
+
+- dicetak dari **Quotation** -> field-nya dibaca dari dokumen itu sendiri
+- dicetak dari **Sales Order** -> dibaca dari Quotation asalnya (nomornya nempel di baris item)
+
+Kalau field-nya kosong (atau SO-nya gak lahir dari Quotation), tiga baris jatuh ke cadangan:
+`payment_terms_template`, alamat pengiriman, dan tanggal `valid_till`; Delivery Time jatuh ke teks
+"Reconfrom stock before PO". Your Ref dari contact person.
 
 #### Print Format: Delivery Order (Delivery Note)
 
