@@ -406,6 +406,16 @@ def make_payment_entry(docname):
 	set_advance_taxes(payment_entry)
 
 	if payment_entry.get("taxes"):
+		# `calculate_taxes` bawaan ERPNext bagi nilai pajak sama rate tukar, padahal di dokumen
+		# yang belum disimpan akun banknya (`paid_to`) masih kosong - rate-nya jadi None dan
+		# hitungannya meledak. Rate-nya diisi dulu di sini; pas disimpan, `validate` ngitung
+		# ulang sendiri (`set_exchange_rate` -> `apply_taxes`), jadi angka sementara ini aman.
+		payment_entry.set_exchange_rate()
+		payment_entry.source_exchange_rate = payment_entry.source_exchange_rate or 1
+		payment_entry.target_exchange_rate = (
+			payment_entry.target_exchange_rate or payment_entry.source_exchange_rate
+		)
+
 		payment_entry.set_amounts()
 		payment_entry.apply_taxes()
 		payment_entry.set_amounts_after_tax()
