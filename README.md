@@ -738,10 +738,12 @@ tangan Supplier Approved + Director, dan baris warna salinan (Putih = Supplier, 
 Purchasing, Kuning = Accounting, Hijau = Finance). Delivery Time-nya ngambil **Required By**
 (`schedule_date`), bukan teks hardcode.
 
-Catatan isian di **Quotation (VIC)**: Payment Terms dari `payment_terms_template`, Delivery Point
-dari alamat pengiriman, Validity dari `valid_till` Quotation asalnya (kalau SO-nya lahir dari
-Quotation), Your Ref dari contact person, Subject dari Project. **Delivery Time di-hardcode**
-"Reconfrom stock before PO" sesuai contoh PDF.
+Isian syarat di **Quotation (VIC)** diambil dari **Quotation asal**-nya (SO nyimpen nomor
+Quotation di baris item), lewat empat field di doctype Quotation: **Payment Terms**, **Delivery
+Point**, **Delivery Time**, **Validity**. Kalau field-nya kosong atau SO-nya gak lahir dari
+Quotation, jatuh ke cadangan: `payment_terms_template`, alamat pengiriman, teks
+"Reconfrom stock before PO", dan tanggal `valid_till`. Your Ref dari contact person, Subject dari
+Project.
 
 #### Print Format: Delivery Order (Delivery Note)
 

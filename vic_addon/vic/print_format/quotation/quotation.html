@@ -1,8 +1,9 @@
 {#- Penawaran ke customer, dicetak dari Sales Order -#}
 
-{#- Validity diambil dari Quotation asalnya (kalau SO ini lahir dari Quotation) -#}
+{#- Syarat penawarannya diketik di Quotation asalnya (kalau SO ini lahir dari Quotation) -#}
 {%- set quotation = doc.items[0].prevdoc_docname if doc.items and doc.items[0].prevdoc_docname else None -%}
-{%- set valid_till = frappe.db.get_value("Quotation", quotation, "valid_till") if quotation else None -%}
+{%- set source = frappe.db.get_value("Quotation", quotation, ["valid_till", "custom_payment_terms", "custom_delivery_point", "custom_delivery_time", "custom_validity"], as_dict=True) if quotation else None -%}
+{%- set valid_till = source.valid_till if source else None -%}
 {%- set project_name = frappe.db.get_value("Project", doc.project, "project_name") if doc.project else None -%}
 {%- set currency = doc.currency -%}
 
@@ -33,22 +34,23 @@
 		<tr>
 			<td class="lbl">Payment Terms</td>
 			<td class="sep">:</td>
-			<td>{{ doc.payment_terms_template or doc.tc_name or "" }}</td>
+			<td>{{ (source.custom_payment_terms if source else None) or doc.payment_terms_template or doc.tc_name or "" }}</td>
 		</tr>
 		<tr>
 			<td class="lbl">Delivery Point</td>
 			<td class="sep">:</td>
-			<td>{{ doc.shipping_address_name or "" }}</td>
+			<td>{{ (source.custom_delivery_point if source else None) or doc.shipping_address_name or "" }}</td>
 		</tr>
 		<tr>
 			<td class="lbl">Validity</td>
 			<td class="sep">:</td>
-			<td>{{ frappe.utils.formatdate(valid_till, "MMMM d, yyyy") if valid_till else "" }}</td>
+			<td>{{ (source.custom_validity if source else None) or (frappe.utils.formatdate(valid_till, "MMMM d, yyyy") if valid_till else "") }}</td>
 		</tr>
 		<tr>
 			<td class="lbl">Delivery Time</td>
+			{#- kalau di Quotation-nya dikosongin, jatuh ke teks yang selama ini dipakai di form kertas -#}
 			<td class="sep">:</td>
-			<td>Reconfrom stock before PO</td>
+			<td>{{ (source.custom_delivery_time if source else None) or "Reconfrom stock before PO" }}</td>
 		</tr>
 		<tr>
 			<td class="lbl">Your Ref</td>
