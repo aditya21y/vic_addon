@@ -208,6 +208,7 @@ def make_stock_entry(source_name, is_return=0):
 	stock_entry.stock_entry_type = CUSTOMER_LOAN_RETURN if is_return else CUSTOMER_LOAN
 	stock_entry.purpose = "Material Transfer"
 	stock_entry.custom_loan_memo = doc.name
+	stock_entry.project = doc.project
 
 	for item in doc.items:
 		stock_entry.append(
@@ -251,6 +252,7 @@ def make_sales_order(source_name, target_doc=None):
 	sales_order.company = doc.company
 	sales_order.customer = doc.customer
 	sales_order.custom_loan_memo = doc.name
+	sales_order.project = doc.project
 	# barangnya udah di tangan customer, jadi tanggal kirimnya paling telat ya hari ini
 	delivery_date = doc.expected_end_loan_date or nowdate()
 	sales_order.delivery_date = delivery_date

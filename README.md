@@ -76,7 +76,8 @@ jual dari margin. Rumusnya ngikut sheet **5a. COSTING** di source of truth. Non-
 (sesuai bispro) biar item tetap bisa diedit & dihitung ulang kalau supplier/harga berubah.
 
 Doctype: **Costing** (`CST-.YYMM.-`), dengan child table **Costing Item** dan
-**Costing Additional Cost**.
+**Costing Additional Cost**. Ada field **Project** juga, yang ikut kebawa ke Quotation waktu
+costing-nya dijadiin penawaran.
 
 Tiap baris Costing Item punya field **Warehouse** yang keisi otomatis: gudang default item di
 company itu (`Item Default`) dulu, kalau item gak punya baru ikut default warehouse di Stock
@@ -443,6 +444,7 @@ Dokumen ini yang jadi pegangan dua-duanya.
 | Posting Date | Tanggal memo |
 | Expected End Loan Date | Perkiraan barang balik / diputusin dibeli |
 | Company, Customer | Wajib |
+| Project | Proyek yang minjem barangnya; ikut kebawa ke Stock Entry & Sales Order turunannya |
 | Sales Person Name | Link ke Sales Person |
 | Loan Memo Status | *Approved to Buy* / *Approved to Return* — keputusan customer, bisa diisi setelah submit |
 | Remarks | Catatan bebas |

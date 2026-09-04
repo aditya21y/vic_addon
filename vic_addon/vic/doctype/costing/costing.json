@@ -12,6 +12,7 @@
   "column_break_header",
   "company",
   "customer",
+  "project",
   "subject",
   "currency",
   "column_break_remarks",
@@ -92,6 +93,12 @@
    "fieldtype": "Link",
    "label": "Customer",
    "options": "Customer"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
   },
   {
    "fieldname": "subject",

@@ -12,6 +12,7 @@
   "column_break_header",
   "company",
   "customer",
+  "project",
   "sales_person",
   "column_break_status",
   "loan_memo_status",
@@ -67,6 +68,12 @@
    "label": "Customer",
    "options": "Customer",
    "reqd": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
   },
   {
    "fieldname": "sales_person",

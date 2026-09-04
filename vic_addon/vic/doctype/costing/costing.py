@@ -238,6 +238,7 @@ def make_quotation(source_name, target_doc=None):
 			target.party_name = source.customer
 
 		target.custom_costing = source.name
+		target.project = source.project
 		target.run_method("set_missing_values")
 		target.run_method("calculate_taxes_and_totals")
 
