@@ -483,6 +483,42 @@ Tab **Connections** di Loan Memo nampilin Stock Entry & Sales Order-nya (lewat f
 > nulis "Approved to **Sell**". Yang kepakai di sini yang versi Workflow, soalnya di situ semua
 > state-nya lengkap.
 
+#### Selling Price Estimate (custom doctype)
+
+Alat hitung buat Purchasing/Sales: ancer-ancer harga jual sebuah barang sebelum ada costing
+resmi. Dokumennya gak posting jurnal dan gak dipakai transaksi.
+
+```
+Estimasi Harga Jual = (Last Purchase Rate + Biaya Tambahan per Unit) / (1 - Margin %)
+
+contoh: (15.000 + 2.000) / (1 - 20%) = 21.250
+```
+
+User milih **Item** + **Warehouse**, sisanya keisi sendiri:
+
+| Field | Isinya |
+| --- | --- |
+| Last Purchase Rate | Rate dari baris **Purchase Receipt** submitted paling akhir buat item itu. Warehouse dikosongin = dari gudang mana aja |
+| Purchase Receipt, Purchase Date, Qty | Dokumen sumbernya, biar angkanya bisa dilacak |
+| Margin % | Margin atas harga jual, harus di bawah 100 |
+
+**Biaya tambahannya dua rasa**, dipilih lewat checkbox **With Last LCV**:
+
+| With Last LCV | Tabel yang muncul | Biayanya dari |
+| --- | --- | --- |
+| Mati | **Additional Costs** (isi manual, pola sama kayak Costing) | Jumlah kolom Amount — diisi **per unit** |
+| Nyala | **Landed Cost dari Pembelian Terakhir** (read-only) | Landed Cost Voucher yang nempel di Purchase Receipt tadi |
+
+Baris Landed Cost-nya diambil dari `applicable_charges` — porsi biaya yang udah dialokasiin
+ERPNext ke baris penerimaan itu — terus dibagi qty biar ketemu **biaya per unit**. Nama biayanya
+(Freight, Handling, dst) ikut ditampilin di kolom Description. Kalau Purchase Receipt-nya gak
+punya Landed Cost Voucher, biayanya nol dan user dikasih tau.
+
+Hitungannya jalan dua kali: di form (biar angkanya langsung kelihatan waktu isian diubah) dan di
+server tiap disimpan — yang di server itu yang jadi pegangan.
+
+Implementasi: `vic_addon/vic/doctype/selling_price_estimate/`.
+
 #### Customer WAPU
 
 WAPU (Wajib Pungut): PPN-nya dipungut dan disetor sendiri sama customer — biasanya instansi
