@@ -179,6 +179,22 @@ class Costing(Document):
 			else 0
 		)
 
+		# Profit di atas dihitung dari Selling Rate (harga hasil margin). Yang dinego ke customer
+		# itu Quotation Rate, jadi profit versi harga nego dihitung sendiri di sini - basis
+		# persentasenya sama (Total HPP) biar dua angkanya bisa langsung dibandingin.
+		self.total_quotation_profit_amount = flt(
+			flt(self.total_quotation_amount) - flt(self.total_hpp_amount),
+			self.precision("total_quotation_profit_amount"),
+		)
+		self.total_quotation_profit_percentage = (
+			flt(
+				self.total_quotation_profit_amount / self.total_hpp_amount * 100,
+				self.precision("total_quotation_profit_percentage"),
+			)
+			if self.total_hpp_amount
+			else 0
+		)
+
 
 def get_status(costing):
 	"""`Quoted` kalau costing ini udah punya Quotation yang belum dibatalin."""

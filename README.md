@@ -117,7 +117,17 @@ HPP Rate              = Rate + Distributed Cost Rate
 Selling Rate          = HPP Rate / (1 - Margin %)
 Profit Amount         = Selling Amount - HPP Amount
 Profit %              = Profit Amount / HPP Amount x 100
+
+di header, dua-duanya dibanding Total HPP Amount:
+Total Profit Amount / %              -> dari Total Selling Amount (harga hasil margin)
+Total Profit Amount / % vs Quotation -> dari Total Quotation Amount (harga nego ke customer)
 ```
+
+**Kenapa profitnya dua versi.** `Selling Rate` itu harga hasil rumus margin, sedangkan
+`Quotation Rate` itu harga yang beneran ditawarin ke customer (boleh dinego turun). Profit yang
+lama ngukur rencana, yang **vs Quotation** ngukur kenyataan. Basis persentasenya sama-sama Total
+HPP Amount, jadi dua angkanya bisa langsung dibandingin — misalnya harga nego dipotong 10%:
+profit rencana 25% jadi kenyataan 12,5%.
 
 Additional cost dibagi proporsional lewat rate tiap item, jadi total distributed cost =
 `Total Additional Costs x (1 + Additional Percentage)`. **Additional Percentage** itu buffer

@@ -11,6 +11,8 @@ const BOLD_FIELDS = [
 	"total_quotation_amount",
 	"total_profit_amount",
 	"total_profit_percentage",
+	"total_quotation_profit_amount",
+	"total_quotation_profit_percentage",
 ];
 
 frappe.ui.form.on("Costing", {

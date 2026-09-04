@@ -32,6 +32,8 @@
   "total_quotation_amount",
   "total_profit_amount",
   "total_profit_percentage",
+  "total_quotation_profit_amount",
+  "total_quotation_profit_percentage",
   "terms_section",
   "mark_up",
   "delivery_time",
@@ -215,6 +217,22 @@
    "fieldname": "total_profit_percentage",
    "fieldtype": "Percent",
    "label": "Total Profit %",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "description": "Total Quotation Amount - Total HPP Amount",
+   "fieldname": "total_quotation_profit_amount",
+   "fieldtype": "Currency",
+   "label": "Total Profit Amount vs Quotation",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "description": "Profit vs Quotation / Total HPP Amount x 100",
+   "fieldname": "total_quotation_profit_percentage",
+   "fieldtype": "Percent",
+   "label": "Total Profit % vs Quotation",
    "read_only": 1
   },
   {
