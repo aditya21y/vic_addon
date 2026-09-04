@@ -123,6 +123,17 @@ Total Profit Amount / %              -> dari Total Selling Amount (harga hasil m
 Total Profit Amount / % vs Quotation -> dari Total Quotation Amount (harga nego ke customer)
 ```
 
+**Harga final dari Quotation bisa ditarik balik ke Costing.** Quotation yang udah submit punya
+tombol **Actions > Update Costing Rate**: dia bandingin `net_rate` tiap baris Quotation (harga per
+unit setelah diskon item maupun diskon atas total) lawan Quotation Rate di Costing, nampilin
+selisihnya dulu di dialog, baru nimpa kalau user setuju. Baris yang ketimpa ditandain
+`quotation_rate_manually_set` biar gak ketarik balik ke Selling Rate, dan Costing-nya dapat
+komentar nyebut Quotation mana sumbernya.
+
+Tombolnya sengaja **di Quotation, bukan di Costing, dan gak jalan otomatis waktu submit**: satu
+Costing bisa punya beberapa Quotation (revisi atau penawaran ke customer lain), jadi harga mana
+yang jadi patokan itu keputusan user — kalau ditaruh di Costing, dokumennya mesti nebak sendiri.
+
 **Kenapa profitnya dua versi.** `Selling Rate` itu harga hasil rumus margin, sedangkan
 `Quotation Rate` itu harga yang beneran ditawarin ke customer (boleh dinego turun). Profit yang
 lama ngukur rencana, yang **vs Quotation** ngukur kenyataan. Basis persentasenya sama-sama Total
