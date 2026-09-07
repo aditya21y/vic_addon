@@ -13,9 +13,9 @@ frappe.ui.form.on("Sales Order", {
 	},
 });
 
-// Modal: user ngecek dulu baris mana yang mau di-PO dan suppliernya siapa, baru PO-nya dibikin
-// (satu PO per supplier, kepisah lagi per tipe transaksi). Supplier keisi dari SQTN di baris
-// item, tapi bebas diganti - barang habis di supplier pertama itu kasus normal.
+// Modal: user ngecek dulu baris mana yang mau di-PO, dari penawaran siapa, dan berapa banyak.
+// Satu PO per supplier. Supplier ngikut Supplier Quotation yang dipilih; mau ganti supplier
+// sendiri, kosongin dulu SQTN-nya - barang habis di supplier pertama itu kasus normal.
 function create_purchase_orders(frm) {
 	frappe.call({
 		method: "vic_addon.vic.sales_order.get_items_for_purchase_order",
@@ -59,6 +59,12 @@ function show_purchase_order_dialog(frm, rows) {
 						hidden: 1,
 					},
 					{
+						fieldtype: "Data",
+						fieldname: "sales_order_quotation",
+						label: __("Sales Order Quotation"),
+						hidden: 1,
+					},
+					{
 						fieldtype: "Link",
 						fieldname: "item_code",
 						label: __("Item"),
@@ -70,8 +76,9 @@ function show_purchase_order_dialog(frm, rows) {
 					{
 						fieldtype: "Float",
 						fieldname: "pending_qty",
-						label: __("Pending Qty"),
-						read_only: 1,
+						label: __("Qty"),
+						// boleh dikurangin kalau mau mesen sebagian dulu - sama aja kayak ngedit
+						// qty di draft PO-nya, cuma lebih cepat
 						in_list_view: 1,
 						columns: 1,
 					},
@@ -99,15 +106,26 @@ function show_purchase_order_dialog(frm, rows) {
 						options: "Supplier",
 						in_list_view: 1,
 						columns: 3,
+						// supplier itu turunan penawarannya; mau isi sendiri, kosongin dulu SQTN-nya
+						read_only_depends_on: "eval:doc.supplier_quotation",
 					},
 					{
 						fieldtype: "Link",
 						fieldname: "supplier_quotation",
 						label: __("Supplier Quotation"),
 						options: "Supplier Quotation",
-						read_only: 1,
 						in_list_view: 1,
 						columns: 2,
+						// cuma penawaran yang beneran ada item baris ini
+						get_query(row) {
+							return {
+								query: "vic_addon.vic.sales_order.supplier_quotation_query",
+								filters: { item_code: row.item_code },
+							};
+						},
+						onchange() {
+							set_supplier_from_quotation(this.doc, this.grid_row);
+						},
 					},
 				],
 			},
@@ -133,6 +151,15 @@ function show_purchase_order_dialog(frm, rows) {
 				return;
 			}
 
+			const replaced = selected.filter(
+				(row) => row.sales_order_quotation && row.supplier_quotation !== row.sales_order_quotation
+			);
+
+			if (replaced.length) {
+				confirm_replaced_quotation(frm, dialog, selected, replaced);
+				return;
+			}
+
 			dialog.hide();
 			submit_purchase_orders(frm, selected);
 		},
@@ -143,6 +170,61 @@ function show_purchase_order_dialog(frm, rows) {
 	dialog.wrapper.find(".grid-heading-row .grid-row-check").click();
 }
 
+// SQTN yang dipakai beda dari yang dipilih waktu penawaran ke customer disusun - itu keputusan
+// yang mengubah harga beli, jadi dimintakan persetujuan dulu sebelum PO dibuat.
+function confirm_replaced_quotation(frm, dialog, selected, replaced) {
+	const rows = replaced
+		.map(
+			(row) => `<tr>
+				<td>${frappe.utils.escape_html(row.item_code)}</td>
+				<td>${frappe.utils.escape_html(row.sales_order_quotation)}</td>
+				<td>${frappe.utils.escape_html(row.supplier_quotation || __("(none)"))}</td>
+			</tr>`
+		)
+		.join("");
+
+	const message = `
+		<p>${__(
+			"Sales Order {0} refers to a different Supplier Quotation for the following items:",
+			[frm.doc.name]
+		)}</p>
+		<table class="table table-bordered">
+			<thead>
+				<tr>
+					<th>${__("Item")}</th>
+					<th>${__("On Sales Order")}</th>
+					<th>${__("Will Be Used")}</th>
+				</tr>
+			</thead>
+			<tbody>${rows}</tbody>
+		</table>
+		<p>${__(
+			"The Purchase Order will be created using the Supplier Quotation selected above, so the buying rate follows that quotation. Do you wish to continue?"
+		)}</p>`;
+
+	frappe.confirm(message, () => {
+		dialog.hide();
+		submit_purchase_orders(frm, selected);
+	});
+}
+
+// Supplier itu turunan dari penawaran yang dipakai - biar PO gak dikirim ke supplier yang beda
+// dari pemilik harga yang ditarik.
+function set_supplier_from_quotation(row, grid_row) {
+	if (!row.supplier_quotation) {
+		grid_row && grid_row.refresh();
+		return;
+	}
+
+	frappe.db.get_value("Supplier Quotation", row.supplier_quotation, "supplier").then(({ message }) => {
+		if (message && message.supplier) {
+			row.supplier = message.supplier;
+		}
+
+		grid_row && grid_row.refresh();
+	});
+}
+
 function submit_purchase_orders(frm, selected_items) {
 	frappe.call({
 		method: "vic_addon.vic.sales_order.make_purchase_orders",
@@ -151,6 +233,8 @@ function submit_purchase_orders(frm, selected_items) {
 			selected_items: selected_items.map((row) => ({
 				sales_order_item: row.sales_order_item,
 				supplier: row.supplier,
+				supplier_quotation: row.supplier_quotation,
+				qty: row.pending_qty,
 			})),
 		},
 		freeze: true,

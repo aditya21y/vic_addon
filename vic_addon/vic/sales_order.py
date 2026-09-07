@@ -7,6 +7,7 @@ otomatis tanpa milih supplier manual lagi.
 
 import frappe
 from frappe import _
+from frappe.query_builder import Order
 from frappe.utils import flt, get_link_to_form, getdate
 
 from vic_addon.vic.dropship import DROPSHIP, MIXED, REGULER, set_transaction_type
@@ -43,10 +44,42 @@ def get_items_for_purchase_order(sales_order):
 				"transaction_type": item.custom_transaction_type or REGULER,
 				"supplier": item.custom_supplier,
 				"supplier_quotation": item.custom_supplier_quotation,
+				# disimpan terpisah biar modal tau SQTN mana yang aslinya dipilih di Sales Order,
+				# walaupun kolom SQTN-nya udah diubah user
+				"sales_order_quotation": item.custom_supplier_quotation,
 			}
 		)
 
 	return rows
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def supplier_quotation_query(doctype, txt, searchfield, start, page_len, filters):
+	"""Isi dropdown Supplier Quotation di modal: cuma penawaran yang ada item barisnya.
+
+	Milih SQTN yang gak nawarin item itu bikin harga belinya gak ketarik dan PO-nya ditolak
+	waktu disimpan, jadi disaring dari awal.
+	"""
+	quotation = frappe.qb.DocType("Supplier Quotation")
+	item = frappe.qb.DocType("Supplier Quotation Item")
+
+	query = (
+		frappe.qb.from_(quotation)
+		.join(item)
+		.on(item.parent == quotation.name)
+		.select(quotation.name, quotation.supplier)
+		.distinct()
+		.where((quotation.docstatus == 1) & (item.item_code == filters.get("item_code")))
+		.orderby(quotation.transaction_date, order=Order.desc)
+		.limit(page_len)
+		.offset(start)
+	)
+
+	if txt:
+		query = query.where(quotation.name.like(f"%{txt}%") | quotation.supplier.like(f"%{txt}%"))
+
+	return query.run()
 
 
 @frappe.whitelist()
@@ -73,8 +106,8 @@ def make_purchase_orders(sales_order, selected_items=None):
 	pending_qty = get_pending_qty(doc)
 	validate_pending_qty(doc, pending_qty)
 
-	supplier_by_row = get_supplier_by_row(doc, pending_qty, selected_items)
-	groups = get_rows_by_group(doc, supplier_by_row)
+	selection = get_selection_by_row(doc, pending_qty, selected_items)
+	groups = get_rows_by_group(doc, selection)
 
 	if not groups:
 		frappe.throw(
@@ -102,9 +135,9 @@ def make_purchase_orders(sales_order, selected_items=None):
 			frappe.flags.purchase_order_from_sales_order = False
 
 		for purchase_order in created:
-			set_supplier_quotation_details(purchase_order, doc)
+			set_supplier_quotation_details(purchase_order, doc, selection)
 
-			if not set_pending_qty(purchase_order, pending_qty, rows_of_group):
+			if not set_pending_qty(purchase_order, pending_qty, rows_of_group, selection):
 				# semua barisnya udah ketutup PO lain, dokumennya gak usah ada
 				purchase_order.delete()
 				continue
@@ -221,25 +254,39 @@ def get_purchase_order_links(purchase_orders):
 	return links
 
 
-def get_supplier_by_row(doc, pending_qty, selected_items=None):
-	"""Supplier per baris SO: dari modal kalau ada, kalau enggak dari SQTN di baris itemnya."""
+def get_selection_by_row(doc, pending_qty, selected_items=None):
+	"""Pilihan user dari modal per baris SO: supplier, Supplier Quotation, dan qty.
+
+	Kalau dipanggil tanpa modal (dari script), suppliernya diambil dari baris item Sales
+	Order-nya dan qty-nya ngikut sisa yang belum di-PO.
+	"""
 	if isinstance(selected_items, str):
 		selected_items = frappe.parse_json(selected_items)
 
 	if not selected_items:
 		return {
-			item.name: item.custom_supplier
+			item.name: frappe._dict(
+				supplier=item.custom_supplier,
+				supplier_quotation=item.custom_supplier_quotation,
+				qty=None,
+			)
 			for item in doc.items
 			if item.custom_supplier and item.name in pending_qty
 		}
 
-	supplier_by_row = {}
+	selection = {}
 	for row in selected_items:
 		row = frappe._dict(row)
-		if row.supplier and row.sales_order_item in pending_qty:
-			supplier_by_row[row.sales_order_item] = row.supplier
+		if not (row.supplier and row.sales_order_item in pending_qty):
+			continue
 
-	return supplier_by_row
+		selection[row.sales_order_item] = frappe._dict(
+			supplier=row.supplier,
+			supplier_quotation=row.supplier_quotation,
+			qty=flt(row.qty) or None,
+		)
+
+	return selection
 
 
 def get_active_purchase_orders(sales_order):
@@ -255,11 +302,15 @@ def get_active_purchase_orders(sales_order):
 	)
 
 
-def set_pending_qty(purchase_order, pending_qty, rows_of_group):
-	"""Potong PO ke sisa qty yang belum di-PO, baris yang udah ketutup dibuang.
+def set_pending_qty(purchase_order, pending_qty, rows_of_group, selection=None):
+	"""Qty PO: pakai isian user di modal, kalau gak diisi ikut sisa yang belum di-PO.
+
+	Qty dari modal dipakai apa adanya - user emang lagi mutusin mau mesen berapa, sama kayak
+	dia ngedit draft PO-nya langsung. Baris yang sisa qty-nya udah nol tetap dibuang.
 
 	Balikin jumlah baris yang tersisa, biar PO kosong bisa dibatalin sama pemanggilnya.
 	"""
+	selection = selection or {}
 	items = []
 
 	for item in purchase_order.items:
@@ -275,7 +326,11 @@ def set_pending_qty(purchase_order, pending_qty, rows_of_group):
 		if remaining <= 0:
 			continue
 
-		if flt(item.stock_qty) > remaining:
+		chosen_qty = selection.get(item.sales_order_item, frappe._dict()).get("qty")
+
+		if chosen_qty:
+			item.qty = flt(chosen_qty, item.precision("qty"))
+		elif flt(item.stock_qty) > remaining:
 			item.qty = flt(remaining / (flt(item.conversion_factor) or 1), item.precision("qty"))
 
 		items.append(item)
@@ -308,7 +363,7 @@ def set_schedule_date(doc, method=None):
 	purchase_order.schedule_date = min(getdate(item.schedule_date) for item in purchase_order.items)
 
 
-def get_rows_by_group(doc, supplier_by_row):
+def get_rows_by_group(doc, selection):
 	"""Baris Sales Order dikelompokin **per supplier** - satu supplier satu PO.
 
 	Item yang sama boleh nongol di beberapa baris. Selama suppliernya sama, barisnya digabung ke
@@ -318,11 +373,11 @@ def get_rows_by_group(doc, supplier_by_row):
 	groups = {}
 
 	for item in doc.items:
-		supplier = supplier_by_row.get(item.name)
-		if not supplier:
+		chosen = selection.get(item.name)
+		if not (chosen and chosen.supplier):
 			continue
 
-		groups.setdefault(supplier, []).append(item)
+		groups.setdefault(chosen.supplier, []).append(item)
 
 	return groups
 
@@ -361,27 +416,34 @@ def set_transaction_type_details(purchase_order, sales_order):
 
 
 
-def set_supplier_quotation_details(purchase_order, sales_order):
-	"""Isi harga beli + link SQTN di PO, diambil dari baris Sales Order-nya.
+def set_supplier_quotation_details(purchase_order, sales_order, selection=None):
+	"""Isi harga beli + link SQTN di PO. SQTN yang dipilih user di modal yang menang.
 
 	Link SQTN-nya ditaruh di custom field, bukan di field bawaan `supplier_quotation`.
 	Field bawaan bikin ERPNext maksa PO item sama persis dengan SQTN (project, uom,
 	conversion factor), padahal project di PO ngikut Sales Order, bukan SQTN.
 
-	Baris yang suppliernya diganti di modal dilewatin: penawaran itu punya supplier lain, jadi
-	harga maupun link-nya gak nyambung lagi.
+	Kalau user gak milih SQTN di modal, dipakai SQTN dari baris Sales Order-nya - itu pun cuma
+	kalau suppliernya masih sama, karena penawaran supplier lain gak nyambung lagi harganya.
 	"""
+	selection = selection or {}
 	sales_order_items = {item.name: item for item in sales_order.items}
 
 	for item in purchase_order.items:
-		sales_order_item = sales_order_items.get(item.sales_order_item)
-		if not (sales_order_item and sales_order_item.custom_supplier_quotation):
-			continue
+		quotation = selection.get(item.sales_order_item, frappe._dict()).get("supplier_quotation")
 
-		if sales_order_item.custom_supplier and sales_order_item.custom_supplier != purchase_order.supplier:
-			continue
+		if not quotation:
+			sales_order_item = sales_order_items.get(item.sales_order_item)
+			if not (sales_order_item and sales_order_item.custom_supplier_quotation):
+				continue
 
-		quotation = sales_order_item.custom_supplier_quotation
+			if (
+				sales_order_item.custom_supplier
+				and sales_order_item.custom_supplier != purchase_order.supplier
+			):
+				continue
+
+			quotation = sales_order_item.custom_supplier_quotation
 		quotation_item = frappe.db.get_value(
 			"Supplier Quotation Item",
 			{"parent": quotation, "item_code": item.item_code},

@@ -6,8 +6,6 @@ yang udah dinego di SQTN, makanya sebelum PO disimpan dicek dulu:
 
 - SQTN-nya beneran ada, udah disubmit, dan suppliernya sama dengan supplier PO
 - barisnya beneran baris SQTN itu dan item code-nya sama
-- baris SQTN-nya sama dengan yang nempel di baris Sales Order-nya
-
 Qty PO **gak** dibatesin qty yang ditawarin di SQTN: penawaran supplier sering ditulis buat 1
 unit sebagai patokan harga, sedangkan pesanannya bisa lebih banyak.
 """
@@ -158,7 +156,6 @@ def validate_supplier_quotation(doc, method=None):
 
 		validate_quotation(doc, item)
 		get_quotation_item(item)
-		validate_sales_order_link(item)
 
 
 def validate_quotation(doc, item):
@@ -210,24 +207,6 @@ def get_quotation_item(item):
 	item.custom_supplier_quotation_item = quotation_item.name
 
 	return quotation_item
-
-
-def validate_sales_order_link(item):
-	"""Baris SQTN di PO harus sama dengan yang dipilih di baris Sales Order-nya."""
-	if not item.sales_order_item:
-		return
-
-	quotation = frappe.db.get_value(
-		"Sales Order Item", item.sales_order_item, "custom_supplier_quotation"
-	)
-
-	if quotation and quotation != item.custom_supplier_quotation:
-		frappe.throw(
-			_(
-				"Row #{0}: Sales Order {1} quotes this item from Supplier Quotation {2}, not {3}."
-			).format(item.idx, item.sales_order, quotation, item.custom_supplier_quotation),
-			title=_("Supplier Quotation Mismatch"),
-		)
 
 
 def warn_if_quotation_missing(doc, item):

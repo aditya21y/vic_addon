@@ -347,9 +347,24 @@ SQTN -> Costing -> Quotation -> Sales Order -> Purchase Order
 
 **Create > Purchase Order (per Supplier)** di Sales Order yang udah submit: muncul **modal**
 berisi baris SO yang sisa qty-nya masih ada, lengkap dengan Pending Qty, tipe transaksi,
-Supplier, dan SQTN-nya. Semua baris kecentang duluan; user tinggal ngurangin dan ganti supplier
-per baris langsung di tabelnya, baru klik Create. Item yang belum punya SQTN kolom suppliernya
-kosong dan wajib diisi sebelum lanjut.
+Supplier, dan SQTN-nya. Semua baris kecentang duluan; user tinggal ngurangin, baru klik Create.
+Item yang belum punya SQTN kolom suppliernya kosong dan wajib diisi sebelum lanjut.
+
+Tiga kolom bisa diedit langsung di modal:
+
+| Kolom | Kelakuannya |
+| --- | --- |
+| **Qty** | Boleh dikurangin buat mesen sebagian dulu — sisanya tetap kecatat belum di-PO, jadi bisa dibikinin PO lagi nanti |
+| **Supplier Quotation** | Pilihannya cuma penawaran submitted yang **ada item baris itu**; milih penawaran yang gak nawarin itemnya bikin harga gak ketarik, jadi disaring dari sumbernya |
+| **Supplier** | Ngikut otomatis begitu SQTN dipilih, dan kekunci selama SQTN keisi — mau isi supplier sendiri, kosongin dulu SQTN-nya |
+
+Harga beli PO ngikut SQTN yang dipilih di modal (bukan yang nempel di baris SO), jadi kalau ada
+penawaran lain yang lebih murah tinggal ditukar di situ.
+
+**Nuker SQTN mesti disetujui dulu.** Begitu SQTN di sebuah baris beda dari yang dipakai waktu
+penawaran ke customer disusun, tombol Create munculin konfirmasi yang nyebut item mana, SQTN di
+Sales Order-nya apa, dan SQTN yang bakal dipakai apa — PO baru dibuat setelah user setuju. Ini
+gantiin peringatan lama yang munculnya belakangan (setelah PO terlanjur dibuat).
 
 Habis itu barisnya digrup per **supplier** — satu supplier satu draft PO. Harga
 belinya diambil dari SQTN (net rate) dan PO item langsung nyimpen link `Supplier Quotation` +
@@ -428,7 +443,6 @@ diganti emang cuma keputusan beli di PO itu.
 | SQTN-nya ada dan udah disubmit | ditolak |
 | Supplier SQTN = supplier PO | ditolak |
 | Item code-nya ada di SQTN itu | ditolak |
-| SQTN sama dengan yang dipilih di baris Sales Order-nya | ditolak |
 | Baris SO punya SQTN tapi baris PO-nya kosong | cuma diingetin (gak diblokir) |
 
 **Qty PO gak dibatesin qty yang ditawarin SQTN.** Dulu ada aturan "total qty di semua PO aktif
