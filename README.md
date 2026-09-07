@@ -666,9 +666,30 @@ barisnya kecentang, dan kalaupun dipaksa, DN-nya keluar kosong. Selain disembuny
 juga dimatiin tiap Sales Order disimpan (sekalian dikasih pesan), buat jaga-jaga dokumen lama
 atau data hasil import. Yang dipakai cuma **Transaction Type** + **Supplier** di baris item.
 
-Di PO dropship, tombol **Create > Purchase Receipt** disembunyiin (PR-nya otomatis), diganti
-tombol **Create > Delivery Note**. PO dropship juga otomatis dapat alamat kirim + kontak
-customer, jadi supplier tau kirimnya ke mana.
+**Di PO yang punya baris Dropship atau Mixed**, tombol bawaan **Create > Purchase Receipt**
+disembunyiin (dia narik semua baris, termasuk yang gak pernah mampir ke gudang), diganti dua
+tombol yang dua-duanya lewat modal berisi baris + **qty yang bisa diedit**:
+
+| Tombol | Isinya | Qty awalnya |
+| --- | --- | --- |
+| **Create > Delivery Note** | Baris Dropship & Mixed | Sisa yang belum dikirim ke customer |
+| **Create > Purchase Receipt** | Baris Reguler & Mixed (Dropship gak ikut) | Sisa yang belum diterima |
+
+Qty-nya bisa diedit karena baris **Mixed** emang dipecah di situ: misal qty 2, user kirim 1 ke
+customer lewat Delivery Note, sisanya 1 diterima ke gudang lewat Purchase Receipt. Baris yang
+masuk DN ditandain `Dropship` (keluarnya dari gudang transit), yang masuk PR ditandain `Reguler`.
+
+Alur lengkapnya buat PO campur (Mixed 2 + Reguler 1 + Dropship 1):
+
+```
+Create > Delivery Note   -> Mixed 1 + Dropship 1   -> DN submit
+                            -> Purchase Receipt dropship kebentuk otomatis (gudang transit)
+Create > Purchase Receipt -> Mixed 1 + Reguler 1   -> PR submit (gudang sendiri)
+                            -> PO jadi 100% received
+```
+
+PO yang ada baris dropship-nya juga otomatis dapat alamat kirim + kontak customer, jadi supplier
+tau kirimnya ke mana.
 
 **Alamat customer di Shipping Address dokumen pembelian.** ERPNext v16 maksa `Shipping Address`
 di PO/PR/PI diisi alamat yang kedaftar di Company (`validate_company_linked_addresses`), dan

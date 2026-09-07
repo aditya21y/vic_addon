@@ -201,25 +201,128 @@ def get_dropship_warehouse(company):
 	return warehouse
 
 
-@frappe.whitelist()
-def make_delivery_note(source_name, target_doc=None):
-	"""Bikin Delivery Note dari Purchase Order dropship.
+def get_pending_delivery_qty(purchase_order_item, delivered=0):
+	"""Sisa qty baris PO yang belum dikirim ke customer - dipakai jadi isian awal di modal."""
+	return max(flt(purchase_order_item.qty) - flt(delivered), 0)
 
-	DN-nya tetap dibikin dari Sales Order (dokumen ke customer), cuma isinya dibatasi ke item
-	yang ada di PO ini, dan barangnya keluar dari gudang transit dropship.
+
+@frappe.whitelist()
+def get_items_for_delivery_note(purchase_order):
+	"""Baris PO yang barangnya dikirim langsung ke lapangan - isi tabel di modal Delivery Note.
+
+	Yang masuk sini baris Dropship dan Mixed. Baris Mixed sengaja qty-nya gak ditebak sistem:
+	berapa yang dikirim ke customer dan berapa yang masuk gudang itu keputusan user, diisi di
+	modalnya.
+	"""
+	doc = frappe.get_doc("Purchase Order", purchase_order)
+	doc.check_permission("read")
+
+	delivered = get_delivered_qty_by_sales_order_item(doc)
+	rows = []
+
+	for item in doc.items:
+		if item.custom_transaction_type not in (DROPSHIP, MIXED):
+			continue
+
+		rows.append(
+			{
+				"purchase_order_item": item.name,
+				"sales_order": item.sales_order,
+				"sales_order_item": item.sales_order_item,
+				"item_code": item.item_code,
+				"item_name": item.item_name,
+				"uom": item.uom,
+				"transaction_type": item.custom_transaction_type,
+				"order_qty": flt(item.qty),
+				"qty": get_pending_delivery_qty(item, delivered.get(item.sales_order_item)),
+			}
+		)
+
+	return rows
+
+
+@frappe.whitelist()
+def get_items_for_purchase_receipt(purchase_order):
+	"""Baris PO yang barangnya masuk gudang sendiri - isi tabel di modal Purchase Receipt.
+
+	Baris Dropship gak ikut: barangnya gak pernah mampir ke gudang, penerimaannya dibikin
+	otomatis waktu Delivery Note-nya disubmit.
+	"""
+	doc = frappe.get_doc("Purchase Order", purchase_order)
+	doc.check_permission("read")
+
+	rows = []
+
+	for item in doc.items:
+		if item.custom_transaction_type == DROPSHIP:
+			continue
+
+		pending = flt(item.qty) - flt(item.received_qty)
+		if pending <= 0:
+			continue
+
+		rows.append(
+			{
+				"purchase_order_item": item.name,
+				"item_code": item.item_code,
+				"item_name": item.item_name,
+				"uom": item.uom,
+				"warehouse": item.warehouse,
+				"transaction_type": item.custom_transaction_type,
+				"order_qty": flt(item.qty),
+				"qty": pending,
+			}
+		)
+
+	return rows
+
+
+def get_delivered_qty_by_sales_order_item(purchase_order):
+	"""Qty yang udah dikirim ke customer per baris Sales Order, dari DN yang masih aktif."""
+	sales_order_items = [item.sales_order_item for item in purchase_order.items if item.sales_order_item]
+	if not sales_order_items:
+		return {}
+
+	rows = frappe.get_all(
+		"Delivery Note Item",
+		filters={"so_detail": ["in", sales_order_items], "docstatus": ["<", 2]},
+		fields=["so_detail", "qty"],
+	)
+
+	delivered = {}
+	for row in rows:
+		delivered[row.so_detail] = delivered.get(row.so_detail, 0) + flt(row.qty)
+
+	return delivered
+
+
+@frappe.whitelist()
+def make_delivery_note(source_name, selected_items=None, target_doc=None):
+	"""Bikin Delivery Note dari Purchase Order buat barang yang dikirim langsung ke lapangan.
+
+	DN-nya tetap dibikin dari Sales Order (itu dokumen ke customer), cuma isinya dibatasi ke
+	baris yang dipilih user di modal, qty-nya ikut isian user, dan barangnya keluar dari gudang
+	transit dropship.
 	"""
 	from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note as make_dn
 
 	purchase_order = frappe.get_doc("Purchase Order", source_name)
 	purchase_order.check_permission("read")
 
-	dropship_items = [
-		item for item in purchase_order.items if item.custom_transaction_type == DROPSHIP
-	]
-	if not dropship_items:
-		frappe.throw(_("No Dropship item in this Purchase Order."), title=_("Not a Dropship PO"))
+	qty_by_row = get_selected_qty(selected_items)
 
-	sales_orders = {item.sales_order for item in dropship_items if item.sales_order}
+	items = [
+		item
+		for item in purchase_order.items
+		if item.custom_transaction_type in (DROPSHIP, MIXED)
+		and (not qty_by_row or item.name in qty_by_row)
+	]
+	if not items:
+		frappe.throw(
+			_("No Dropship or Mixed item in this Purchase Order."), title=_("Nothing to Deliver")
+		)
+
+	sales_orders = {item.sales_order for item in items if item.sales_order}
 	if not sales_orders:
 		frappe.throw(
 			_("Dropship items in this Purchase Order are not linked to any Sales Order."),
@@ -233,20 +336,84 @@ def make_delivery_note(source_name, target_doc=None):
 			)
 		)
 
-	sales_order_items = {item.sales_order_item for item in dropship_items}
+	qty_by_sales_order_item = {
+		item.sales_order_item: qty_by_row.get(item.name, flt(item.qty)) for item in items
+	}
+
 	delivery_note = make_dn(sales_orders.pop(), target_doc)
 	delivery_note.items = [
-		item for item in delivery_note.items if item.so_detail in sales_order_items
+		item for item in delivery_note.items if item.so_detail in qty_by_sales_order_item
 	]
 
 	warehouse = get_dropship_warehouse(delivery_note.company)
 	for item in delivery_note.items:
 		item.custom_transaction_type = DROPSHIP
 		item.warehouse = warehouse
+		item.qty = flt(qty_by_sales_order_item[item.so_detail], item.precision("qty"))
 
 	set_transaction_type(delivery_note)
 
 	return delivery_note
+
+
+@frappe.whitelist()
+def make_purchase_receipt(source_name, selected_items=None, target_doc=None):
+	"""Bikin Purchase Receipt dari Purchase Order buat barang yang masuk gudang sendiri.
+
+	Dipakai buat baris Reguler dan porsi gudang dari baris Mixed. Baris Dropship gak pernah
+	lewat sini - penerimaannya kebentuk otomatis waktu Delivery Note-nya disubmit.
+	"""
+	from erpnext.buying.doctype.purchase_order.purchase_order import (
+		make_purchase_receipt as make_receipt,
+	)
+
+	purchase_order = frappe.get_doc("Purchase Order", source_name)
+	purchase_order.check_permission("read")
+
+	qty_by_row = get_selected_qty(selected_items)
+	receipt = make_receipt(source_name, target_doc)
+
+	items = []
+	for item in receipt.items:
+		source = item.purchase_order_item
+
+		if qty_by_row and source not in qty_by_row:
+			continue
+
+		if not qty_by_row and item.custom_transaction_type == DROPSHIP:
+			continue
+
+		if qty_by_row:
+			item.qty = flt(qty_by_row[source], item.precision("qty"))
+
+		# porsi yang masuk gudang itu penerimaan biasa, bukan dropship
+		item.custom_transaction_type = REGULER
+		items.append(item)
+
+	if not items:
+		frappe.throw(
+			_("Every item in this Purchase Order is either received already or delivered straight to the customer."),
+			title=_("Nothing to Receive"),
+		)
+
+	receipt.items = items
+	set_transaction_type(receipt)
+
+	return receipt
+
+
+def get_selected_qty(selected_items):
+	"""Isian modal -> qty per baris PO. Baris yang qty-nya nol dianggap gak dipilih."""
+	if isinstance(selected_items, str):
+		selected_items = frappe.parse_json(selected_items)
+
+	qty_by_row = {}
+	for row in selected_items or []:
+		row = frappe._dict(row)
+		if row.purchase_order_item and flt(row.qty) > 0:
+			qty_by_row[row.purchase_order_item] = flt(row.qty)
+
+	return qty_by_row
 
 
 def make_dropship_purchase_receipt(doc, method=None):
