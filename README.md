@@ -410,7 +410,7 @@ Ini jalan **sebelum** `rate_lock`, jadi harga belinya gak ketarik balik dari pen
 lama. Nomor supplier di Sales Order-nya sendiri gak ikut berubah — SO udah submitted, dan yang
 diganti emang cuma keputusan beli di PO itu.
 
-**Qty & link PO dicek balik ke SQTN** tiap PO disimpan (`vic_addon/vic/purchase_order.py`):
+**Link PO dicek balik ke SQTN** tiap PO disimpan (`vic_addon/vic/purchase_order.py`):
 
 | Cek | Kalau gak lolos |
 | --- | --- |
@@ -418,8 +418,13 @@ diganti emang cuma keputusan beli di PO itu.
 | Supplier SQTN = supplier PO | ditolak |
 | Item code-nya ada di SQTN itu | ditolak |
 | SQTN sama dengan yang dipilih di baris Sales Order-nya | ditolak |
-| Total qty di semua PO aktif ≤ qty di SQTN | ditolak |
 | Baris SO punya SQTN tapi baris PO-nya kosong | cuma diingetin (gak diblokir) |
+
+**Qty PO gak dibatesin qty yang ditawarin SQTN.** Dulu ada aturan "total qty di semua PO aktif
+gak boleh lewat dari qty di SQTN" dan itu dicabut: penawaran supplier sering ditulis buat 1 unit
+doang sebagai patokan harga, sedangkan pesanannya bisa lebih banyak — sanggup atau enggaknya
+supplier itu urusan yang dibereskan di lapangan, bukan diblokir sistem. Qty di Costing maupun
+Quotation juga sengaja gak dicek balik ke SQTN.
 
 Referensi SQTN di PO item pakai custom field (`custom_supplier_quotation`), **bukan** field
 bawaan `supplier_quotation`. Field bawaan bikin ERPNext maksa PO item sama persis dengan
