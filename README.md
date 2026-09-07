@@ -351,7 +351,7 @@ Supplier, dan SQTN-nya. Semua baris kecentang duluan; user tinggal ngurangin dan
 per baris langsung di tabelnya, baru klik Create. Item yang belum punya SQTN kolom suppliernya
 kosong dan wajib diisi sebelum lanjut.
 
-Habis itu barisnya digrup per **supplier + tipe transaksi** — satu grup satu draft PO. Harga
+Habis itu barisnya digrup per **supplier** — satu supplier satu draft PO. Harga
 belinya diambil dari SQTN (net rate) dan PO item langsung nyimpen link `Supplier Quotation` +
 balik ke Sales Order. Baris yang suppliernya diganti di modal gak dikasih link SQTN dan harganya
 dikosongin — penawaran itu punya supplier lain, jadi harga belinya diisi manual sesuai penawaran
@@ -361,13 +361,24 @@ Grupnya per baris, bukan per item code, jadi **item yang sama boleh muncul di be
 
 | Baris SO | Hasil |
 | --- | --- |
-| Item sama, supplier sama, tipe sama | Digabung jadi satu PO (beberapa baris di dalam PO yang sama) |
+| Item sama, supplier sama | Digabung jadi satu PO (beberapa baris di dalam PO yang sama) |
 | Item sama, supplier beda | PO-nya kepisah, satu per supplier |
-| Item sama, tipe transaksi beda (Reguler vs Dropship) | PO-nya kepisah, beda alamat kirim & alur dokumen |
+| Tipe transaksi beda (Reguler / Dropship / Mixed) | **Gak** misahin PO — satu pesanan ke satu supplier tetap satu dokumen |
+
+Tipe transaksi tiap baris SO kebawa ke baris PO-nya masing-masing; header PO cuma nyimpen
+ringkasan (`Mixed` kalau barisnya campur). Alamat kirim customer dipasang begitu ada **satu aja**
+baris yang dikirim langsung ke lapangan — barang yang masuk gudang sendiri tetap kearah gudang
+lewat field warehouse di barisnya.
 
 Contoh nyata: SO isi `ITM-EL-00001` di baris #1 (Common Supplier) dan baris #2 (Electrical
 Supplier) → jadi 2 draft PO, masing-masing pakai harga beli dari SQTN-nya sendiri (bukan harga
-jual di SO).
+jual di SO). Kalau supplier di dua baris itu sama tapi tipenya beda, hasilnya cuma **1** PO.
+
+> **Tipe `Mixed` baru sebatas penanda.** Dipakai buat baris yang qty-nya dipecah — misalnya
+> qty 2: 1 dikirim langsung ke customer, 1 masuk gudang. Berapa yang ke mana **belum** ada
+> field-nya, jadi otomatisasi dropship (gudang transit, Purchase Receipt otomatis waktu DN
+> disubmit, tombol Create Delivery Note di PO, seri nomor `-DS-`) masih ngebaca tipe `Dropship`
+> doang dan ngelewatin baris `Mixed`. Itu bagian yang nyusul.
 
 Dokumennya tetap dibikin `make_purchase_order` bawaan ERPNext, jadi handling currency, exchange
 rate, alamat kirim buat dropship, dan sisa qty yang belum di-PO ikut kebawa. Mapper bawaannya

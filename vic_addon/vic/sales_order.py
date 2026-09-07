@@ -9,7 +9,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, get_link_to_form, getdate
 
-from vic_addon.vic.dropship import DROPSHIP, REGULER
+from vic_addon.vic.dropship import DROPSHIP, MIXED, REGULER, set_transaction_type
 
 
 @frappe.whitelist()
@@ -51,11 +51,12 @@ def get_items_for_purchase_order(sales_order):
 
 @frappe.whitelist()
 def make_purchase_orders(sales_order, selected_items=None):
-	"""Bikin draft PO dari Sales Order: item digrup per supplier + per tipe transaksi.
+	"""Bikin draft PO dari Sales Order: item digrup **per supplier**.
 
-	Digrup per tipe juga karena satu SO bisa campur: sebagian dikirim ke gudang sendiri
-	(Reguler), sebagian dikirim supplier langsung ke lapangan (Dropship). Dua-duanya beda
-	alamat kirim dan beda alur dokumen, jadi PO-nya juga dipisah.
+	Tipe transaksi gak ikut misahin PO. Satu pesanan ke supplier yang sama boleh campur -
+	sebagian dikirim ke gudang sendiri (Reguler), sebagian langsung ke lapangan (Dropship),
+	atau baris yang qty-nya dipecah dua-duanya (Mixed). Tipe tiap barisnya tetap kebawa ke
+	baris PO-nya, header PO cuma nyimpen ringkasannya.
 
 	`selected_items` itu isian dari modal: baris mana aja yang mau di-PO plus suppliernya.
 	Kalau gak dikasih (dipanggil dari script), suppliernya diambil dari SQTN di baris item.
@@ -82,14 +83,14 @@ def make_purchase_orders(sales_order, selected_items=None):
 		)
 
 	purchase_orders = []
-	for (transaction_type, supplier), rows in groups.items():
+	for supplier, rows in groups.items():
 		selected = [
 			{"item_code": item_code, "supplier": supplier}
 			for item_code in {row.item_code for row in rows}
 		]
 		# `make_purchase_order` milih baris SO cuma dari item code, padahal item code yang sama
-		# bisa muncul di beberapa baris dengan supplier atau tipe transaksi beda - jadi barisnya
-		# disaring lagi ke baris punya grup ini
+		# bisa muncul di beberapa baris dengan supplier beda - jadi barisnya disaring lagi ke
+		# baris punya supplier ini
 		rows_of_group = {row.name for row in rows}
 
 		# `make_purchase_order` nge-insert dokumennya di dalam sana, jadi penyesuaian tanggalnya
@@ -102,13 +103,15 @@ def make_purchase_orders(sales_order, selected_items=None):
 
 		for purchase_order in created:
 			set_supplier_quotation_details(purchase_order, doc)
-			set_transaction_type_details(purchase_order, doc, transaction_type)
 
 			if not set_pending_qty(purchase_order, pending_qty, rows_of_group):
 				# semua barisnya udah ketutup PO lain, dokumennya gak usah ada
 				purchase_order.delete()
 				continue
 
+			# dipasang setelah baris nyasar dibuang, biar ringkasan tipe di header gak ngitung
+			# baris yang barusan kepotong
+			set_transaction_type_details(purchase_order, doc)
 			purchase_order.save()
 			purchase_orders.append(purchase_order.name)
 
@@ -306,12 +309,11 @@ def set_schedule_date(doc, method=None):
 
 
 def get_rows_by_group(doc, supplier_by_row):
-	"""Baris Sales Order dikelompokin per supplier + tipe transaksi - satu grup satu PO.
+	"""Baris Sales Order dikelompokin **per supplier** - satu supplier satu PO.
 
-	Item yang sama boleh nongol di beberapa baris. Selama supplier dan tipe transaksinya sama,
-	barisnya digabung ke PO yang sama. Kalau suppliernya beda - misalnya sebagian dibeli dari
-	Common Supplier, sebagian dari Electrical Supplier - PO-nya kepisah sendiri-sendiri, gitu
-	juga kalau tipe transaksinya beda (Reguler dikirim ke gudang, Dropship langsung ke lapangan).
+	Item yang sama boleh nongol di beberapa baris. Selama suppliernya sama, barisnya digabung ke
+	PO yang sama, gak peduli tipe transaksinya beda-beda: satu pesanan ke satu supplier itu satu
+	dokumen, biar gak ngerepotin supplier maupun bagian purchasing.
 	"""
 	groups = {}
 
@@ -320,20 +322,26 @@ def get_rows_by_group(doc, supplier_by_row):
 		if not supplier:
 			continue
 
-		key = (item.custom_transaction_type or REGULER, supplier)
-		groups.setdefault(key, []).append(item)
+		groups.setdefault(supplier, []).append(item)
 
 	return groups
 
 
-def set_transaction_type_details(purchase_order, sales_order, transaction_type):
-	"""Tandai tipe transaksi di PO, dan buat dropship alamat kirimnya ke customer/proyek."""
+def set_transaction_type_details(purchase_order, sales_order):
+	"""Tipe tiap baris PO ngikut baris Sales Order-nya, header-nya cuma ringkasan.
+
+	Satu PO boleh campur, jadi alamat kirim customer dipasang begitu **ada** baris yang
+	dikirim langsung ke lapangan (Dropship atau Mixed) - barang yang masuk gudang sendiri tetap
+	dialamatkan ke situ lewat gudang di barisnya.
+	"""
+	types = {item.name: (item.custom_transaction_type or REGULER) for item in sales_order.items}
+
 	for item in purchase_order.items:
-		item.custom_transaction_type = transaction_type
+		item.custom_transaction_type = types.get(item.sales_order_item, REGULER)
 
-	purchase_order.custom_transaction_type = transaction_type
+	set_transaction_type(purchase_order)
 
-	if transaction_type != DROPSHIP:
+	if not any(item.custom_transaction_type in (DROPSHIP, MIXED) for item in purchase_order.items):
 		return
 
 	# barangnya dikirim supplier langsung ke lapangan, jadi alamat kirim PO ikut customer
