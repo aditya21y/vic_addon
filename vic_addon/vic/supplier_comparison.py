@@ -1,0 +1,520 @@
+"""Perbandingan penawaran supplier dari sebuah Request for Quotation.
+
+Satu RFQ dikirim ke beberapa supplier, dan tiap supplier bisa ngasih penawaran berkali-kali di
+waktu yang beda. Yang dipakai buat perbandingan cuma **dua penawaran terakhir** tiap supplier:
+
+	Lama = penawaran kedua terakhir
+	Baru = penawaran paling akhir
+
+Supplier yang baru ngasih sekali cuma punya satu kolom. Perbandingannya dua lapis:
+
+1. Di dalam satu supplier: Lama lawan Baru - kelihatan hasil negonya turun berapa persen
+2. Antar supplier: penawaran **Baru** masing-masing dibanding yang paling murah
+
+Hasilnya file Excel yang bentuknya ngikutin format yang selama ini dipakai purchasing.
+"""
+
+import frappe
+from frappe import _
+from frappe.utils import flt
+
+# tarif PPN yang dipakai di baris pajak tabel perbandingan
+TAX_RATE = 11
+
+# jumlah penawaran terakhir yang dibandingin per supplier
+OFFERS_PER_SUPPLIER = 2
+
+# awalan nama file PDF perbandingan - dipakai buat nyari lampiran lama waktu bikin yang baru
+PDF_PREFIX = "Supplier-Comparison-"
+
+
+def get_comparison(request_for_quotation):
+	"""Data mentah tabel perbandingan: baris item, kolom penawaran, dan totalnya."""
+	doc = frappe.get_doc("Request for Quotation", request_for_quotation)
+	doc.check_permission("read")
+
+	offers = get_offers(doc.name, [row.supplier for row in doc.suppliers])
+	if not offers:
+		frappe.throw(
+			_("No Supplier Quotation has been created from {0} yet.").format(doc.name),
+			title=_("Nothing to Compare"),
+		)
+
+	items = get_items(doc)
+	rates = get_rates(offers)
+
+	for row in items:
+		row["prices"] = [
+			{
+				"rate": rates.get((offer["name"], row["item_code"])),
+				"amount": flt(rates.get((offer["name"], row["item_code"])) or 0) * flt(row["qty"]),
+			}
+			for offer in offers
+		]
+
+	set_totals(offers, items)
+
+	# key-nya sengaja bukan `items`: di `frappe._dict` itu ketabrak method `dict.items()`
+	return frappe._dict(request_for_quotation=doc, offers=offers, item_rows=items)
+
+
+def get_offers(request_for_quotation, supplier_order=None):
+	"""Dua penawaran terakhir tiap supplier, diurutin dari yang paling lama ke paling baru.
+
+	Urutan suppliernya ngikut daftar di RFQ biar kolomnya gak tuker-tukeran tiap kali di-download.
+	"""
+	quotations = frappe.get_all(
+		"Supplier Quotation",
+		filters={
+			"docstatus": ["<", 2],
+			"name": ["in", get_quotation_names(request_for_quotation)],
+		},
+		fields=["name", "supplier", "supplier_name", "transaction_date", "currency", "creation"],
+		order_by="transaction_date desc, creation desc",
+	)
+
+	by_supplier = {}
+	for quotation in quotations:
+		by_supplier.setdefault(quotation.supplier, []).append(quotation)
+
+	order = {supplier: index for index, supplier in enumerate(supplier_order or [])}
+	suppliers = sorted(by_supplier, key=lambda supplier: (order.get(supplier, len(order)), supplier))
+
+	offers = []
+	for supplier in suppliers:
+		rows = by_supplier[supplier]
+		# `rows` udah urut dari yang terbaru; ambil dua, balik lagi biar Lama duluan
+		latest = list(reversed(rows[:OFFERS_PER_SUPPLIER]))
+
+		for index, quotation in enumerate(latest):
+			offers.append(
+				{
+					"name": quotation.name,
+					"supplier": supplier,
+					"supplier_name": quotation.supplier_name or supplier,
+					"transaction_date": quotation.transaction_date,
+					"currency": quotation.currency,
+					"label": get_offer_label(index, len(latest)),
+					"is_latest": index == len(latest) - 1,
+				}
+			)
+
+	return offers
+
+
+def get_offer_label(index, total):
+	"""Judul kolom kecil di atas harga: cuma dipakai kalau suppliernya nawar lebih dari sekali."""
+	if total < 2:
+		return None
+
+	return _("Lama") if index == 0 else _("Baru")
+
+
+def get_quotation_names(request_for_quotation):
+	"""Supplier Quotation yang lahir dari RFQ ini, dibaca dari baris itemnya."""
+	names = frappe.get_all(
+		"Supplier Quotation Item",
+		filters={"request_for_quotation": request_for_quotation},
+		pluck="parent",
+		distinct=True,
+	)
+
+	return names or [""]
+
+
+def get_items(request_for_quotation):
+	"""Baris item yang dibandingin - diambil dari RFQ, biar qty-nya satu acuan buat semua supplier."""
+	return [
+		{
+			"idx": item.idx,
+			"item_code": item.item_code,
+			"item_name": item.item_name or item.item_code,
+			"description": item.description or item.item_name or item.item_code,
+			"qty": flt(item.qty),
+			"uom": item.uom,
+		}
+		for item in request_for_quotation.items
+	]
+
+
+def get_rates(offers):
+	"""Harga satuan tiap item per penawaran, pakai net rate (harga setelah diskon)."""
+	rows = frappe.get_all(
+		"Supplier Quotation Item",
+		filters={"parent": ["in", [offer["name"] for offer in offers]]},
+		fields=["parent", "item_code", "rate", "net_rate"],
+	)
+
+	return {(row.parent, row.item_code): flt(row.net_rate) or flt(row.rate) for row in rows}
+
+
+def set_totals(offers, items):
+	"""Total, PPN, grand total per penawaran, plus selisihnya."""
+	for index, offer in enumerate(offers):
+		total = sum(flt(row["prices"][index]["amount"]) for row in items)
+
+		offer["total"] = total
+		offer["tax"] = flt(total) * TAX_RATE / 100
+		offer["grand_total"] = offer["total"] + offer["tax"]
+
+	set_differences(offers)
+
+
+def set_differences(offers):
+	"""Dua lapis selisih: hasil nego per supplier, dan posisi tiap supplier lawan yang termurah."""
+	previous = {}
+	for offer in offers:
+		earlier = previous.get(offer["supplier"])
+
+		# (Lama - Baru) / Baru: turun berapa persen dari penawaran sebelumnya
+		offer["negotiated"] = (
+			(earlier["grand_total"] - offer["grand_total"]) / offer["grand_total"]
+			if earlier and offer["grand_total"]
+			else None
+		)
+		previous[offer["supplier"]] = offer
+
+	latest = [offer for offer in offers if offer["is_latest"] and offer["grand_total"]]
+	if not latest:
+		return
+
+	cheapest = min(latest, key=lambda offer: offer["grand_total"])
+
+	for offer in offers:
+		# yang dibandingin cuma penawaran terakhir tiap supplier - penawaran lama udah kelewat
+		offer["cheapest"] = offer is cheapest
+		offer["vs_cheapest"] = (
+			(offer["grand_total"] - cheapest["grand_total"]) / cheapest["grand_total"]
+			if offer["is_latest"] and cheapest["grand_total"]
+			else None
+		)
+
+
+@frappe.whitelist()
+def download_comparison(request_for_quotation):
+	"""Tombol `Download Comparison` di Request for Quotation: kirim file Excel-nya ke browser."""
+	comparison = get_comparison(request_for_quotation)
+
+	frappe.response["filename"] = f"{request_for_quotation} - Supplier Comparison.xlsx"
+	frappe.response["filecontent"] = build_workbook(comparison).getvalue()
+	frappe.response["type"] = "binary"
+
+
+def build_workbook(comparison):
+	"""Susun file Excel-nya: satu blok kolom per penawaran, nama supplier ngepalain blok itu."""
+	from io import BytesIO
+
+	from openpyxl import Workbook
+	from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+	from openpyxl.utils import get_column_letter
+
+	offers = comparison.offers
+	items = comparison.item_rows
+
+	workbook = Workbook()
+	sheet = workbook.active
+	sheet.title = "Comparison"
+
+	bold = Font(bold=True)
+	center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+	thin = Side(style="thin", color="999999")
+	box = Border(left=thin, right=thin, top=thin, bottom=thin)
+	head_fill = PatternFill("solid", fgColor="F2F2F2")
+	cheap_fill = PatternFill("solid", fgColor="FFF2CC")
+	money = "#,##0"
+	percent = "0.00%"
+
+	# ---- kepala tabel: baris 1 nama supplier, baris 2 Lama/Baru, baris 3 judul kolom ----
+	fixed = [_("Item"), _("Description"), _("Qty"), _("UOM")]
+	for column, title in enumerate(fixed, start=1):
+		cell = sheet.cell(row=3, column=column, value=title)
+		cell.font, cell.alignment, cell.border, cell.fill = bold, center, box, head_fill
+
+	first_offer_column = len(fixed) + 1
+	supplier_start = {}
+
+	for index, offer in enumerate(offers):
+		column = first_offer_column + index * 2
+
+		if offer["label"]:
+			label = sheet.cell(row=2, column=column, value=offer["label"])
+			label.font, label.alignment, label.border, label.fill = bold, center, box, head_fill
+			sheet.merge_cells(start_row=2, start_column=column, end_row=2, end_column=column + 1)
+
+		# nama supplier ngepalain semua kolom miliknya, jadi awalnya diinget dulu
+		supplier_start.setdefault(offer["supplier"], column)
+
+		for offset, title in enumerate((_("Unit Price"), _("Total Price"))):
+			cell = sheet.cell(row=3, column=column + offset, value=title)
+			cell.font, cell.alignment, cell.border, cell.fill = bold, center, box, head_fill
+
+	for supplier, start in supplier_start.items():
+		columns = [
+			first_offer_column + index * 2 for index, offer in enumerate(offers) if offer["supplier"] == supplier
+		]
+		end = max(columns) + 1
+		name = next(offer["supplier_name"] for offer in offers if offer["supplier"] == supplier)
+
+		cell = sheet.cell(row=1, column=start, value=name)
+		cell.font, cell.alignment, cell.border, cell.fill = bold, center, box, head_fill
+
+		# supplier yang cuma nawar sekali gak punya baris Lama/Baru, jadi namanya turun ke baris 2.
+		# Merge-nya sekali doang - dua merge yang tumpang tindih bikin file Excel-nya rusak.
+		labelled = any(offer["label"] for offer in offers if offer["supplier"] == supplier)
+		sheet.merge_cells(
+			start_row=1, start_column=start, end_row=1 if labelled else 2, end_column=end
+		)
+
+	# ---- baris item ----
+	row_number = 4
+	for item in items:
+		sheet.cell(row=row_number, column=1, value=item["idx"]).border = box
+		sheet.cell(row=row_number, column=2, value=item["description"]).border = box
+		sheet.cell(row=row_number, column=3, value=item["qty"]).border = box
+		sheet.cell(row=row_number, column=4, value=item["uom"]).border = box
+
+		cheapest_rate = min(
+			(flt(price["rate"]) for price, offer in zip(item["prices"], offers) if offer["is_latest"] and price["rate"]),
+			default=None,
+		)
+
+		for index, price in enumerate(item["prices"]):
+			column = first_offer_column + index * 2
+
+			rate = sheet.cell(row=row_number, column=column, value=price["rate"])
+			amount = sheet.cell(row=row_number, column=column + 1, value=price["amount"] or None)
+			rate.number_format = amount.number_format = money
+			rate.border = amount.border = box
+
+			# harga termurah di antara penawaran terakhir ditandain, biar gampang dilihat
+			if cheapest_rate and offers[index]["is_latest"] and flt(price["rate"]) == cheapest_rate:
+				rate.fill = amount.fill = cheap_fill
+				rate.font = bold
+
+		row_number += 1
+
+	# ---- total, PPN, grand total ----
+	for title, key in ((_("Total"), "total"), (_("PPn {0}%").format(TAX_RATE), "tax"), (_("Grand Total"), "grand_total")):
+		cell = sheet.cell(row=row_number, column=1, value=title)
+		cell.font = bold
+		sheet.merge_cells(start_row=row_number, start_column=1, end_row=row_number, end_column=4)
+
+		for index, offer in enumerate(offers):
+			column = first_offer_column + index * 2 + 1
+			total = sheet.cell(row=row_number, column=column, value=offer[key])
+			total.number_format, total.border = money, box
+			if key == "grand_total":
+				total.font = bold
+
+		row_number += 1
+
+	# ---- dua lapis selisih ----
+	row_number += 1
+	for title, key, note in (
+		(_("Lama vs Baru"), "negotiated", _("turun dari penawaran sebelumnya")),
+		(_("vs Termurah"), "vs_cheapest", _("selisih ke penawaran terakhir termurah")),
+	):
+		cell = sheet.cell(row=row_number, column=1, value=f"{title} — {note}")
+		cell.font = bold
+		sheet.merge_cells(start_row=row_number, start_column=1, end_row=row_number, end_column=4)
+
+		for index, offer in enumerate(offers):
+			if offer.get(key) is None:
+				continue
+
+			column = first_offer_column + index * 2 + 1
+			value = sheet.cell(row=row_number, column=column, value=offer[key])
+			value.number_format, value.border = percent, box
+
+			if key == "vs_cheapest" and offer.get("cheapest"):
+				value.fill = cheap_fill
+				value.font = bold
+
+		row_number += 1
+
+	# ---- lebar kolom secukupnya ----
+	sheet.column_dimensions["A"].width = 6
+	sheet.column_dimensions["B"].width = 42
+	sheet.column_dimensions["C"].width = 9
+	sheet.column_dimensions["D"].width = 7
+	for index in range(len(offers) * 2):
+		sheet.column_dimensions[get_column_letter(first_offer_column + index)].width = 16
+
+	sheet.freeze_panes = sheet.cell(row=4, column=first_offer_column)
+
+	stream = BytesIO()
+	workbook.save(stream)
+
+	return stream
+
+
+@frappe.whitelist()
+def share_comparison(request_for_quotation):
+	"""Tombol `Share to WhatsApp`: bikin PDF perbandingan, simpen jadi file publik, balikin link.
+
+	File-nya sengaja publik supaya penerimanya (misalnya direksi) bisa buka langsung dari HP
+	tanpa punya akun. Nama filenya diberi kode acak biar URL-nya gak bisa ditebak, dan link-nya
+	bisa dicabut kapan saja dengan menghapus lampirannya dari Request for Quotation.
+
+	Tiap kali dipencet, PDF lama di RFQ ini dihapus - biar lampirannya gak numpuk dan cuma ada
+	satu link yang hidup. Konsekuensinya link yang udah terlanjur dibagi jadi mati begitu yang
+	baru dibikin.
+	"""
+	comparison = get_comparison(request_for_quotation)
+
+	file = frappe.get_doc(
+		{
+			"doctype": "File",
+			"file_name": get_pdf_name(request_for_quotation),
+			"attached_to_doctype": "Request for Quotation",
+			"attached_to_name": request_for_quotation,
+			"content": build_pdf(comparison),
+			"is_private": 0,
+		}
+	).insert(ignore_permissions=True)
+
+	# dihapusnya setelah yang baru jadi: kalau bikin PDF-nya gagal, link lama masih kepakai
+	removed = remove_previous_pdf(request_for_quotation, keep=file.name)
+
+	return {
+		"removed": removed,
+		"file_name": file.file_name,
+		"url": frappe.utils.get_url(file.file_url),
+		"supplier": get_cheapest_supplier(comparison),
+	}
+
+
+def remove_previous_pdf(request_for_quotation, keep):
+	"""Hapus PDF perbandingan lama yang nempel di RFQ ini. Balikin jumlah yang kehapus."""
+	names = frappe.get_all(
+		"File",
+		filters={
+			"attached_to_doctype": "Request for Quotation",
+			"attached_to_name": request_for_quotation,
+			"file_name": ["like", f"{PDF_PREFIX}%"],
+			"name": ["!=", keep],
+		},
+		pluck="name",
+	)
+
+	for name in names:
+		frappe.delete_doc("File", name, ignore_permissions=True, delete_permanently=True)
+
+	return len(names)
+
+
+def get_pdf_name(request_for_quotation):
+	"""Nama file: nomor RFQ + tanggal, ditutup kode acak biar URL-nya gak ketebak."""
+	stamp = frappe.utils.now_datetime().strftime("%Y%m%d-%H%M")
+
+	return f"{PDF_PREFIX}{request_for_quotation}-{stamp}-{frappe.generate_hash(length=8)}.pdf"
+
+
+def get_cheapest_supplier(comparison):
+	"""Nama supplier dengan penawaran terakhir termurah - dipakai di teks pesan WhatsApp."""
+	for offer in comparison.offers:
+		if offer.get("cheapest"):
+			return offer["supplier_name"]
+
+	return None
+
+
+def build_pdf(comparison):
+	"""Render tabel perbandingan jadi PDF."""
+	from frappe.utils.pdf import get_pdf
+
+	html = frappe.render_template("vic_addon/templates/supplier_comparison.html", get_context(comparison))
+
+	return get_pdf(html, {"orientation": "Landscape"})
+
+
+def get_context(comparison):
+	"""Bahan buat template PDF: kop surat, kolom supplier, baris item, dan baris totalnya."""
+	doc = comparison.request_for_quotation
+	offers = comparison.offers
+
+	# harga termurah per baris item ditandain, sama kayak di Excel-nya
+	for row in comparison.item_rows:
+		rates = [
+			flt(price["rate"])
+			for price, offer in zip(row["prices"], offers)
+			if offer["is_latest"] and price["rate"]
+		]
+		cheapest = min(rates) if rates else None
+
+		for price, offer in zip(row["prices"], offers):
+			price["cheapest"] = bool(cheapest and offer["is_latest"] and flt(price["rate"]) == cheapest)
+
+	suppliers = []
+	for offer in offers:
+		if suppliers and suppliers[-1]["name"] == offer["supplier_name"]:
+			suppliers[-1]["span"] += 2
+			continue
+
+		suppliers.append({"name": offer["supplier_name"], "span": 2})
+
+	company = frappe.get_cached_doc("Company", doc.company)
+
+	return {
+		"request_for_quotation": doc,
+		"subject": doc.get("custom_subject"),
+		"offers": offers,
+		"item_rows": comparison.item_rows,
+		"suppliers": suppliers,
+		"company_name": company.company_name,
+		"company_lines": get_company_lines(doc.company, company),
+		"logo": get_logo(),
+		"totals": [
+			(_("Total"), "total"),
+			(_("PPn {0}%").format(TAX_RATE), "tax"),
+			(_("Grand Total"), "grand_total"),
+		],
+		"differences": [
+			(_("Lama vs Baru"), "negotiated"),
+			(_("Selisih ke penawaran termurah"), "vs_cheapest"),
+		],
+	}
+
+
+def get_company_lines(company, doc):
+	"""Alamat perusahaan buat kop surat PDF."""
+	address_name = frappe.db.get_value(
+		"Dynamic Link",
+		{"link_doctype": "Company", "link_name": company, "parenttype": "Address"},
+		"parent",
+	)
+	address = (
+		frappe.db.get_value(
+			"Address",
+			address_name,
+			["address_line1", "address_line2", "city", "state", "pincode", "phone", "fax"],
+			as_dict=True,
+		)
+		if address_name
+		else frappe._dict()
+	)
+
+	lines = [address.address_line1, address.address_line2]
+	lines.append(", ".join(part for part in (address.city, address.state, address.pincode) if part))
+
+	phone = doc.phone_no or address.phone
+	if phone:
+		lines.append(f"Phone : {phone}")
+
+	fax = doc.fax or address.fax
+	if fax:
+		lines.append(f"Fax : {fax}")
+
+	return [line for line in lines if line]
+
+
+def get_logo():
+	"""Logo ditanam langsung ke HTML-nya, biar wkhtmltopdf gak perlu narik file lewat jaringan."""
+	import base64
+	from pathlib import Path
+
+	path = Path(frappe.get_app_path("vic_addon", "public", "img", "vic logo.png"))
+	if not path.exists():
+		return None
+
+	return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()

@@ -1,0 +1,110 @@
+{#- Tabel perbandingan penawaran supplier, dipakai buat PDF yang dibagiin lewat WhatsApp -#}
+<style>
+	body { font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 11px; }
+	table { border-collapse: collapse; width: 100%; }
+	.head { margin-bottom: 14px; width: 100%; }
+	.head td { vertical-align: top; border: 0; padding: 0; }
+	.head .logo img { max-height: 62px; max-width: 190px; }
+	.head .company { text-align: right; }
+	.head .company .name { font-size: 14px; font-weight: 700; }
+	.head .company .line { font-size: 9.5px; }
+	.title { font-size: 14px; font-weight: 700; text-align: center; margin-bottom: 2px; }
+	.subtitle { text-align: center; font-size: 10px; margin-bottom: 12px; color: #333; }
+	.data th, .data td { border: 1px solid #999; padding: 5px 6px; }
+	.data th { background: #f2f2f2; font-weight: 700; text-align: center; }
+	.data td.text { text-align: left; }
+	.data td.money { text-align: right; white-space: nowrap; }
+	.data td.center { text-align: center; }
+	.data tr.total td { font-weight: 700; }
+	.cheapest { background: #fff2cc; font-weight: 700; }
+	.legend { margin-top: 10px; font-size: 9.5px; color: #333; }
+</style>
+
+<table class="head">
+	<tr>
+		<td class="logo">{% if logo %}<img src="{{ logo }}" />{% endif %}</td>
+		<td class="company">
+			<div class="name">{{ company_name | upper }}</div>
+			{%- for line in company_lines %}<div class="line">{{ line }}</div>{% endfor %}
+		</td>
+	</tr>
+</table>
+
+<div class="title">SUPPLIER COMPARISON</div>
+<div class="subtitle">
+	{{ request_for_quotation.name }}
+	{%- if subject %} &mdash; {{ subject }}{% endif %}
+	&mdash; {{ frappe.utils.formatdate(request_for_quotation.transaction_date, "d MMMM yyyy") }}
+</div>
+
+<table class="data">
+	<thead>
+		<tr>
+			<th rowspan="2">Item</th>
+			<th rowspan="2">Description</th>
+			<th rowspan="2">Qty</th>
+			{%- for supplier in suppliers %}
+				<th colspan="{{ supplier.span }}">{{ supplier.name }}</th>
+			{%- endfor %}
+		</tr>
+		<tr>
+			{%- for offer in offers %}
+				<th colspan="2">{{ offer.label or "&mdash;" | safe }}</th>
+			{%- endfor %}
+		</tr>
+		<tr>
+			<th></th>
+			<th></th>
+			<th></th>
+			{%- for offer in offers %}
+				<th>Unit Price</th>
+				<th>Total Price</th>
+			{%- endfor %}
+		</tr>
+	</thead>
+	<tbody>
+		{%- for row in item_rows %}
+			<tr>
+				<td class="center">{{ row.idx }}</td>
+				<td class="text">{{ row.description }}</td>
+				<td class="center">{{ frappe.utils.fmt_money(row.qty) }} {{ row.uom }}</td>
+				{%- for price in row.prices %}
+					{%- set cheapest = price.cheapest %}
+					<td class="money {{ 'cheapest' if cheapest else '' }}">
+						{{ frappe.utils.fmt_money(price.rate) if price.rate else "-" }}
+					</td>
+					<td class="money {{ 'cheapest' if cheapest else '' }}">
+						{{ frappe.utils.fmt_money(price.amount) if price.amount else "-" }}
+					</td>
+				{%- endfor %}
+			</tr>
+		{%- endfor %}
+
+		{%- for label, key in totals %}
+			<tr class="total">
+				<td class="text" colspan="3">{{ label }}</td>
+				{%- for offer in offers %}
+					<td></td>
+					<td class="money">{{ frappe.utils.fmt_money(offer[key]) }}</td>
+				{%- endfor %}
+			</tr>
+		{%- endfor %}
+
+		{%- for label, key in differences %}
+			<tr>
+				<td class="text" colspan="3">{{ label }}</td>
+				{%- for offer in offers %}
+					<td></td>
+					<td class="money {{ 'cheapest' if key == 'vs_cheapest' and offer.cheapest else '' }}">
+						{{ "%.2f%%" | format(offer[key] * 100) if offer[key] is not none else "" }}
+					</td>
+				{%- endfor %}
+			</tr>
+		{%- endfor %}
+	</tbody>
+</table>
+
+<div class="legend">
+	Ditandai kuning: harga terendah. Perbandingan hanya memakai dua penawaran terakhir dari setiap
+	supplier; penawaran <b>Baru</b> masing-masing supplier dibandingkan dengan penawaran termurah.
+</div>

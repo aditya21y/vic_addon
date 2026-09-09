@@ -572,6 +572,55 @@ server tiap disimpan — yang di server itu yang jadi pegangan.
 
 Implementasi: `vic_addon/vic/doctype/selling_price_estimate/`.
 
+#### Supplier Comparison (download dari Request for Quotation)
+
+Satu RFQ dikirim ke beberapa supplier, dan tiap supplier bisa nawar berkali-kali di waktu yang
+beda. Tombol **Actions > Download Comparison** di RFQ yang udah submit nyusun semua penawaran itu
+jadi satu file Excel — format kolomnya ngikutin tabel perbandingan yang selama ini dipakai
+purchasing.
+
+**Penawaran mana yang dipakai:** cuma **dua terakhir** tiap supplier, diurut dari tanggal
+dokumennya — yang lebih tua diabaikan. Supplier yang baru nawar sekali cuma dapat satu kolom
+(nama suppliernya turun nutupin baris Lama/Baru).
+
+| Kolom | Isinya |
+| --- | --- |
+| Item, Description, Qty, UOM | Dari baris RFQ — jadi qty-nya satu acuan buat semua supplier |
+| Unit Price | `net_rate` penawaran (harga setelah diskon bertingkat) |
+| Total Price | Unit Price x Qty di RFQ, bukan qty yang ditulis supplier |
+
+Bawahnya Total → PPn 11% → Grand Total, terus **dua lapis selisih**:
+
+1. **Lama vs Baru** per supplier: `(Lama - Baru) / Baru` — hasil nego turun berapa persen
+2. **vs Termurah**: penawaran **terakhir** tiap supplier dibanding yang paling murah; yang termurah
+   ditandain hijau, gitu juga harga satuan termurah per baris item
+
+Urutan suppliernya ngikut daftar di RFQ biar kolomnya gak tuker-tukeran tiap kali di-download.
+
+**Actions > Share to WhatsApp** buat ngirim hasilnya ke orang yang gak punya akun ERPNext
+(misalnya direksi):
+
+1. Tabel yang sama dirender jadi **PDF** (landscape, kop VIC, penanda kuning ikut kebawa)
+2. PDF-nya di-attach ke RFQ sebagai **file publik**, namanya diakhiri kode acak 8 karakter biar
+   URL-nya gak bisa ditebak: `/files/Supplier-Comparison-PUR-RFQ-2026-00005-20260909-2345-0883a153.pdf`
+3. Muncul dialog berisi link + tombol **Open WhatsApp** — WhatsApp Web/aplikasi kebuka dengan
+   pesan udah keisi (nama proyek, supplier termurah, link), tinggal pilih kontak dan kirim
+
+Link-nya kebuka tanpa login — itu emang tujuannya, tapi artinya **siapa pun yang pegang link bisa
+lihat harga semua supplier**. Buat nyabut, hapus lampirannya dari RFQ.
+
+**Sekali share, satu file.** Tiap tombolnya dipencet, PDF lama di RFQ itu dihapus (record File
+sekaligus filenya di disk), jadi lampirannya gak numpuk dan cuma ada satu link yang hidup.
+Hapusnya dilakuin **setelah** PDF baru jadi — kalau proses bikin PDF-nya gagal, link lama masih
+kepakai. Efek sampingnya: link yang udah terlanjur dibagi mati begitu ada share baru, jadi kirim
+ulang link terbarunya.
+
+Logo di PDF ditanam sebagai data URI, bukan link ke `/assets` — kalau lewat link, `wkhtmltopdf`
+gagal narik gambarnya dan PDF-nya batal kebentuk.
+
+Implementasi: `vic_addon/vic/supplier_comparison.py`, `vic_addon/templates/supplier_comparison.html`,
+`vic_addon/public/js/request_for_quotation.js`.
+
 #### Customer WAPU
 
 WAPU (Wajib Pungut): PPN-nya dipungut dan disetor sendiri sama customer — biasanya instansi

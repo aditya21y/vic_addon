@@ -86,6 +86,8 @@ doctype_js = {doctype: ["public/js/dpp_nilai_lain.js"] for doctype in DPP_NILAI_
 doctype_js["Supplier Quotation"] = ["public/js/supplier_quotation.js"]
 # tombol mundurin harga final ke Costing-nya
 doctype_js["Quotation"].append("public/js/quotation.js")
+# tombol download tabel perbandingan penawaran supplier
+doctype_js["Request for Quotation"] = ["public/js/request_for_quotation.js"]
 # DP Invoice: persentase DP + template pajak DP
 doctype_js["Payment Request"] = ["public/js/payment_request.js"]
 # tombol bikin PO per supplier
