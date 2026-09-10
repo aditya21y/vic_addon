@@ -631,8 +631,8 @@ Urutan suppliernya ngikut daftar di RFQ biar kolomnya gak tuker-tukeran tiap kal
 (misalnya direksi):
 
 1. Tabel yang sama dirender jadi **PDF** (landscape, kop VIC, penanda kuning ikut kebawa)
-2. PDF-nya di-attach ke RFQ sebagai **file publik**, namanya diakhiri kode acak 8 karakter biar
-   URL-nya gak bisa ditebak: `/files/Supplier-Comparison-PUR-RFQ-2026-00005-20260909-2345-0883a153.pdf`
+2. PDF-nya di-attach ke RFQ, namanya diakhiri kode acak 8 karakter — kode itu yang jadi kunci
+   link: `/api/method/vic_addon.vic.supplier_comparison.view_comparison?key=0883a153`
 3. Muncul dialog berisi link + tombol **Open WhatsApp** — WhatsApp Web/aplikasi kebuka dengan
    pesan udah keisi (nama proyek, supplier termurah, link), tinggal pilih kontak dan kirim
 
@@ -647,6 +647,16 @@ ulang link terbarunya.
 
 Logo di PDF ditanam sebagai data URI, bukan link ke `/assets` — kalau lewat link, `wkhtmltopdf`
 gagal narik gambarnya dan PDF-nya batal kebentuk.
+
+**Kenapa gak pakai URL `/files/...` langsung.** Frappe nyari folder site buat file statis dari
+**nama host** (`StaticDataMiddleware`), bukan dari header `X-Frappe-Site-Name` yang dipasang
+nginx. Di server kita nama folder site (`vic-app`) beda dari domainnya
+(`vic.thenextflow.cloud`), jadi link `/files/...` nyariin folder `sites/vic.thenextflow.cloud/`
+dan berujung 404. Lewat endpoint `view_comparison` permintaannya masuk ke alur biasa, di mana
+nama site dibaca dari header nginx — jadi jalan tanpa nyentuh setelan server.
+
+Endpoint-nya `allow_guest`, tapi yang bisa dibuka cuma lampiran PDF perbandingan di Request for
+Quotation, kuncinya wajib alfanumerik, dan PDF-nya dikirim `inline` biar kebuka langsung di HP.
 
 Implementasi: `vic_addon/vic/supplier_comparison.py`, `vic_addon/templates/supplier_comparison.html`,
 `vic_addon/public/js/request_for_quotation.js`.

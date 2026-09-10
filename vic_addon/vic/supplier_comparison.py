@@ -379,9 +379,58 @@ def share_comparison(request_for_quotation):
 	return {
 		"removed": removed,
 		"file_name": file.file_name,
-		"url": frappe.utils.get_url(file.file_url),
+		"url": get_share_url(file.file_name),
 		"supplier": get_cheapest_supplier(comparison),
 	}
+
+
+def get_share_url(file_name):
+	"""Link yang dibagiin ke luar.
+
+	Sengaja gak pakai URL `/files/...` langsung: Frappe nyari folder site buat file statis dari
+	**nama host** (lihat `StaticDataMiddleware`), padahal di server kita satu site diakses lewat
+	domain yang beda dari nama foldernya - jadi link `/files/...` bakal 404. Lewat endpoint ini
+	permintaannya masuk ke alur biasa, di mana nama site dibaca dari header yang dipasang nginx.
+	"""
+	key = get_share_key(file_name)
+
+	return frappe.utils.get_url(
+		f"/api/method/vic_addon.vic.supplier_comparison.view_comparison?key={key}"
+	)
+
+
+def get_share_key(file_name):
+	"""Kode acak di ujung nama file - itu yang jadi kunci link."""
+	return file_name.rsplit("-", 1)[-1].removesuffix(".pdf")
+
+
+@frappe.whitelist(allow_guest=True)
+def view_comparison(key):
+	"""Buka PDF perbandingan dari link yang dibagiin - tanpa perlu login.
+
+	Kuncinya kode acak 8 karakter di nama file. Yang dicari cuma lampiran PDF perbandingan di
+	Request for Quotation, jadi endpoint ini gak bisa dipakai buat narik file lain.
+	"""
+	if not (key and key.isalnum()):
+		raise frappe.DoesNotExistError
+
+	name = frappe.db.get_value(
+		"File",
+		{
+			"file_name": ["like", f"{PDF_PREFIX}%-{key}.pdf"],
+			"attached_to_doctype": "Request for Quotation",
+		},
+		"name",
+	)
+	if not name:
+		raise frappe.DoesNotExistError
+
+	file = frappe.get_doc("File", name)
+
+	frappe.response["filename"] = file.file_name
+	frappe.response["filecontent"] = file.get_content()
+	# `pdf` bikin browser nampilin isinya langsung, gak maksa download
+	frappe.response["type"] = "pdf"
 
 
 def remove_previous_pdf(request_for_quotation, keep):
