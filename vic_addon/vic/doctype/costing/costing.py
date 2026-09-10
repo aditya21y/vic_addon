@@ -21,7 +21,8 @@ Additional cost dibagi proporsional lewat rate tiap item, jadi total distributed
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt, get_link_to_form
+from frappe.query_builder import Order
+from frappe.utils import cint, flt, get_link_to_form
 
 from vic_addon.vic.warehouse import get_default_warehouse, get_valuation_rate
 
@@ -298,14 +299,88 @@ def make_costing(source_name, target_doc=None):
 @frappe.whitelist()
 def get_supplier_quotation_items(supplier_quotations):
 	"""Ambil item dari satu atau beberapa Supplier Quotation buat tabel Costing."""
+	return get_costing_items(supplier_quotations=supplier_quotations)
+
+
+@frappe.whitelist()
+def get_supplier_quotations(request_for_quotation=None, company=None, currency=None, txt=None):
+	"""Daftar Supplier Quotation buat dipilih di dialog `Get Items from Supplier Quotation`.
+
+	Kalau nomor Request for Quotation diisi, yang muncul cuma penawaran yang lahir dari RFQ itu -
+	biar gak kecampur penawaran proyek lain.
+	"""
+	quotation = frappe.qb.DocType("Supplier Quotation")
+	query = (
+		frappe.qb.from_(quotation)
+		.select(quotation.name, quotation.supplier, quotation.transaction_date)
+		.where(quotation.docstatus == 1)
+		.orderby(quotation.transaction_date, order=Order.desc)
+		.limit(50)
+	)
+
+	if company:
+		query = query.where(quotation.company == company)
+
+	if currency:
+		query = query.where(quotation.currency == currency)
+
+	if txt:
+		query = query.where(quotation.name.like(f"%{txt}%") | quotation.supplier.like(f"%{txt}%"))
+
+	if request_for_quotation:
+		query = query.where(quotation.name.isin(get_quotations_of_rfq(request_for_quotation)))
+
+	return [
+		{
+			"value": row[0],
+			"description": f"{row[1]} — {frappe.utils.formatdate(row[2])}",
+			"supplier": row[1],
+		}
+		for row in query.run()
+	]
+
+
+def get_quotations_of_rfq(request_for_quotation):
+	"""Supplier Quotation yang lahir dari RFQ ini, dibaca dari baris itemnya."""
+	names = frappe.get_all(
+		"Supplier Quotation Item",
+		filters={"request_for_quotation": request_for_quotation},
+		pluck="parent",
+		distinct=True,
+	)
+
+	return names or [""]
+
+
+@frappe.whitelist()
+def get_costing_items(supplier_quotations=None, request_for_quotation=None, only_cheapest=0):
+	"""Baris item buat tabel di dialog, sebelum dimasukin ke Costing.
+
+	Tiga cara ngambilnya:
+
+	- pilih Supplier Quotation sendiri -> semua itemnya kebawa
+	- centang **harga termurah** + isi RFQ -> tiap item diambil dari penawaran termurah, ngikut
+	  aturan yang sama kayak tabel Supplier Comparison (cuma penawaran terakhir tiap supplier)
+	- centang **harga termurah** tanpa RFQ -> termurah di antara penawaran yang dipilih
+
+	Qty-nya diisi dari RFQ kalau ada (itu jumlah yang beneran dibutuhin), kalau enggak ikut qty
+	di penawarannya. Di dialog qty ini masih bisa diubah user sebelum masuk Costing.
+	"""
 	if isinstance(supplier_quotations, str):
 		supplier_quotations = frappe.parse_json(supplier_quotations)
 
 	if isinstance(supplier_quotations, str):
 		supplier_quotations = [supplier_quotations]
 
+	only_cheapest = cint(only_cheapest)
+	names = get_source_quotations(supplier_quotations, request_for_quotation, only_cheapest)
+	if not names:
+		return []
+
+	quantities = get_rfq_quantities(request_for_quotation)
 	items = []
-	for name in supplier_quotations:
+
+	for name in names:
 		quotation = frappe.get_doc("Supplier Quotation", name)
 		quotation.check_permission("read")
 
@@ -315,7 +390,7 @@ def get_supplier_quotation_items(supplier_quotations):
 					"item_code": item.item_code,
 					"item_name": item.item_name,
 					"uom": item.uom,
-					"qty": item.qty,
+					"qty": quantities.get(item.item_code) or flt(item.qty),
 					# net_rate = rate setelah diskon bertingkat per item + diskon tambahan atas net total
 					"rate": flt(item.net_rate) or flt(item.rate),
 					"supplier_quotation": quotation.name,
@@ -324,7 +399,50 @@ def get_supplier_quotation_items(supplier_quotations):
 				}
 			)
 
+	if only_cheapest:
+		items = keep_cheapest(items)
+
 	return items
+
+
+def get_source_quotations(supplier_quotations, request_for_quotation, only_cheapest):
+	"""Penawaran mana yang dibaca: pilihan user, atau penawaran terakhir tiap supplier di RFQ."""
+	if only_cheapest and request_for_quotation:
+		from vic_addon.vic.supplier_comparison import get_offers
+
+		# aturan yang sama kayak Supplier Comparison: cuma penawaran terakhir tiap supplier
+		return [offer["name"] for offer in get_offers(request_for_quotation) if offer["is_latest"]]
+
+	return supplier_quotations or []
+
+
+def get_rfq_quantities(request_for_quotation):
+	"""Qty yang diminta di RFQ, per item code."""
+	if not request_for_quotation:
+		return {}
+
+	rows = frappe.get_all(
+		"Request for Quotation Item",
+		filters={"parent": request_for_quotation},
+		fields=["item_code", "qty"],
+	)
+
+	return {row.item_code: flt(row.qty) for row in rows}
+
+
+def keep_cheapest(items):
+	"""Satu baris per item: yang harganya paling murah. Harga nol dianggap belum ada penawaran."""
+	cheapest = {}
+
+	for item in items:
+		if not flt(item["rate"]):
+			continue
+
+		current = cheapest.get(item["item_code"])
+		if not current or flt(item["rate"]) < flt(current["rate"]):
+			cheapest[item["item_code"]] = item
+
+	return list(cheapest.values())
 
 
 @frappe.whitelist()

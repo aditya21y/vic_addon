@@ -79,6 +79,23 @@ Doctype: **Costing** (`CST-.YYMM.-`), dengan child table **Costing Item** dan
 **Costing Additional Cost**. Ada field **Project** juga, yang ikut kebawa ke Quotation waktu
 costing-nya dijadiin penawaran.
 
+**Tombol `Get Items from Supplier Quotation`** ngebuka satu dialog berisi:
+
+| Isian | Gunanya |
+| --- | --- |
+| **Request for Quotation** | Nyaring daftar penawaran ke RFQ itu doang, biar gak kecampur proyek lain |
+| **Take the cheapest price only** | Satu baris per item, diambil dari penawaran termurah |
+| **Supplier Quotation** | Pilih penawarannya sendiri (disembunyiin kalau ambil termurah dari RFQ) |
+| **Items** | Item, qty, rate, supplier, dan SQTN-nya kelihatan dulu sebelum masuk — **qty bisa diedit**, dan angka itu yang dipakai di Costing |
+
+Qty awalnya diambil dari **RFQ** kalau RFQ-nya diisi (itu jumlah yang beneran dibutuhin), kalau
+enggak ikut qty di penawarannya.
+
+Centang **termurah** ngikut aturan yang sama persis kayak tabel Supplier Comparison: yang
+dibandingin cuma **penawaran terakhir tiap supplier**, penawaran lama diabaikan — jadi harga yang
+masuk Costing sama dengan yang ditandain kuning di file perbandingan. Kalau centangnya dipakai
+tanpa RFQ, yang dibandingin cuma penawaran yang dipilih di dialog.
+
 Tiap baris Costing Item punya field **Warehouse** yang keisi otomatis: gudang default item di
 company itu (`Item Default`) dulu, kalau item gak punya baru ikut default warehouse di Stock
 Settings. Kalau dua-duanya gak diset, field-nya dibiarin kosong. Gudang Stock Settings yang

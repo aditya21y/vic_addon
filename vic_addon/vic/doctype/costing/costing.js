@@ -238,34 +238,202 @@ function calculate(frm) {
 	frm.refresh_fields();
 }
 
+// Ngambil item dari penawaran supplier. Satu dialog buat tiga hal: nyaring penawaran ke satu
+// Request for Quotation, ngintip item + qty-nya dulu (qty bisa diubah sebelum masuk Costing),
+// dan opsi ambil harga termurah - aturannya sama persis kayak tabel Supplier Comparison.
 function get_items_from_supplier_quotation(frm) {
-	const dialog = new frappe.ui.form.MultiSelectDialog({
-		doctype: "Supplier Quotation",
-		target: frm,
-		setters: { supplier: undefined },
-		add_filters_group: 1,
-		date_field: "transaction_date",
-		get_query: () => ({
-			filters: { docstatus: 1, company: frm.doc.company, currency: frm.doc.currency },
-		}),
-		action(selections) {
-			if (!selections.length) {
-				frappe.msgprint(__("Please select at least one Supplier Quotation"));
+	// dideklarasiin duluan: `get_data` di bawah kepanggil pas dialognya masih dibangun, jadi
+	// kalau pakai `const dialog = new ...` variabelnya belum ada waktu dipakai
+	let dialog;
+
+	dialog = new frappe.ui.Dialog({
+		title: __("Get Items from Supplier Quotation"),
+		size: "extra-large",
+		fields: [
+			{
+				fieldtype: "Link",
+				fieldname: "request_for_quotation",
+				label: __("Request for Quotation"),
+				options: "Request for Quotation",
+				description: __("Only quotations created from this RFQ are listed."),
+				onchange: () => {
+					dialog.set_value("supplier_quotations", []);
+					reload_items(frm, dialog);
+				},
+			},
+			{ fieldtype: "Column Break" },
+			{
+				fieldtype: "Check",
+				fieldname: "only_cheapest",
+				label: __("Take the cheapest price only"),
+				description: __(
+					"One row per item, taken from the cheapest offer — same rule as the Supplier Comparison."
+				),
+				onchange: () => reload_items(frm, dialog),
+			},
+			{ fieldtype: "Section Break" },
+			{
+				fieldtype: "MultiSelectPills",
+				fieldname: "supplier_quotations",
+				label: __("Supplier Quotation"),
+				// pas ambil termurah, sumbernya semua penawaran terakhir di RFQ itu - gak usah dipilih
+				depends_on: "eval:!doc.only_cheapest || !doc.request_for_quotation",
+				get_data(txt) {
+					// yang udah kepilih dibuang dari daftar. Frappe niatnya nyaring ini juga, cuma
+					// hasil `data.filter(...)`-nya kebuang (multiselect_pills.js), jadi disaring sini
+					const chosen = (dialog && dialog.get_value("supplier_quotations")) || [];
+
+					return frappe
+						.xcall("vic_addon.vic.doctype.costing.costing.get_supplier_quotations", {
+							// pas pertama dibangun dialognya belum ada, filter RFQ-nya nyusul
+							request_for_quotation: dialog && dialog.get_value("request_for_quotation"),
+							company: frm.doc.company,
+							currency: frm.doc.currency,
+							txt: txt,
+						})
+						.then((rows) => rows.filter((row) => !chosen.includes(row.value)));
+				},
+				onchange: () => reload_items(frm, dialog),
+			},
+			{ fieldtype: "Section Break" },
+			{
+				fieldtype: "Table",
+				fieldname: "items",
+				label: __("Items"),
+				cannot_add_rows: true,
+				cannot_delete_rows: true,
+				in_place_edit: false,
+				data: [],
+				fields: [
+					{
+						fieldtype: "Link",
+						fieldname: "item_code",
+						label: __("Item"),
+						options: "Item",
+						read_only: 1,
+						in_list_view: 1,
+						columns: 2,
+					},
+					{
+						fieldtype: "Data",
+						fieldname: "item_name",
+						label: __("Item Name"),
+						read_only: 1,
+						in_list_view: 1,
+						columns: 2,
+					},
+					{
+						fieldtype: "Float",
+						fieldname: "qty",
+						label: __("Qty"),
+						// angka ini yang beneran masuk ke Costing
+						in_list_view: 1,
+						columns: 1,
+						reqd: 1,
+					},
+					{
+						fieldtype: "Link",
+						fieldname: "uom",
+						label: __("UOM"),
+						options: "UOM",
+						read_only: 1,
+						in_list_view: 1,
+						columns: 1,
+					},
+					{
+						fieldtype: "Currency",
+						fieldname: "rate",
+						label: __("Rate"),
+						read_only: 1,
+						in_list_view: 1,
+						columns: 2,
+					},
+					{
+						fieldtype: "Link",
+						fieldname: "supplier",
+						label: __("Supplier"),
+						options: "Supplier",
+						read_only: 1,
+						in_list_view: 1,
+						columns: 2,
+					},
+					{
+						fieldtype: "Link",
+						fieldname: "supplier_quotation",
+						label: __("Supplier Quotation"),
+						options: "Supplier Quotation",
+						read_only: 1,
+						in_list_view: 1,
+						columns: 2,
+					},
+					{
+						fieldtype: "Data",
+						fieldname: "supplier_quotation_item",
+						label: __("Row"),
+						hidden: 1,
+					},
+				],
+			},
+		],
+		primary_action_label: __("Get Items"),
+		primary_action() {
+			const selected = dialog.fields_dict.items.grid.get_selected_children();
+
+			if (!selected.length) {
+				frappe.msgprint(__("Select at least one item"));
 				return;
 			}
 
-			frappe.call({
-				method: "vic_addon.vic.doctype.costing.costing.get_supplier_quotation_items",
-				args: { supplier_quotations: selections },
-				freeze: true,
-				callback({ message }) {
-					(message || []).forEach((row) => Object.assign(frm.add_child("items"), row));
-					frm.refresh_field("items");
-					calculate(frm);
-				},
+			selected.forEach((row) => {
+				Object.assign(frm.add_child("items"), {
+					item_code: row.item_code,
+					item_name: row.item_name,
+					uom: row.uom,
+					qty: flt(row.qty),
+					rate: flt(row.rate),
+					supplier: row.supplier,
+					supplier_quotation: row.supplier_quotation,
+					supplier_quotation_item: row.supplier_quotation_item,
+				});
 			});
 
-			dialog.dialog.hide();
+			frm.refresh_field("items");
+			calculate(frm);
+			dialog.hide();
 		},
 	});
+
+	dialog.show();
+}
+
+// Isi tabelnya ditarik ulang tiap pilihan di atas berubah.
+function reload_items(frm, dialog) {
+	const values = dialog.get_values(true);
+	const quotations = values.supplier_quotations || [];
+
+	if (!quotations.length && !(values.only_cheapest && values.request_for_quotation)) {
+		set_dialog_items(dialog, []);
+		return;
+	}
+
+	frappe.call({
+		method: "vic_addon.vic.doctype.costing.costing.get_costing_items",
+		args: {
+			supplier_quotations: quotations,
+			request_for_quotation: values.request_for_quotation,
+			only_cheapest: values.only_cheapest ? 1 : 0,
+		},
+		callback({ message }) {
+			set_dialog_items(dialog, message || []);
+		},
+	});
+}
+
+function set_dialog_items(dialog, rows) {
+	const grid = dialog.fields_dict.items.grid;
+	grid.df.data = rows;
+	grid.refresh();
+
+	// semua baris dicentang duluan, tinggal user yang ngurangin
+	dialog.wrapper.find(".grid-heading-row .grid-row-check").prop("checked", false).click();
 }
