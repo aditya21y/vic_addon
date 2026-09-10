@@ -2,6 +2,12 @@
 
 {%- set material_requests = doc.items | map(attribute="material_request") | select | unique | list -%}
 
+<style>
+	/* tiga kolom terakhir diisi tangan sama supplier, jadi dikasih kotak dan ruang nulis */
+	.vic-pf .items .fill { border-left: 1px solid #999; }
+	.vic-pf .items tbody td { height: 30px; }
+</style>
+
 <div class="vic-pf">
 	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
 
@@ -48,9 +54,9 @@
 				<th style="width: 6%">Item</th>
 				<th style="width: 34%; text-align: left">Description</th>
 				<th style="width: 12%">Qty</th>
-				<th style="width: 18%; text-align: right">Unit Price</th>
-				<th style="width: 12%">Weight</th>
-				<th style="width: 18%">Remarks</th>
+				<th class="fill" style="width: 18%">Unit Price</th>
+				<th class="fill" style="width: 12%">Weight</th>
+				<th class="fill" style="width: 18%">Remarks</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -65,9 +71,9 @@
 					</td>
 					<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
 					{#- Unit Price sengaja kosong, itu jatah supplier yang ngisi -#}
-					<td></td>
-					<td class="qty">{{ item.get("custom_weight") or "" }}</td>
-					<td>{{ item.get("custom_remarks") or "" }}</td>
+					<td class="fill"></td>
+					<td class="fill qty">{{ item.get("custom_weight") or "" }}</td>
+					<td class="fill">{{ item.get("custom_remarks") or "" }}</td>
 				</tr>
 			{%- endfor %}
 		</tbody>

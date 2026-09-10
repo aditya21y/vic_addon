@@ -18,6 +18,19 @@ frappe.ui.form.on("Request for Quotation", {
 		);
 
 		frm.add_custom_button(__("Share to WhatsApp"), () => share_to_whatsapp(frm), __("Actions"));
+
+		// versi Excel dari print format Inquiry: supplier ngisi harganya di spreadsheet, gak
+		// perlu diketik ulang sama purchasing
+		frm.add_custom_button(
+			__("Download Inquiry"),
+			() =>
+				open_url_post(
+					"/api/method/vic_addon.vic.request_for_quotation.download_inquiry",
+					{ request_for_quotation: frm.doc.name },
+					true
+				),
+			__("Actions")
+		);
 	},
 });
 

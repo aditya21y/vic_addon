@@ -572,6 +572,36 @@ server tiap disimpan — yang di server itu yang jadi pegangan.
 
 Implementasi: `vic_addon/vic/doctype/selling_price_estimate/`.
 
+#### Inquiry versi Excel
+
+Print format **Inquiry** itu buat dicetak dan diisi tangan. Tombol **Actions > Download Inquiry**
+di Request for Quotation ngeluarin isi yang sama dalam bentuk Excel, **tata letaknya niru
+`RFQ Excel Template.xlsx`** yang selama ini dipakai purchasing:
+
+| Bagian | Letaknya |
+| --- | --- |
+| Logo VIC (gambar) | Kiri atas, mulai kolom B |
+| Nama + alamat perusahaan | Rata kanan, baris 1-6 |
+| Judul `INQUIRY` | `B7:N8`, ukuran 20, di tengah |
+| Inquiry No. / Date | `G9` / `G10`, titik dua di kolom sendiri |
+| Subject, kalimat pengantar | `B15`, `B16` |
+| Judul kolom | Baris 17-18, diapit garis melintang, tanpa garis tegak |
+| Item | Mulai baris 19, ditutup garis di bawah baris terakhir |
+| Penutup | `Wait for your reply immediately`, lalu `Best regards,` |
+
+Kolom A dipakai jadi margin kiri (lebar 1,1) kayak template, fontnya **Aptos Narrow**, dan tiga
+kolom **Unit Price, Weight, Remarks** dibiarin kosong buat diisi supplier. Supplier ngisi di
+spreadsheet lalu kirim balik — purchasing gak perlu ngetik ulang.
+
+Bagian yang dipakai bareng (logo, blok alamat, judul, margin) ada di `vic_addon/vic/excel.py`.
+
+Kolom lebar di print format-nya juga dibenerin: tabelnya sekarang pakai `table-layout: fixed`, jadi
+lebar kolom ngikut angka yang ditulis di header. Sebelumnya lebar dihitung dari isi sel, dan karena
+tiga kolom terakhir emang sengaja kosong, kolomnya kekempis dan judulnya gak sejajar sama nilainya.
+Perbaikan ini kena ke semua print format karena ada di kop surat bareng.
+
+Implementasi: `vic_addon/vic/request_for_quotation.py`.
+
 #### Supplier Comparison (download dari Request for Quotation)
 
 Satu RFQ dikirim ke beberapa supplier, dan tiap supplier bisa nawar berkali-kali di waktu yang
@@ -870,7 +900,7 @@ Lima form kertas VIC yang lain ikut dibikin, semuanya pakai kop surat + gaya yan
 | Quotation (VIC) | **Quotation** (bisa juga dipasang di Sales Order) | QUOTATION |
 | Purchase Order (VIC) | Purchase Order | PURCHASE ORDER |
 | Purchase Request | Material Request | PURCHASE REQUEST |
-| Inquiry | Request for Quotation | INQUIRY |
+| Inquiry | Request for Quotation | INQUIRY (+ versi Excel, lihat di bawah) |
 | Request For Quotation (Customer) | Opportunity | REQUEST FOR QUOTATION |
 | Costing (Sales) | Costing | COSTING (harga jual + Terms & Conditions) |
 | Costing (Import) | Costing | COSTING (harga beli, harga jual, profit) |

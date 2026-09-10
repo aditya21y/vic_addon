@@ -51,7 +51,10 @@
 	.vic-pf .terms .lbl { width: 115px; }
 	.vic-pf .terms .sep { width: 12px; }
 	.vic-pf .party { margin-top: 16px; font-weight: 700; font-size: 12px; }
-	.vic-pf .items { width: 100%; margin-top: 14px; }
+	/* lebar kolom ngikut yang ditulis di <th>, bukan dihitung dari isinya - kalau enggak, kolom
+	   yang sengaja dikosongin (buat diisi tangan) kekempis dan header-nya gak sejajar */
+	.vic-pf .items { width: 100%; margin-top: 14px; table-layout: fixed; }
+	.vic-pf .items td, .vic-pf .items th { word-wrap: break-word; overflow-wrap: anywhere; }
 	.vic-pf .items th {
 		border-top: 1px solid #000;
 		border-bottom: 1px solid #000;
