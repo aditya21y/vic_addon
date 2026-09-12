@@ -84,8 +84,6 @@ after_migrate = after_install
 # include js in doctype views
 doctype_js = {doctype: ["public/js/dpp_nilai_lain.js"] for doctype in DPP_NILAI_LAIN_DOCTYPES}
 doctype_js["Supplier Quotation"] = ["public/js/supplier_quotation.js"]
-# tombol mundurin harga final ke Costing-nya
-doctype_js["Quotation"].append("public/js/quotation.js")
 # tombol download tabel perbandingan penawaran supplier
 doctype_js["Request for Quotation"] = ["public/js/request_for_quotation.js"]
 # DP Invoice: persentase DP + template pajak DP
@@ -208,10 +206,12 @@ doc_events = {
 for event in ("on_update", "on_cancel", "after_delete"):
 	doc_events["Quotation"][event] = "vic_addon.vic.doctype.costing.costing.update_status_from_quotation"
 
-# satu Costing cuma boleh punya satu Quotation yang jadi (submitted)
-doc_events["Quotation"]["before_submit"] = (
-	"vic_addon.vic.doctype.costing.costing.validate_single_submitted_quotation"
-)
+doc_events["Quotation"]["before_submit"] = [
+	# satu Costing cuma boleh punya satu Quotation yang jadi (submitted)
+	"vic_addon.vic.doctype.costing.costing.validate_single_submitted_quotation",
+	# habis lolos: harga final penawaran ditulis balik ke Quotation Rate di Costing
+	"vic_addon.vic.doctype.costing.costing.update_costing_rates",
+]
 
 doc_events["Supplier Quotation"]["before_validate"] = [
 	"vic_addon.vic.multi_level_discount.validate_discount_levels",

@@ -141,16 +141,17 @@ Total Profit Amount / %              -> dari Total Selling Amount (harga hasil m
 Total Profit Amount / % vs Quotation -> dari Total Quotation Amount (harga nego ke customer)
 ```
 
-**Harga final dari Quotation bisa ditarik balik ke Costing.** Quotation yang udah submit punya
-tombol **Actions > Update Costing Rate**: dia bandingin `net_rate` tiap baris Quotation (harga per
-unit setelah diskon item maupun diskon atas total) lawan Quotation Rate di Costing, nampilin
-selisihnya dulu di dialog, baru nimpa kalau user setuju. Baris yang ketimpa ditandain
-`quotation_rate_manually_set` biar gak ketarik balik ke Selling Rate, dan Costing-nya dapat
-komentar nyebut Quotation mana sumbernya.
+**Harga final dari Quotation ditulis balik ke Costing otomatis waktu Quotation disubmit**
+(hook `before_submit`, gak ada tombol lagi). Yang dibandingin `net_rate` tiap baris Quotation —
+harga per unit setelah diskon item maupun diskon atas total — lawan Quotation Rate di baris
+Costing-nya; yang beda ditimpa. Baris yang ketimpa ditandain `quotation_rate_manually_set` biar
+gak ketarik balik ke Selling Rate, Costing-nya dapat komentar nyebut Quotation mana sumbernya,
+dan user dikasih notifikasi item mana aja yang angkanya berubah (nulis ke dokumen lain jangan
+diem-diem).
 
-Tombolnya sengaja **di Quotation, bukan di Costing, dan gak jalan otomatis waktu submit**: harga
-mana yang jadi patokan itu keputusan user — kalau ditaruh di Costing, dokumennya mesti nebak
-sendiri Quotation mana yang dibaca.
+Bisa otomatis karena satu Costing cuma boleh punya **satu** Quotation submitted (aturan di bawah)
+— jadi gak ada lagi pertanyaan "harga dari Quotation mana yang dipakai". Draft-nya gak nyentuh
+Costing sama sekali: selama masih nego, angka di Costing tetap versi rencana.
 
 **Satu Costing cuma boleh punya satu Quotation yang jadi.** Waktu Quotation disubmit, kalau
 costing yang sama udah punya Quotation submitted lain, submitnya ditolak sekalian nunjuk nomor

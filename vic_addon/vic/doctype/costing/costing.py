@@ -488,18 +488,58 @@ def get_stock_item_details(item_code, company, warehouse=None):
 	}
 
 
-@frappe.whitelist()
+def update_costing_rates(doc, method=None):
+	"""Hook `before_submit` Quotation: harga final dibalikin ke Costing-nya.
+
+	Harga jual di Costing itu rencana; yang beneran ditawarin ke customer bisa lebih rendah
+	gara-gara diskon per item atau diskon atas total. Begitu penawarannya jadi (submit), harga
+	itu ditulis balik ke Quotation Rate di Costing supaya profit di Costing ngikut kenyataan.
+
+	Jalan otomatis karena satu Costing cuma boleh punya satu Quotation submitted (lihat
+	`validate_single_submitted_quotation`) - jadi gak ada lagi pertanyaan "harga dari Quotation
+	mana yang dipakai". Baris yang ketimpa ditandain `quotation_rate_manually_set`, biar gak
+	ketarik balik ke Selling Rate waktu Costing dihitung ulang.
+	"""
+	changes = get_costing_rate_changes(doc)
+	if not changes:
+		return
+
+	costing = frappe.get_doc("Costing", doc.custom_costing)
+	rates = {change["costing_item"]: change["quotation_rate"] for change in changes}
+
+	for item in costing.items:
+		if item.name in rates:
+			item.quotation_rate = rates[item.name]
+			item.quotation_rate_manually_set = 1
+
+	costing.save(ignore_permissions=True)
+	costing.add_comment(
+		"Info",
+		_("Quotation Rate updated from {0}").format(get_link_to_form("Quotation", doc.name)),
+	)
+
+	# nulis ke dokumen lain jangan diem-diem, user mesti tau angka costingnya berubah
+	frappe.msgprint(
+		_("Quotation Rate in {0} updated for {1} item(s): {2}").format(
+			get_link_to_form("Costing", costing.name),
+			len(changes),
+			", ".join(change["item_code"] for change in changes),
+		),
+		title=_("Costing Updated"),
+		indicator="green",
+		alert=True,
+	)
+
+
 def get_costing_rate_changes(quotation):
 	"""Baris Costing yang harganya beda sama harga final di Quotation ini.
 
-	Harga jual di Costing itu rencana; yang beneran ditawarin ke customer bisa lebih rendah
-	gara-gara diskon per item atau diskon atas total. Yang dibandingin `net_rate` Quotation -
-	itu harga per unit setelah semua diskon - lawan Quotation Rate di Costing.
+	Yang dibandingin `net_rate` Quotation - harga per unit setelah semua diskon - lawan
+	Quotation Rate di baris Costing-nya.
 	"""
-	doc = frappe.get_doc("Quotation", quotation)
-	doc.check_permission("read")
+	doc = quotation if hasattr(quotation, "items") else frappe.get_doc("Quotation", quotation)
 
-	if not doc.custom_costing:
+	if not doc.get("custom_costing"):
 		return []
 
 	costing = frappe.get_doc("Costing", doc.custom_costing)
@@ -529,38 +569,6 @@ def get_costing_rate_changes(quotation):
 				"quotation_rate": flt(rate),
 			}
 		)
-
-	return changes
-
-
-@frappe.whitelist()
-def update_costing_rates(quotation):
-	"""Tombol `Update Costing Rate` di Quotation: harga final dibalikin ke Costing-nya.
-
-	Dipanggil manual, bukan otomatis waktu submit - satu Costing bisa punya beberapa Quotation,
-	jadi harga mana yang jadi patokan itu keputusan user.
-	"""
-	changes = get_costing_rate_changes(quotation)
-	if not changes:
-		return []
-
-	costing_name = frappe.db.get_value("Quotation", quotation, "custom_costing")
-	costing = frappe.get_doc("Costing", costing_name)
-	costing.check_permission("write")
-
-	rates = {change["costing_item"]: change["quotation_rate"] for change in changes}
-
-	for item in costing.items:
-		if item.name in rates:
-			item.quotation_rate = rates[item.name]
-			# ditandain harga nego biar gak ketarik balik ke Selling Rate waktu dihitung ulang
-			item.quotation_rate_manually_set = 1
-
-	costing.save()
-	costing.add_comment(
-		"Info",
-		_("Quotation Rate updated from {0}").format(get_link_to_form("Quotation", quotation)),
-	)
 
 	return changes
 
