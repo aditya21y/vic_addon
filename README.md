@@ -678,6 +678,25 @@ Quotation, kuncinya wajib alfanumerik, dan PDF-nya dikirim `inline` biar kebuka 
 Implementasi: `vic_addon/vic/supplier_comparison.py`, `vic_addon/templates/supplier_comparison.html`,
 `vic_addon/public/js/request_for_quotation.js`.
 
+#### Project ngalir dari Opportunity sampai ke bawah
+
+Field **Project** ditambahin di tiga dokumen yang belum punya: **Opportunity**, **Request for
+Quotation**, dan **Quotation**. Sisanya (Supplier Quotation, Sales Order, Delivery Note, Sales
+Invoice, Purchase Order) emang udah punya bawaan, plus Costing & Loan Memo punya kita.
+
+Field-nya sengaja dinamain persis `project`, **bukan** `custom_project`: `map_fields` di
+`frappe/model/mapper.py` nyalin field yang namanya sama antara dokumen sumber dan tujuan, jadi
+project ngalir sendiri tanpa nambah kode di tiap tombol Create. Rantai lengkapnya (udah dites):
+
+```
+Opportunity  ─┬─► Request for Quotation ─► Supplier Quotation ─► Costing ─► Quotation ─► Sales Order ─► Delivery Note
+              └─► Quotation (langsung)
+```
+
+Konsekuensi yang perlu diinget: karena namanya nabrak nama field bawaan, kalau suatu hari ERPNext
+nambahin field `project` sendiri di salah satu doctype itu, custom field kita bakal bentrok dan
+mesti dicabut. Itu risiko yang diambil sadar — imbalannya nol kode tambahan di semua mapper.
+
 #### Customer WAPU
 
 WAPU (Wajib Pungut): PPN-nya dipungut dan disetor sendiri sama customer — biasanya instansi
