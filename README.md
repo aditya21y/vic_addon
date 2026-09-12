@@ -148,9 +148,16 @@ selisihnya dulu di dialog, baru nimpa kalau user setuju. Baris yang ketimpa dita
 `quotation_rate_manually_set` biar gak ketarik balik ke Selling Rate, dan Costing-nya dapat
 komentar nyebut Quotation mana sumbernya.
 
-Tombolnya sengaja **di Quotation, bukan di Costing, dan gak jalan otomatis waktu submit**: satu
-Costing bisa punya beberapa Quotation (revisi atau penawaran ke customer lain), jadi harga mana
-yang jadi patokan itu keputusan user — kalau ditaruh di Costing, dokumennya mesti nebak sendiri.
+Tombolnya sengaja **di Quotation, bukan di Costing, dan gak jalan otomatis waktu submit**: harga
+mana yang jadi patokan itu keputusan user — kalau ditaruh di Costing, dokumennya mesti nebak
+sendiri Quotation mana yang dibaca.
+
+**Satu Costing cuma boleh punya satu Quotation yang jadi.** Waktu Quotation disubmit, kalau
+costing yang sama udah punya Quotation submitted lain, submitnya ditolak sekalian nunjuk nomor
+Quotation-nya. **Draft-nya boleh banyak** — bikin beberapa versi penawaran itu normal, yang
+dibatesin cuma yang jadi. Aturan ini yang bikin angka di Costing (termasuk profit lawan harga
+nego) jelas ngikut penawaran yang mana, dan bikin tombol `Update Costing Rate` gak saling timpa.
+Kalau mau ganti ke penawaran lain, Quotation yang lama dibatalin dulu.
 
 **Kenapa profitnya dua versi.** `Selling Rate` itu harga hasil rumus margin, sedangkan
 `Quotation Rate` itu harga yang beneran ditawarin ke customer (boleh dinego turun). Profit yang

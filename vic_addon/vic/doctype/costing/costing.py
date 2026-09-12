@@ -223,6 +223,34 @@ def update_status_from_quotation(doc, method=None):
 		update_status(costing)
 
 
+def validate_single_submitted_quotation(doc, method=None):
+	"""Hook `before_submit` Quotation: satu Costing cuma boleh punya satu Quotation submitted.
+
+	Costing itu perhitungan buat satu penawaran. Kalau ada dua Quotation submitted nempel ke
+	costing yang sama, angka di Costing (termasuk profit lawan harga nego) jadi gak ketahuan
+	ngikut yang mana - dan tombol `Update Costing Rate` bakal saling timpa.
+
+	Draft boleh banyak: bikin beberapa versi penawaran itu normal, yang dibatesin cuma yang jadi.
+	"""
+	if not doc.get("custom_costing"):
+		return
+
+	existing = frappe.db.get_value(
+		"Quotation",
+		{"custom_costing": doc.custom_costing, "docstatus": 1, "name": ["!=", doc.name]},
+		"name",
+	)
+	if not existing:
+		return
+
+	frappe.throw(
+		_(
+			"Costing {0} already has a submitted Quotation: {1}. Cancel that Quotation first, or point this one to another Costing."
+		).format(get_link_to_form("Costing", doc.custom_costing), get_link_to_form("Quotation", existing)),
+		title=_("Costing Already Quoted"),
+	)
+
+
 @frappe.whitelist()
 def make_quotation(source_name, target_doc=None):
 	"""Bikin Quotation ke customer dari Costing.

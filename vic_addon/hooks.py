@@ -208,6 +208,11 @@ doc_events = {
 for event in ("on_update", "on_cancel", "after_delete"):
 	doc_events["Quotation"][event] = "vic_addon.vic.doctype.costing.costing.update_status_from_quotation"
 
+# satu Costing cuma boleh punya satu Quotation yang jadi (submitted)
+doc_events["Quotation"]["before_submit"] = (
+	"vic_addon.vic.doctype.costing.costing.validate_single_submitted_quotation"
+)
+
 doc_events["Supplier Quotation"]["before_validate"] = [
 	"vic_addon.vic.multi_level_discount.validate_discount_levels",
 	"vic_addon.vic.multi_level_discount.apply_multi_level_discount",
