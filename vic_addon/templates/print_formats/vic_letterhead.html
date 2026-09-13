@@ -76,6 +76,29 @@
 	.vic-pf .sign td { text-align: center; padding: 0 6px !important; }
 	.vic-pf .sign .role { padding-bottom: 58px; }
 	.vic-pf .note { margin-top: 12px; font-size: 10px; }
+	/* Blok footer disembunyiin di layar biasa. Tempat dia yang bener itu margin bawah halaman,
+	   dan kalau dibiarin kelihatan dia cuma nemplok di bawah isi dokumen (nengah kalau isinya
+	   separuh halaman).
+
+	   Waktu dicetak - lewat tombol Print maupun print bawaan browser - baru dimunculin dan
+	   dipaku ke dasar halaman. `position: fixed` bikin browser ngulang dia di tiap halaman.
+
+	   Aturan ini gak pernah kena di PDF: di jalur itu Frappe nyabut div-nya dari badan dokumen
+	   dan yang dikirim ke wkhtmltopdf cuma ISI-nya, jadi elemen ber-id `footer-html` udah gak
+	   ada lagi di sana. */
+	#footer-html { display: none; }
+
+	@media print {
+		#footer-html {
+			display: block;
+			position: fixed;
+			left: 0;
+			right: 0;
+			bottom: 0;
+		}
+		/* ruang buat footer tadi, biar baris terakhir isi dokumen gak ketiban */
+		.vic-pf { padding-bottom: 14mm; }
+	}
 </style>
 
 <table class="head">

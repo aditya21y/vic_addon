@@ -4,14 +4,6 @@
 {%- set contact_numbers = [doc.contact_mobile, doc.contact_phone] | select | unique | list -%}
 
 <style>
-	.vic-pf .copies {
-		margin-top: 26px;
-		padding-top: 6px;
-		border-top: 1px solid #000;
-		font-size: 9px;
-		letter-spacing: 0.2px;
-	}
-	.vic-pf .copies span { display: inline-block; margin-right: 26px; }
 	.vic-pf .in-words { margin-top: 8px; font-size: 10px; }
 </style>
 
@@ -127,11 +119,9 @@
 		</tr>
 	</table>
 
-	{#- warna salinan, sama persis kayak formulir yang selama ini dipakai -#}
-	<div class="copies">
-		<span>Putih = Supplier</span>
-		<span>Merah = Purchasing</span>
-		<span>Kuning = Accounting</span>
-		<span>Hijau = Finance</span>
-	</div>
+	{#- Keterangan warna salinan, sama persis kayak formulir yang selama ini dipakai. Ditaruh di
+	    footer halaman (pojok kiri bawah) biar ikut kecetak di tiap lembar, bukan cuma nempel di
+	    bawah isi lembar terakhir. -#}
+	{%- set vic_footer_note = ["Putih = Supplier", "Merah = Purchasing", "Kuning = Accounting", "Hijau = Finance"] -%}
+	{%- include "vic_addon/templates/print_formats/vic_footer.html" -%}
 </div>

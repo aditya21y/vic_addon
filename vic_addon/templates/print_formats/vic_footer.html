@@ -1,0 +1,45 @@
+{#-
+	Footer halaman. Dicabut Frappe dari badan dokumen (`prepare_header_footer` nyari
+	id="footer-html") terus dikirim ke wkhtmltopdf sebagai `--footer-html`, jadi dia nempel di
+	margin bawah SETIAP halaman dan angkanya ngikut jumlah halaman beneran.
+
+	Isinya dua sisi: catatan bebas di pojok kiri (opsional) dan nomor halaman di pojok kanan.
+	Formatnya mau ditaruh catatan, set `vic_footer_note` (list baris teks) sebelum include ini.
+
+	Angka "01" di dalam span itu isian bawaan. Waktu jadi PDF, wkhtmltopdf nimpa isinya lewat
+	script bawaan Frappe, terus script di bawah nambahin nol di depan biar formatnya "01 of 02"
+	kayak form kertas VIC. Di print browser gak ada yang nimpa - browser gak kasih jalan buat
+	ngitung halaman - jadi di sana angkanya nempel di "01 of 01".
+
+	Pakai <table>, bukan flex: dokumen footer dirender terpisah sama wkhtmltopdf dan table itu
+	yang paling aman ketebak hasilnya di sana.
+
+	Padding kiri/kanannya kecil aja: dokumen footer udah dikasih margin halaman sendiri sama
+	wkhtmltopdf, jadi kalau ditambah 15mm lagi tulisannya malah masuk ke dalam, gak selurus
+	pinggir isi dokumen.
+-#}
+<div id="footer-html" class="visible-pdf">
+	<table class="vic-footer" style="width: 100%; border-collapse: collapse; font-family: Arial, Helvetica, sans-serif; font-size: 9px;">
+		<tr>
+			<td style="border: 0; padding: 6px 8px 0 6px; text-align: left;">
+				{%- for line in (vic_footer_note if vic_footer_note is defined else []) %}
+					<span style="display: inline-block; margin-right: 20px;">{{ line }}</span>
+				{%- endfor %}
+			</td>
+			<td style="border: 0; padding: 6px 6px 0 8px; text-align: right; white-space: nowrap;">
+				Page <span class="page vic-pad">01</span> of <span class="topage vic-pad">01</span>
+			</td>
+		</tr>
+	</table>
+	<script>
+		window.addEventListener("load", function () {
+			var cells = document.getElementsByClassName("vic-pad");
+			for (var i = 0; i < cells.length; i++) {
+				var value = (cells[i].textContent || "").trim();
+				if (value.length === 1) {
+					cells[i].textContent = "0" + value;
+				}
+			}
+		});
+	</script>
+</div>

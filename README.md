@@ -680,6 +680,38 @@ ulang link terbarunya.
 Logo di PDF ditanam sebagai data URI, bukan link ke `/assets` — kalau lewat link, `wkhtmltopdf`
 gagal narik gambarnya dan PDF-nya batal kebentuk.
 
+**Nomor halaman di semua print format.** File `vic_footer.html` (di-include paling bawah tiap
+print format) nyimpen blok `<div id="footer-html">` berisi
+`Page <span class="page">01</span> of <span class="topage">01</span>`. Frappe nyabut blok itu dari
+badan dokumen (`prepare_header_footer`) dan ngirimnya ke wkhtmltopdf sebagai `--footer-html`, jadi
+dia nempel di **setiap halaman** dan angkanya ngikut jumlah halaman beneran. Script kecil di situ
+nambahin nol di depan biar formatnya `Page 01 of 02` kayak form kertas VIC. Label stiker Serial No
+gak kena karena dia emang gak pakai kop surat.
+
+Dua hal yang bikin blok ini ditulis begitu:
+
+- **Ditaruh paling bawah, bukan di atas.** Frappe **gak punya** aturan CSS buat kelas
+  `visible-pdf`, jadi di tampilan layar (print view / cetak dari browser) blok ini tetap kerender.
+  Di bawah dia kebaca wajar sebagai baris penutup; waktu ditaruh di atas, dia nongol nyasar di
+  kepala dokumen.
+- **Isi bawaannya ditulis `01`,** bukan span kosong. Di layar gak ada yang ngisi angka itu — kalau
+  dikosongin, yang kebaca user cuma tulisan "Page of". Waktu jadi PDF, wkhtmltopdf nimpa isinya
+  dengan nomor beneran.
+
+> **Butuh wkhtmltopdf build "patched qt".** Versi bawaan Ubuntu (`0.12.6-2build2`) nolak semua
+> switch header/footer — pesannya *"The switch --footer-html, is not support using unpatched qt,
+> and will be ignored"* — dan diam-diam juga ngabaikan `--print-media-type` sama
+> `--disable-smart-shrinking`, jadi PDF-nya dirender pakai CSS layar. Staging udah diganti ke
+> `wkhtmltopdf 0.12.6.1 (with patched qt)` dari rilis resmi wkhtmltopdf (paket `wkhtmltox`).
+> Mesin lain yang mau bikin PDF mesti pakai build yang sama.
+####
+cd /tmp
+curl -sLO https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.jammy_amd64.deb
+sudo apt-get install -y xfonts-75dpi          # cuma ini yang belum ada di laptop lo
+sudo dpkg -i wkhtmltox_0.12.6.1-3.jammy_amd64.deb
+wkhtmltopdf --version        # harus keluar: 0.12.6.1 (with patched qt)
+###
+
 **Kenapa gak pakai URL `/files/...` langsung.** Frappe nyari folder site buat file statis dari
 **nama host** (`StaticDataMiddleware`), bukan dari header `X-Frappe-Site-Name` yang dipasang
 nginx. Di server kita nama folder site (`vic-app`) beda dari domainnya
