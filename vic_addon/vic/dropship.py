@@ -201,9 +201,15 @@ def get_dropship_warehouse(company):
 	return warehouse
 
 
-def get_pending_delivery_qty(purchase_order_item, delivered=0):
-	"""Sisa qty baris PO yang belum dikirim ke customer - dipakai jadi isian awal di modal."""
-	return max(flt(purchase_order_item.qty) - flt(delivered), 0)
+def get_pending_qty(purchase_order_item, reserved=0):
+	"""Sisa qty baris PO yang belum jadi apa-apa - dipakai jadi isian awal di dua modal.
+
+	`received_qty` di baris PO udah nyakup dua jalur sekaligus: porsi yang masuk gudang lewat
+	Purchase Receipt biasa, dan porsi dropship yang penerimaannya kebentuk otomatis waktu
+	Delivery Note-nya disubmit. Yang belum kecatat di situ cuma DN yang masih draft, jadi itu
+	yang dikurangin terpisah lewat `reserved`.
+	"""
+	return max(flt(purchase_order_item.qty) - flt(purchase_order_item.received_qty) - flt(reserved), 0)
 
 
 @frappe.whitelist()
@@ -217,7 +223,7 @@ def get_items_for_delivery_note(purchase_order):
 	doc = frappe.get_doc("Purchase Order", purchase_order)
 	doc.check_permission("read")
 
-	delivered = get_delivered_qty_by_sales_order_item(doc)
+	reserved = get_draft_delivery_qty(doc)
 	rows = []
 
 	for item in doc.items:
@@ -234,7 +240,7 @@ def get_items_for_delivery_note(purchase_order):
 				"uom": item.uom,
 				"transaction_type": item.custom_transaction_type,
 				"order_qty": flt(item.qty),
-				"qty": get_pending_delivery_qty(item, delivered.get(item.sales_order_item)),
+				"qty": get_pending_qty(item, reserved.get(item.sales_order_item)),
 			}
 		)
 
@@ -251,13 +257,14 @@ def get_items_for_purchase_receipt(purchase_order):
 	doc = frappe.get_doc("Purchase Order", purchase_order)
 	doc.check_permission("read")
 
+	reserved = get_draft_delivery_qty(doc)
 	rows = []
 
 	for item in doc.items:
 		if item.custom_transaction_type == DROPSHIP:
 			continue
 
-		pending = flt(item.qty) - flt(item.received_qty)
+		pending = get_pending_qty(item, reserved.get(item.sales_order_item))
 		if pending <= 0:
 			continue
 
@@ -277,23 +284,28 @@ def get_items_for_purchase_receipt(purchase_order):
 	return rows
 
 
-def get_delivered_qty_by_sales_order_item(purchase_order):
-	"""Qty yang udah dikirim ke customer per baris Sales Order, dari DN yang masih aktif."""
+def get_draft_delivery_qty(purchase_order):
+	"""Qty yang udah nyangkut di Delivery Note **draft**, per baris Sales Order.
+
+	Yang udah disubmit sengaja gak diitung di sini: penerimaan dropship-nya kebentuk otomatis
+	waktu DN disubmit, jadi qty-nya udah kecatat di `received_qty` baris PO. Kalau diitung dua
+	kali, sisanya jadi kurang.
+	"""
 	sales_order_items = [item.sales_order_item for item in purchase_order.items if item.sales_order_item]
 	if not sales_order_items:
 		return {}
 
 	rows = frappe.get_all(
 		"Delivery Note Item",
-		filters={"so_detail": ["in", sales_order_items], "docstatus": ["<", 2]},
+		filters={"so_detail": ["in", sales_order_items], "docstatus": 0},
 		fields=["so_detail", "qty"],
 	)
 
-	delivered = {}
+	reserved = {}
 	for row in rows:
-		delivered[row.so_detail] = delivered.get(row.so_detail, 0) + flt(row.qty)
+		reserved[row.so_detail] = reserved.get(row.so_detail, 0) + flt(row.qty)
 
-	return delivered
+	return reserved
 
 
 @frappe.whitelist()

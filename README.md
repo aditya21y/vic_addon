@@ -812,8 +812,14 @@ tombol yang dua-duanya lewat modal berisi baris + **qty yang bisa diedit**:
 
 | Tombol | Isinya | Qty awalnya |
 | --- | --- | --- |
-| **Create > Delivery Note** | Baris Dropship & Mixed | Sisa yang belum dikirim ke customer |
-| **Create > Purchase Receipt** | Baris Reguler & Mixed (Dropship gak ikut) | Sisa yang belum diterima |
+| **Create > Delivery Note** | Baris Dropship & Mixed | Sisa baris itu |
+| **Create > Purchase Receipt** | Baris Reguler & Mixed (Dropship gak ikut) | Sisa baris itu |
+
+**Sisanya dihitung sekali, dipakai dua modal**: `qty - received_qty - qty yang nyangkut di DN
+draft`. `received_qty` di baris PO udah nyakup dua jalur — porsi yang masuk gudang lewat Purchase
+Receipt biasa, **dan** porsi dropship yang penerimaannya kebentuk otomatis waktu DN disubmit — jadi
+dua modal itu gak pernah nawarin qty yang sama dua kali. DN yang masih draft belum bikin
+penerimaan, makanya dikurangin terpisah.
 
 Qty-nya bisa diedit karena baris **Mixed** emang dipecah di situ: misal qty 2, user kirim 1 ke
 customer lewat Delivery Note, sisanya 1 diterima ke gudang lewat Purchase Receipt. Baris yang
