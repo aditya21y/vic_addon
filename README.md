@@ -96,6 +96,13 @@ dibandingin cuma **penawaran terakhir tiap supplier**, penawaran lama diabaikan 
 masuk Costing sama dengan yang ditandain kuning di file perbandingan. Kalau centangnya dipakai
 tanpa RFQ, yang dibandingin cuma penawaran yang dipilih di dialog.
 
+**Ganti SQTN di baris Costing = harganya ikut ganti.** Kolom Supplier Quotation di tabel item
+pilihannya dibatesin ke penawaran submitted yang beneran ada item baris itu, dan begitu diganti,
+**net rate** penawaran baru langsung ketarik ke kolom Rate bareng nama suppliernya. Dua kasus
+dijaga: kalau mata uang penawarannya beda dari Costing, harganya **gak** disentuh (biar gak
+ketuker kurs) dan user dikasih tau; kalau kolomnya dikosongin, barisnya balik diperlakuin sebagai
+barang stok — harganya ngambil valuation rate gudang.
+
 Tiap baris Costing Item punya field **Warehouse** yang keisi otomatis: gudang default item di
 company itu (`Item Default`) dulu, kalau item gak punya baru ikut default warehouse di Stock
 Settings. Kalau dua-duanya gak diset, field-nya dibiarin kosong. Gudang Stock Settings yang

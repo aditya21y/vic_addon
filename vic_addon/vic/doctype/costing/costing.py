@@ -474,6 +474,58 @@ def keep_cheapest(items):
 
 
 @frappe.whitelist()
+def get_quotation_item_details(supplier_quotation, item_code, currency=None):
+	"""Harga + supplier dari sebuah SQTN buat satu baris Costing.
+
+	Dipanggil form waktu kolom Supplier Quotation di baris item diganti, biar harganya langsung
+	ngikut penawaran yang baru dipilih. Yang diambil **net rate** - harga per unit setelah diskon
+	bertingkat per item maupun diskon atas total.
+	"""
+	quotation = frappe.db.get_value(
+		"Supplier Quotation", supplier_quotation, ["supplier", "currency", "docstatus"], as_dict=True
+	)
+	if not quotation:
+		return {}
+
+	item = frappe.db.get_value(
+		"Supplier Quotation Item",
+		{"parent": supplier_quotation, "item_code": item_code},
+		["name", "net_rate", "rate", "uom"],
+		as_dict=True,
+	)
+	if not item:
+		frappe.msgprint(
+			_("Item {0} is not in Supplier Quotation {1}, so the rate is left as it is.").format(
+				item_code, supplier_quotation
+			),
+			title=_("Item Not Quoted"),
+			indicator="orange",
+		)
+		return {"supplier": quotation.supplier}
+
+	details = {
+		"supplier": quotation.supplier,
+		"supplier_quotation_item": item.name,
+		"uom": item.uom,
+	}
+
+	# harga cuma diambil kalau mata uangnya sama, biar gak ketuker kurs
+	if currency and quotation.currency != currency:
+		frappe.msgprint(
+			_("Supplier Quotation {0} is in {1}, so the rate is left as it is.").format(
+				supplier_quotation, quotation.currency
+			),
+			title=_("Different Currency"),
+			indicator="orange",
+		)
+		return details
+
+	details["rate"] = flt(item.net_rate) or flt(item.rate)
+
+	return details
+
+
+@frappe.whitelist()
 def get_stock_item_details(item_code, company, warehouse=None):
 	"""Gudang + harga pokok buat baris Costing yang gak lewat Supplier Quotation.
 
