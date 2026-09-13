@@ -18,6 +18,7 @@ PRINT_FORMATS = {
 	"Quotation (VIC)": "quotation",
 	"Purchase Order (VIC)": "purchase_order",
 	"Purchase Request": "purchase_request",
+	"Purchase Request (Sales Order)": "purchase_request_sales_order",
 	"Inquiry": "inquiry",
 	"Request For Quotation (Customer)": "opportunity_rfq",
 	"Costing (Sales)": "costing_sales",

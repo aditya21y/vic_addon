@@ -1,0 +1,108 @@
+{#- Permintaan pembelian ke tim pembelian, dicetak dari Sales Order. Bentuknya sama persis kayak
+    Purchase Request yang dicetak dari Material Request, bedanya cuma sumber datanya. -#}
+
+{#- Blok Subject nyusun sendiri barisnya dari data Sales Order - nomor PO customer, nama
+    customer, nama proyek - terus ditutup judul singkat yang diketik di field Subject. Urutan ini
+    ngikut formulir yang selama ini dipakai. -#}
+{%- set subject_lines = [] -%}
+{%- if doc.po_no -%}
+	{%- set _ = subject_lines.append("PO No. : " ~ doc.po_no) -%}
+{%- endif -%}
+{%- if doc.customer_name -%}
+	{%- set _ = subject_lines.append(doc.customer_name) -%}
+{%- endif -%}
+{%- if doc.project -%}
+	{%- set _ = subject_lines.append(frappe.db.get_value("Project", doc.project, "project_name") or doc.project) -%}
+{%- endif -%}
+{%- if doc.get("custom_subject") -%}
+	{%- set _ = subject_lines.append(doc.custom_subject) -%}
+{%- endif -%}
+
+<style>
+	/* baris-baris Subject dipisah "\n", biar gak perlu nyuntik <br> dari data dokumen */
+	.vic-pf .subject { white-space: pre-line; }
+	/* Tiga blok tanda tangan dipaksa selebar sepertiga halaman. Tanpa ini lebar kolomnya
+	   ngikut panjang tulisan, jadi "ACKNOWLEDGMENT" narik kolomnya sendiri jadi lebar dan
+	   kolom "SALES" kedempet. */
+	.vic-pf .sign { table-layout: fixed; }
+	.vic-pf .sign td { width: 33.33%; }
+</style>
+
+<div class="vic-pf">
+	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
+
+	<div class="title-wrap">
+		<div class="title-block">
+			<div class="doc-title">PURCHASE REQUEST</div>
+			<table class="meta">
+				<tr>
+					<td class="lbl">Request No.</td>
+					<td class="sep">:</td>
+					<td>{{ doc.name }}</td>
+				</tr>
+				<tr>
+					<td class="lbl">Date</td>
+					<td class="sep">:</td>
+					<td>{{ frappe.utils.formatdate(doc.transaction_date, "MMMM d, yyyy") }}</td>
+				</tr>
+			</table>
+		</div>
+	</div>
+
+	<table class="terms">
+		{%- if subject_lines %}
+			<tr>
+				<td class="lbl">Subject</td>
+				<td class="sep">:</td>
+				<td><div class="subject">{{ subject_lines | join("\n") }}</div></td>
+			</tr>
+		{%- endif %}
+	</table>
+
+	<table class="items">
+		<thead>
+			<tr>
+				<th style="width: 8%">Item</th>
+				<th style="width: 62%; text-align: left">Description</th>
+				<th style="width: 30%">Qty</th>
+			</tr>
+		</thead>
+		<tbody>
+			{%- for item in doc.items %}
+				{%- set brand, size = frappe.db.get_value("Item", item.item_code, ["brand", "custom_size"]) or (None, None) %}
+				{%- set qty = item.qty | float %}
+				<tr>
+					<td class="num">{{ loop.index }}</td>
+					<td>
+						<div class="desc">{{ item.item_name or item.item_code }}</div>
+						{%- if brand %}<div>{{ brand }}</div>{% endif %}
+						{%- if size %}<div>Size : {{ size }}</div>{% endif %}
+					</td>
+					<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
+				</tr>
+			{%- endfor %}
+		</tbody>
+	</table>
+
+	{#- Dua kolom sisanya tanda tangan basah. Jabatan ditaruh di dalam <div class="role">, bukan
+	    langsung di <td>: ruang kosong buat tanda tangan datang dari padding div itu, dan padding
+	    <td> di letterhead dikunci pakai !important. -#}
+	<table class="sign">
+		<tr>
+			<td>
+				<div class="role">SALES</div>
+				{#- sengaja dipaku ke satu nama, bukan ambil dari dokumen -#}
+				<div>Fitri</div>
+			</td>
+			<td>
+				<div class="role">ACKNOWLEDGMENT</div>
+				<div>&nbsp;</div>
+			</td>
+			<td>
+				<div class="role">APPROVED BY</div>
+				<div>&nbsp;</div>
+			</td>
+		</tr>
+	</table>
+	{%- include "vic_addon/templates/print_formats/vic_footer.html" -%}
+</div>
