@@ -66,6 +66,12 @@
 	.vic-pf .items .qty { text-align: center; white-space: nowrap; }
 	.vic-pf .items .money { text-align: right; white-space: nowrap; }
 	.vic-pf .items .desc { font-weight: 700; }
+	/* Baris judul kelompok item: tebal, ngambil selebar tabel, dan gak dikasih border kanan-kiri
+	   biar kebaca sebagai pemisah, bukan sebagai baris item. Item di bawahnya menjorok ke dalam
+	   lewat .indent - padding <td> di atas dikunci !important, jadi aturannya dibikin lebih
+	   spesifik (td.indent) supaya menang. */
+	.vic-pf .items tr.group td { font-weight: 700; text-align: left; }
+	.vic-pf .items td.indent { padding-left: 24px !important; }
 	/* total nempel di kanan, selebar dua kolom terakhir tabel item */
 	.vic-pf .totals { width: 100%; margin-top: 6px; }
 	.vic-pf .totals td { padding: 3px 4px !important; }

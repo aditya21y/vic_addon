@@ -1,4 +1,5 @@
 from vic_addon.vic.dpp_nilai_lain import DPP_NILAI_LAIN_DOCTYPES
+from vic_addon.vic.item_header import ITEM_HEADER_DOCTYPES
 from vic_addon.vic.naming import NAMING_DOCTYPES
 
 app_name = "vic_addon"
@@ -130,6 +131,7 @@ doctype_js["Sales Invoice"].append("public/js/sales_invoice.js")
 
 jinja = {
 	"methods": [
+		"vic_addon.vic.item_header.group_items_by_header",
 		"vic_addon.vic.serial_no.get_row_serial_nos",
 		"vic_addon.vic.serial_no.get_label_rows",
 		"vic_addon.vic.serial_no.get_qr_code",
@@ -298,6 +300,14 @@ doc_events["Payment Entry"] = {"before_validate": "vic_addon.vic.dp_invoice.set_
 doc_events["Material Request"] = {
 	"before_validate": "vic_addon.vic.material_request.set_customer_po_no",
 }
+
+# Header di baris item: yang dikosongin ngikut baris di atasnya
+for doctype in ITEM_HEADER_DOCTYPES:
+	events = doc_events.setdefault(doctype, {})
+	if isinstance(events.get("validate"), str):
+		events["validate"] = [events["validate"]]
+
+	events.setdefault("validate", []).append("vic_addon.vic.item_header.set_item_headers")
 
 # Loan Memo: statusnya jalan sendiri ngikutin Stock Entry & Sales Order turunannya
 for doctype, handler in (

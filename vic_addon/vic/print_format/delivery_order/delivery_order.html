@@ -96,25 +96,33 @@
 			</tr>
 		</thead>
 		<tbody>
-			{%- for item in doc.items %}
-				{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
-				{%- set serials = get_row_serial_nos(item) %}
-				{%- set qty = item.qty | float %}
-				<tr>
-					<td class="num">{{ loop.index }}</td>
-					<td>
-						<div class="desc">{{ item.item_name or item.item_code }}</div>
-						{%- if size %}<div>Size : {{ size }}</div>{% endif %}
-						{%- if serials %}
-							<div class="serials">
-								Serial Number :
-								{%- for serial_no in serials %}<div>- {{ serial_no }}</div>{% endfor %}
-							</div>
-						{%- endif %}
-					</td>
-					<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
-					<td></td>
-				</tr>
+			{%- set ns = namespace(no = 0) %}
+			{%- for header, rows in group_items_by_header(doc.items) %}
+				{%- set indent = "indent" if header else "" %}
+				{%- if header %}
+					<tr class="group"><td colspan="4">{{ header }}</td></tr>
+				{%- endif %}
+				{%- for item in rows %}
+					{%- set ns.no = ns.no + 1 %}
+					{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
+					{%- set serials = get_row_serial_nos(item) %}
+					{%- set qty = item.qty | float %}
+					<tr>
+						<td class="num">{{ ns.no }}</td>
+						<td class="{{ indent }}">
+							<div class="desc">{{ item.item_name or item.item_code }}</div>
+							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
+							{%- if serials %}
+								<div class="serials">
+									Serial Number :
+									{%- for serial_no in serials %}<div>- {{ serial_no }}</div>{% endfor %}
+								</div>
+							{%- endif %}
+						</td>
+						<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
+						<td></td>
+					</tr>
+				{%- endfor %}
 			{%- endfor %}
 		</tbody>
 	</table>

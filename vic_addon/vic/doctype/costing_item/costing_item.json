@@ -9,6 +9,7 @@
  "field_order": [
   "item_code",
   "item_name",
+  "custom_header",
   "column_break_item",
   "uom",
   "qty",
@@ -59,6 +60,14 @@
    "fieldtype": "Data",
    "label": "Item Name",
    "read_only": 1
+  },
+  {
+   "fieldname": "custom_header",
+   "fieldtype": "Data",
+   "label": "Header",
+   "description": "Nama kelompok baris item, dicetak sebagai judul tersendiri pada print format. Apabila dikosongkan, baris ini mengikuti kelompok baris di atasnya.",
+   "in_list_view": 1,
+   "columns": 2
   },
   {
    "fieldname": "column_break_item",
