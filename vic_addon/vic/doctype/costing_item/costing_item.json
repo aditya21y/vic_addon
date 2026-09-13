@@ -15,6 +15,7 @@
   "qty",
   "warehouse",
   "buying_section",
+  "price_list_rate",
   "rate",
   "column_break_buying",
   "amount",
@@ -101,6 +102,13 @@
    "fieldname": "buying_section",
    "fieldtype": "Section Break",
    "label": "Buying"
+  },
+  {
+   "fieldname": "price_list_rate",
+   "fieldtype": "Currency",
+   "label": "Price List Rate",
+   "options": "currency",
+   "description": "Harga beli per unit sebelum diskon, diambil dari Supplier Quotation. Harga setelah diskon tersimpan pada kolom Rate."
   },
   {
    "columns": 1,

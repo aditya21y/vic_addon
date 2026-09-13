@@ -1,53 +1,96 @@
-{#- Costing versi internal: harga beli, harga jual, dan selisihnya -#}
+{#- Costing versi internal: harga beli, harga jual, dan selisihnya.
+
+    Bentuknya ngikut formulir VIC: kertas melintang, tanpa kop surat, dan blok keterangan di
+    atas dipakai sebagai header halaman PDF supaya nomor halamannya beneran keisi dan bloknya
+    keulang di tiap halaman. Nomor halamannya nempel di blok itu (Page(s)), jadi footer
+    nomor halaman yang dipakai print format lain sengaja gak diikutin di sini. -#}
+
+{%- set vic_hide_letterhead = True -%}
+{%- set customer = (frappe.db.get_value("Customer", doc.customer, "customer_name") or doc.customer) if doc.customer else "" -%}
+{%- set symbol = frappe.db.get_value("Currency", doc.currency, "symbol") or doc.currency -%}
+{#- Disc = potongan yang dikasih ke customer: selisih harga jual hasil margin lawan harga
+    penawaran yang beneran dipakai -#}
+{%- set discount = (doc.total_selling_amount | float) - (doc.total_quotation_amount | float) -%}
+
+<style>
+	/* Frappe cuma baca aturan yang nempel persis di .print-format, terus dilempar ke
+	   wkhtmltopdf sebagai opsi - ini yang bikin kertasnya melintang. */
+	.print-format { orientation: landscape; }
+
+	/* Blok keterangan dicabut Frappe dari badan dokumen buat dijadiin header halaman, dan waktu
+	   dicabut pembungkus .vic-pf ikut ketinggalan. Makanya aturan di bawah sengaja gak dikaitin
+	   ke .vic-pf - kalau dikaitin, di PDF gayanya ilang. */
+	.ci-head { width: 100%; font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
+	.ci-head table { width: 100%; border-collapse: collapse; }
+	.ci-head td { padding: 1px 0 !important; border: 0; vertical-align: top; }
+	.ci-head .lbl { width: 60px; white-space: nowrap; }
+	.ci-head .sep { width: 10px; }
+	.ci-head .side { vertical-align: top; }
+	.ci-head .side.right { width: 40%; padding-left: 20px !important; }
+	.ci-head .profit { text-align: right; white-space: nowrap; }
+
+	.vic-pf .items .rp { font-weight: 400; }
+	/* baris total di kaki tabel: tanpa garis kolom, biar kebaca sebagai ringkasan */
+	.vic-pf .items tr.sum td { border-top: 1px solid #000; font-weight: 700; }
+	.vic-pf .items tr.tail td { border: 0; }
+</style>
 
 <div class="vic-pf">
 	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
 
-	<div class="title-wrap">
-		<div class="title-block">
-			<div class="doc-title">COSTING</div>
-			<table class="meta">
-				<tr>
-					<td class="lbl">Our Ref</td>
-					<td class="sep">:</td>
-					<td>{{ doc.name }}</td>
-				</tr>
-				<tr>
-					<td class="lbl">Date</td>
-					<td class="sep">:</td>
-					<td>{{ frappe.utils.formatdate(doc.posting_date, "MMMM d, yyyy") }}</td>
-				</tr>
-			</table>
-		</div>
+	<div id="header-html">
+		<table class="ci-head">
+			<tr>
+				<td class="side">
+					<table>
+						<tr><td class="lbl">To.</td><td class="sep">:</td><td>{{ customer }}</td></tr>
+						<tr><td class="lbl">Attn</td><td class="sep">:</td><td></td></tr>
+						<tr><td class="lbl">Phone</td><td class="sep">:</td><td></td></tr>
+						<tr><td class="lbl">Fax</td><td class="sep">:</td><td></td></tr>
+						<tr><td class="lbl">Subject</td><td class="sep">:</td><td>{{ doc.subject or "" }}</td></tr>
+					</table>
+				</td>
+				<td class="side right">
+					<table>
+						<tr>
+							<td class="lbl">Page(s)</td>
+							<td class="sep">:</td>
+							<td><span class="page">1</span> of <span class="topage">1</span></td>
+							<td class="profit"></td>
+						</tr>
+						<tr>
+							<td class="lbl">Date</td>
+							<td class="sep">:</td>
+							<td>{{ frappe.utils.formatdate(doc.posting_date, "MMMM d, yyyy") }}</td>
+							<td class="profit"></td>
+						</tr>
+						<tr>
+							<td class="lbl">Our Ref</td>
+							<td class="sep">:</td>
+							<td>{{ doc.name }}</td>
+							<td class="profit">{{ "%.2f" | format(doc.total_quotation_profit_percentage | float) }}</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
 	</div>
-
-	<table class="terms">
-		{%- if doc.customer %}
-			<tr>
-				<td class="lbl">To</td>
-				<td class="sep">:</td>
-				<td>{{ frappe.db.get_value("Customer", doc.customer, "customer_name") or doc.customer }}</td>
-			</tr>
-		{%- endif %}
-		{%- if doc.get("subject") %}
-			<tr>
-				<td class="lbl">Subject</td>
-				<td class="sep">:</td>
-				<td>{{ doc.subject }}</td>
-			</tr>
-		{%- endif %}
-	</table>
 
 	<table class="items">
 		<thead>
 			<tr>
-				<th style="width: 5%">No</th>
-				<th style="width: 31%; text-align: left">Description</th>
-				<th style="width: 10%">Qty</th>
-				<th style="width: 13%; text-align: right">Act Price</th>
-				<th style="width: 13%; text-align: right">Selling Price</th>
-				<th style="width: 14%; text-align: right">Total Buying Price</th>
-				<th style="width: 14%; text-align: right">Total Selling Price</th>
+				<th style="width: 4%">No</th>
+				<th style="width: 26%; text-align: left">Description</th>
+				<th style="width: 8%">Qty</th>
+				<th style="width: 11%; text-align: right">Act Price<div class="rp">{{ symbol }}</div></th>
+				<th style="width: 12%; text-align: right">Act Price After Disc<div class="rp">{{ symbol }}</div></th>
+				<th style="width: 13%; text-align: right">Total Buying Price<div class="rp">{{ symbol }}</div></th>
+				<th style="width: 12%; text-align: right">
+					Selling Price
+					{%- if doc.mark_up %}<div class="rp">: {{ doc.mark_up }}</div>{% endif %}
+					<div class="rp">{{ symbol }}</div>
+				</th>
+				<th style="width: 14%; text-align: right">Total Selling Price<div class="rp">{{ symbol }}</div></th>
 			</tr>
 		</thead>
 		<tbody>
@@ -55,7 +98,7 @@
 			{%- for header, rows in group_items_by_header(doc.items) %}
 				{%- set indent = "indent" if header else "" %}
 				{%- if header %}
-					<tr class="group"><td colspan="7">{{ header }}</td></tr>
+					<tr class="group"><td colspan="8">{{ header }}</td></tr>
 				{%- endif %}
 				{%- for item in rows %}
 					{%- set ns.no = ns.no + 1 %}
@@ -68,33 +111,45 @@
 							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
 						</td>
 						<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
+						<td class="money">{{ frappe.utils.fmt_money(item.price_list_rate or item.rate) }}</td>
 						<td class="money">{{ frappe.utils.fmt_money(item.rate) }}</td>
-						<td class="money">{{ frappe.utils.fmt_money(item.quotation_rate) }}</td>
 						<td class="money">{{ frappe.utils.fmt_money(item.amount) }}</td>
+						<td class="money">{{ frappe.utils.fmt_money(item.quotation_rate) }}</td>
 						<td class="money">{{ frappe.utils.fmt_money(item.quotation_amount) }}</td>
 					</tr>
 				{%- endfor %}
 			{%- endfor %}
+
+			{#- Catatan dicetak sebagai baris terakhir tabel, nempel di kolom Description -#}
+			{%- set note_lines = (doc.note or "").splitlines() | map("trim") | select | list %}
+			{%- if note_lines %}
+				<tr class="note">
+					<td></td>
+					<td>
+						<div>Note:</div>
+						{%- for line in note_lines %}
+							<div class="note-item">- {{ line }}</div>
+						{%- endfor %}
+					</td>
+					<td colspan="6"></td>
+				</tr>
+			{%- endif %}
+
+			<tr class="sum">
+				<td colspan="5"></td>
+				<td class="money">{{ frappe.utils.fmt_money(doc.total_buying_amount) }}</td>
+				<td></td>
+				<td class="money">{{ frappe.utils.fmt_money(doc.total_quotation_amount) }}</td>
+			</tr>
+			<tr class="tail">
+				<td colspan="6"></td>
+				<td class="money">Disc</td>
+				<td class="money">{{ frappe.utils.fmt_money(discount) }}</td>
+			</tr>
+			<tr class="tail">
+				<td colspan="7"></td>
+				<td class="money">{{ frappe.utils.fmt_money(doc.total_quotation_profit_amount) }}</td>
+			</tr>
 		</tbody>
 	</table>
-
-	<table class="totals">
-		<tr>
-			<td class="lbl">Total Buying Price</td>
-			<td class="money">{{ frappe.utils.fmt_money(doc.total_buying_amount) }}</td>
-		</tr>
-		<tr>
-			<td class="lbl">Total HPP</td>
-			<td class="money">{{ frappe.utils.fmt_money(doc.total_hpp_amount) }}</td>
-		</tr>
-		<tr>
-			<td class="lbl">Total Selling Price</td>
-			<td class="money">{{ frappe.utils.fmt_money(doc.total_quotation_amount) }}</td>
-		</tr>
-		<tr class="grand">
-			<td class="lbl">Profit ({{ "%.2f" | format(doc.total_profit_percentage | float) }} %)</td>
-			<td class="money">{{ frappe.utils.fmt_money(doc.total_profit_amount) }}</td>
-		</tr>
-	</table>
-	{%- include "vic_addon/templates/print_formats/vic_footer.html" -%}
 </div>

@@ -1,38 +1,67 @@
-{#- Costing versi ke customer: cuma harga jual + syarat penawaran -#}
+{#- Costing versi ke customer: cuma harga jual + syarat penawaran.
+
+    Sama kayak Costing (Import): kertas melintang, tanpa kop surat, dan blok keterangan di atas
+    dipakai sebagai header halaman PDF supaya nomor halamannya beneran keisi dan bloknya keulang
+    di tiap halaman. Nomor halamannya nempel di blok itu (Page(s)), jadi footer nomor halaman
+    yang dipakai print format lain sengaja gak diikutin di sini. -#}
+
+{%- set vic_hide_letterhead = True -%}
+{%- set rfq = get_request_for_quotations(doc) | join(", ") -%}
+
+<style>
+	/* Frappe cuma baca aturan yang nempel persis di .print-format, terus dilempar ke
+	   wkhtmltopdf sebagai opsi - ini yang bikin kertasnya melintang. */
+	.print-format { orientation: landscape; }
+
+	/* Blok keterangan dicabut Frappe dari badan dokumen buat dijadiin header halaman, dan waktu
+	   dicabut pembungkus .vic-pf ikut ketinggalan. Makanya aturan di bawah sengaja gak dikaitin
+	   ke .vic-pf - kalau dikaitin, di PDF gayanya ilang. */
+	.cs-head { width: 100%; font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
+	.cs-head table { width: 100%; border-collapse: collapse; }
+	.cs-head td { padding: 1px 0 !important; border: 0; vertical-align: top; }
+	.cs-head .lbl { width: 60px; white-space: nowrap; }
+	.cs-head .sep { width: 10px; }
+	.cs-head .side { vertical-align: top; }
+	.cs-head .side.right { width: 40%; padding-left: 20px !important; }
+
+	/* baris total di kaki tabel: cuma angkanya, lurus di kolom Total Selling Price */
+	.vic-pf .items tr.sum td { border-top: 1px solid #000; font-weight: 700; }
+	.vic-pf .tnc { margin-top: 22px; font-size: 11px; }
+	.vic-pf .tnc .lbl { width: 130px; }
+	/* tabel syarat dikasih lebar tetap: kalau dibiarin auto, isinya kepotong ke baris baru
+	   padahal kertasnya melintang dan ruangnya masih lega */
+	.vic-pf .tnc .terms { width: 55%; margin-top: 4px; }
+</style>
 
 <div class="vic-pf">
 	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
 
-	<div class="title-wrap">
-		<div class="title-block">
-			<div class="doc-title">COSTING</div>
-			<table class="meta">
-				<tr>
-					<td class="lbl">Our Ref</td>
-					<td class="sep">:</td>
-					<td>{{ doc.name }}</td>
-				</tr>
-				<tr>
-					<td class="lbl">Date</td>
-					<td class="sep">:</td>
-					<td>{{ frappe.utils.formatdate(doc.posting_date, "MMMM d, yyyy") }}</td>
-				</tr>
-			</table>
-		</div>
-	</div>
-
-	{%- if doc.customer %}
-		<div class="party">{{ frappe.db.get_value("Customer", doc.customer, "customer_name") or doc.customer }}</div>
-	{%- endif %}
-	{%- if doc.get("subject") %}
-		<table class="terms">
+	<div id="header-html">
+		<table class="cs-head">
 			<tr>
-				<td class="lbl">Subject</td>
-				<td class="sep">:</td>
-				<td>{{ doc.subject }}</td>
+				<td class="side">
+					<table>
+						<tr><td class="lbl">Our Ref</td><td class="sep">:</td><td>{{ doc.name }}</td></tr>
+						<tr><td class="lbl">Our RFQ</td><td class="sep">:</td><td>{{ rfq }}</td></tr>
+					</table>
+				</td>
+				<td class="side right">
+					<table>
+						<tr>
+							<td class="lbl">Page(s)</td>
+							<td class="sep">:</td>
+							<td><span class="page">1</span> of <span class="topage">1</span></td>
+						</tr>
+						<tr>
+							<td class="lbl">Date</td>
+							<td class="sep">:</td>
+							<td>{{ frappe.utils.formatdate(doc.posting_date, "MMMM d, yyyy") }}</td>
+						</tr>
+					</table>
+				</td>
 			</tr>
 		</table>
-	{%- endif %}
+	</div>
 
 	<table class="items">
 		<thead>
@@ -67,43 +96,57 @@
 					</tr>
 				{%- endfor %}
 			{%- endfor %}
+
+			{#- Catatan dicetak sebagai baris terakhir tabel, nempel di kolom Description -#}
+			{%- set note_lines = (doc.note or "").splitlines() | map("trim") | select | list %}
+			{%- if note_lines %}
+				<tr class="note">
+					<td></td>
+					<td>
+						<div>Note:</div>
+						{%- for line in note_lines %}
+							<div class="note-item">- {{ line }}</div>
+						{%- endfor %}
+					</td>
+					<td colspan="3"></td>
+				</tr>
+			{%- endif %}
+
+			<tr class="sum">
+				<td colspan="4"></td>
+				<td class="money">{{ frappe.utils.fmt_money(doc.total_quotation_amount) }}</td>
+			</tr>
 		</tbody>
 	</table>
 
-	<table class="totals">
-		<tr class="grand">
-			<td class="lbl">TOTAL</td>
-			<td class="money">{{ frappe.utils.fmt_money(doc.total_quotation_amount) }}</td>
-		</tr>
-	</table>
-
-	<div class="note"><b>Terms &amp; Conditions :</b></div>
-	<table class="terms">
-		<tr>
-			<td class="lbl">1. Mark Up</td>
-			<td class="sep">:</td>
-			<td>{{ doc.get("mark_up") or "" }}</td>
-		</tr>
-		<tr>
-			<td class="lbl">2. Delivery Time</td>
-			<td class="sep">:</td>
-			<td>{{ doc.get("delivery_time") or "" }}</td>
-		</tr>
-		<tr>
-			<td class="lbl">3. Delivery Point</td>
-			<td class="sep">:</td>
-			<td>{{ doc.get("delivery_point") or "" }}</td>
-		</tr>
-		<tr>
-			<td class="lbl">4. Payment</td>
-			<td class="sep">:</td>
-			<td>{{ doc.get("payment") or "" }}</td>
-		</tr>
-		<tr>
-			<td class="lbl">5. Validity</td>
-			<td class="sep">:</td>
-			<td>{{ doc.get("validity") or "" }}</td>
-		</tr>
-	</table>
-	{%- include "vic_addon/templates/print_formats/vic_footer.html" -%}
+	<div class="tnc">
+		<div><b>Terms &amp; Conditions :</b></div>
+		<table class="terms">
+			<tr>
+				<td class="lbl">1. Mark up</td>
+				<td class="sep">:</td>
+				<td>{{ doc.get("mark_up") or "" }}</td>
+			</tr>
+			<tr>
+				<td class="lbl">2. Delivery Time</td>
+				<td class="sep">:</td>
+				<td>{{ doc.get("delivery_time") or "" }}</td>
+			</tr>
+			<tr>
+				<td class="lbl">3. Delivery Point</td>
+				<td class="sep">:</td>
+				<td>{{ doc.get("delivery_point") or "" }}</td>
+			</tr>
+			<tr>
+				<td class="lbl">4. Payment</td>
+				<td class="sep">:</td>
+				<td>{{ doc.get("payment") or "" }}</td>
+			</tr>
+			<tr>
+				<td class="lbl">5. Validity</td>
+				<td class="sep">:</td>
+				<td>{{ doc.get("validity") or "" }}</td>
+			</tr>
+		</table>
+	</div>
 </div>

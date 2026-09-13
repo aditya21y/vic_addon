@@ -17,6 +17,7 @@
   "currency",
   "column_break_remarks",
   "remarks",
+  "note",
   "items_section",
   "items",
   "additional_costs_section",
@@ -124,6 +125,12 @@
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Note",
+   "description": "Catatan yang ikut tercetak pada print format, ditempatkan di bawah baris item pada kolom Description. Setiap baris dicetak sebagai satu butir."
   },
   {
    "fieldname": "items_section",

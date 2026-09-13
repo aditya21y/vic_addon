@@ -132,6 +132,7 @@ doctype_js["Sales Invoice"].append("public/js/sales_invoice.js")
 jinja = {
 	"methods": [
 		"vic_addon.vic.item_header.group_items_by_header",
+		"vic_addon.vic.doctype.costing.costing.get_request_for_quotations",
 		"vic_addon.vic.serial_no.get_row_serial_nos",
 		"vic_addon.vic.serial_no.get_label_rows",
 		"vic_addon.vic.serial_no.get_qr_code",

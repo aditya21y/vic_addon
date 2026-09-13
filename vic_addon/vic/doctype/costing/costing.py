@@ -197,6 +197,25 @@ class Costing(Document):
 		)
 
 
+def get_request_for_quotations(costing):
+	"""Nomor RFQ asal penawaran yang dipakai di Costing ini, buat dicetak di print format.
+
+	Costing gak nyimpen link ke RFQ - yang kesimpan link ke baris Supplier Quotation, dan dari
+	situ nomor RFQ-nya kebaca.
+	"""
+	rows = [row.supplier_quotation_item for row in costing.items if row.supplier_quotation_item]
+	if not rows:
+		return []
+
+	names = frappe.get_all(
+		"Supplier Quotation Item",
+		filters={"name": ["in", rows]},
+		pluck="request_for_quotation",
+	)
+
+	return sorted({name for name in names if name})
+
+
 def get_status(costing):
 	"""`Quoted` kalau costing ini udah punya Quotation yang belum dibatalin."""
 	quoted = frappe.db.exists("Quotation", {"custom_costing": costing, "docstatus": ["<", 2]})
@@ -303,6 +322,8 @@ def make_costing(source_name, target_doc=None):
 	def update_item(source_item, target_item, source_parent):
 		# net_rate = rate setelah diskon bertingkat per item + diskon tambahan atas net total
 		target_item.rate = flt(source_item.net_rate) or flt(source_item.rate)
+		# harga sebelum diskon disimpan terpisah, dicetak di print format Costing
+		target_item.price_list_rate = flt(source_item.price_list_rate) or flt(source_item.rate)
 		target_item.supplier_quotation = source_parent.name
 		target_item.supplier = source_parent.supplier
 		target_item.supplier_quotation_item = source_item.name
@@ -421,6 +442,7 @@ def get_costing_items(supplier_quotations=None, request_for_quotation=None, only
 					"qty": quantities.get(item.item_code) or flt(item.qty),
 					# net_rate = rate setelah diskon bertingkat per item + diskon tambahan atas net total
 					"rate": flt(item.net_rate) or flt(item.rate),
+					"price_list_rate": flt(item.price_list_rate) or flt(item.rate),
 					"supplier_quotation": quotation.name,
 					"supplier": quotation.supplier,
 					"supplier_quotation_item": item.name,
@@ -490,7 +512,7 @@ def get_quotation_item_details(supplier_quotation, item_code, currency=None):
 	item = frappe.db.get_value(
 		"Supplier Quotation Item",
 		{"parent": supplier_quotation, "item_code": item_code},
-		["name", "net_rate", "rate", "uom"],
+		["name", "net_rate", "rate", "price_list_rate", "uom"],
 		as_dict=True,
 	)
 	if not item:
@@ -521,6 +543,7 @@ def get_quotation_item_details(supplier_quotation, item_code, currency=None):
 		return details
 
 	details["rate"] = flt(item.net_rate) or flt(item.rate)
+	details["price_list_rate"] = flt(item.price_list_rate) or flt(item.rate)
 
 	return details
 
