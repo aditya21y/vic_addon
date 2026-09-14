@@ -70,18 +70,19 @@ def build_workbook(doc):
 			(_("Date"), frappe.utils.formatdate(doc.transaction_date, "d MMMM yyyy")),
 		),
 		label_column=7,
+		merge_to=last_column,
 	)
 
 	row += 4
-	row = add_meta(sheet, row, ((_("Subject"), doc.get("custom_subject")),), label_column=FIRST_COLUMN)
-
-	intro = sheet.cell(
-		row=row,
-		column=FIRST_COLUMN,
-		value=_("Please quote us your best price & delivery time as follows :"),
+	row = add_meta(
+		sheet,
+		row,
+		((_("Subject"), doc.get("custom_subject")),),
+		label_column=FIRST_COLUMN,
+		merge_to=last_column,
 	)
-	intro.font, intro.alignment = BASE, LEFT
-	row += 1
+
+	row = add_line(sheet, row, _("Please quote us your best price & delivery time as follows :"), last_column)
 
 	# ---- judul kolom: dua baris tinggi, cuma bergaris di bawahnya ----
 	headers = (
@@ -140,12 +141,10 @@ def build_workbook(doc):
 
 	# ---- penutup ----
 	row += 2
-	closing = sheet.cell(row=row, column=FIRST_COLUMN, value=_("Wait for your reply immediately"))
-	closing.font, closing.alignment = BASE, LEFT
+	row = add_line(sheet, row, _("Wait for your reply immediately"), last_column)
 
-	row += 2
-	regards = sheet.cell(row=row, column=FIRST_COLUMN, value=_("Best regards,"))
-	regards.font, regards.alignment = BASE, LEFT
+	row += 1
+	row = add_line(sheet, row, _("Best regards,"), last_column)
 
 	set_widths(sheet, (5, 9, 8.5, 8.5, 8.5, 9, 8.5, 9, 8.5, 8.5, 8.5, 9, 9))
 
@@ -153,3 +152,19 @@ def build_workbook(doc):
 	workbook.save(stream)
 
 	return stream
+
+
+def add_line(sheet, row, text, last_column):
+	"""Satu kalimat utuh selebar isi dokumen.
+
+	Di-merge sampai kolom terakhir: kalau ditaruh di satu sel doang, lebar kolom B cuma muat
+	beberapa huruf dan kalimatnya keperes jadi kolom kurus memanjang ke bawah.
+	"""
+	from vic_addon.vic.excel import BASE, FIRST_COLUMN, LINE
+
+	sheet.merge_cells(start_row=row, start_column=FIRST_COLUMN, end_row=row, end_column=last_column)
+
+	cell = sheet.cell(row=row, column=FIRST_COLUMN, value=text)
+	cell.font, cell.alignment = BASE, LINE
+
+	return row + 1

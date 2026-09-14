@@ -27,6 +27,9 @@ LEFT = Alignment(horizontal="left", vertical="center", wrap_text=True)
 RIGHT = Alignment(horizontal="right", vertical="center")
 CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
 WRAP = Alignment(horizontal="left", vertical="top", wrap_text=True)
+# buat tulisan yang mesti utuh sebaris - tanpa wrap, biar gak keperes jadi kolom kurus
+LINE = Alignment(horizontal="left", vertical="center")
+RIGHT_WRAP = Alignment(horizontal="right", vertical="center", wrap_text=True)
 
 HEAD_FILL = PatternFill("solid", fgColor="F2F2F2")
 FILL_FILL = PatternFill("solid", fgColor="FFF2CC")
@@ -47,16 +50,22 @@ def add_letterhead(sheet, company, last_column):
 	if logo:
 		sheet.add_image(logo, f"{get_column_letter(FIRST_COLUMN)}1")
 
-	# blok alamat ngambil beberapa kolom paling kanan, tiap barisnya di-merge biar rata kanan rapi
-	start = max(last_column - 4, FIRST_COLUMN + 2)
+	# Blok alamat ngambil separuh kanan lembar - tiap barisnya di-merge biar rata kanan rapi.
+	# Dibikin lebar soalnya ada company yang alamatnya sebaris panjang banget; di sel merge,
+	# tulisan yang kepanjangan itu kepotong, gak numpuk keluar kayak sel biasa.
+	start = max(last_column - 9, FIRST_COLUMN + 3)
 	lines = [doc.company_name.upper(), *get_company_lines(company, doc)]
 
 	for index, line in enumerate(lines, start=1):
 		sheet.merge_cells(start_row=index, start_column=start, end_row=index, end_column=last_column)
 		cell = sheet.cell(row=index, column=start, value=line)
 		cell.font = COMPANY_FONT if index == 1 else SMALL
-		cell.alignment = RIGHT
-		sheet.row_dimensions[index].height = 18 if index == 1 else 13
+		cell.alignment = RIGHT_WRAP
+
+		# tinggi baris alamat sengaja gak dipatok: kalau alamatnya sampai mecah dua baris,
+		# Excel yang ngatur sendiri tingginya
+		if index == 1:
+			sheet.row_dimensions[index].height = 18
 
 	# template naruh judul di baris 7, tepat di bawah blok alamat
 	return max(len(lines), 6) + 1
@@ -74,8 +83,12 @@ def add_title(sheet, row, title, last_column):
 	return row + 2
 
 
-def add_meta(sheet, row, entries, label_column, width=1):
-	"""Baris keterangan `Label : Isi` - titik dua di kolom sendiri biar sejajar."""
+def add_meta(sheet, row, entries, label_column, width=1, merge_to=None):
+	"""Baris keterangan `Label : Isi` - titik dua di kolom sendiri biar sejajar.
+
+	`merge_to` = kolom terakhir buat kolom isinya. Tanpa ini isinya cuma dapat satu kolom dan
+	tulisan yang agak panjang keperes jadi kolom kurus ke bawah.
+	"""
 	for label, value in entries:
 		if not value:
 			continue
@@ -86,8 +99,14 @@ def add_meta(sheet, row, entries, label_column, width=1):
 		colon = sheet.cell(row=row, column=label_column + width, value=":")
 		colon.font, colon.alignment = BASE, LEFT
 
-		content = sheet.cell(row=row, column=label_column + width + 1, value=value)
-		content.font, content.alignment = BASE, LEFT
+		value_column = label_column + width + 1
+		if merge_to and merge_to > value_column:
+			sheet.merge_cells(
+				start_row=row, start_column=value_column, end_row=row, end_column=merge_to
+			)
+
+		content = sheet.cell(row=row, column=value_column, value=value)
+		content.font, content.alignment = BASE, LINE
 
 		row += 1
 
