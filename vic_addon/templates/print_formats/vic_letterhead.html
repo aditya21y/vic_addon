@@ -37,8 +37,12 @@
 	   kanan kotaknya (.company), isinya (.box) dibikin rata kiri. Kalau `text-align: right`
 	   dipasang langsung ke tulisannya, tiap baris jadi mulai di tempat yang beda-beda. */
 	.vic-pf .company { text-align: right; }
-	.vic-pf .company .box { display: inline-block; text-align: left; }
-	.vic-pf .company .box div { white-space: nowrap; }
+	/* Lebar bloknya dipatok: ada company yang alamatnya sebaris panjang banget, kalau dibiarin
+	   blok ini melar ke kiri sampai nabrak logo. Dengan lebar tetap, alamat panjang mecah ke
+	   bawah dan titik mulai tulisannya sama di semua dokumen.
+	   Pakai `width`, bukan `max-width`: mesin render PDF-nya nyusutin kotak inline-block ke
+	   ukuran isinya duluan, jadi batas atas doang gak pernah kepakai. */
+	.vic-pf .company .box { display: inline-block; text-align: left; width: 330px; }
 	.vic-pf .company .name { font-size: 14px; font-weight: 700; }
 	.vic-pf .company .line { font-size: 9.5px; }
 	/* kotak judul, nomor & tanggal nempel persis di bawahnya */
