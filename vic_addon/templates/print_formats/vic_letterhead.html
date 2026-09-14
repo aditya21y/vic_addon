@@ -76,7 +76,9 @@
 	.vic-pf .items td { padding: 8px 4px !important; }
 	.vic-pf .items tbody tr:last-child td { border-bottom: 1px solid #000; }
 	.vic-pf .items .num { text-align: center; }
-	.vic-pf .items .qty { text-align: center; white-space: nowrap; }
+	/* Qty rata kanan, sejajar kolom duit: isinya angka yang panjangnya beda-beda tiap baris,
+	   kalau rata tengah tepinya geser terus dan gak pernah selurus judul kolomnya. */
+	.vic-pf .items .qty { text-align: right; white-space: nowrap; }
 	.vic-pf .items .money { text-align: right; white-space: nowrap; }
 	.vic-pf .items .desc { font-weight: 700; }
 	/* Baris judul kelompok item: tebal, ngambil selebar tabel, dan gak dikasih border kanan-kiri
