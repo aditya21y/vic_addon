@@ -1,32 +1,41 @@
 {#- Costing versi ke customer: cuma harga jual + syarat penawaran.
 
-    Sama kayak Costing (Import): kertas melintang, tanpa kop surat, dan blok keterangan di atas
-    dipakai sebagai header halaman PDF supaya nomor halamannya beneran keisi dan bloknya keulang
-    di tiap halaman. Nomor halamannya nempel di blok itu (Page(s)), jadi footer nomor halaman
-    yang dipakai print format lain sengaja gak diikutin di sini. -#}
+    Sama kayak Costing (Import): kertas melintang, tanpa kop surat, dan blok keterangan di atas,
+    tabel item, sampai blok syarat di bawahnya kebingkai jadi satu kotak nyambung. -#}
 
 {%- set vic_hide_letterhead = True -%}
 {%- set rfq = get_request_for_quotations(doc) | join(", ") -%}
+{%- set project = (frappe.db.get_value("Project", doc.project, "project_name") or doc.project) if doc.project else "" -%}
 
 <style>
 	/* Frappe cuma baca aturan yang nempel persis di .print-format, terus dilempar ke
 	   wkhtmltopdf sebagai opsi - ini yang bikin kertasnya melintang. */
 	.print-format { orientation: landscape; }
 
-	/* Blok keterangan dicabut Frappe dari badan dokumen buat dijadiin header halaman, dan waktu
-	   dicabut pembungkus .vic-pf ikut ketinggalan. Makanya aturan di bawah sengaja gak dikaitin
-	   ke .vic-pf - kalau dikaitin, di PDF gayanya ilang. */
-	.cs-head { width: 100%; font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
-	.cs-head table { width: 100%; border-collapse: collapse; }
-	.cs-head td { padding: 1px 0 !important; border: 0; vertical-align: top; }
-	.cs-head .lbl { width: 60px; white-space: nowrap; }
-	.cs-head .sep { width: 10px; }
-	.cs-head .side { vertical-align: top; }
-	.cs-head .side.right { width: 40%; padding-left: 20px !important; }
+	/* Blok keterangan di atas tabel. Bingkainya gak dikasih garis bawah dan tabel item nempel
+	   persis di bawahnya, jadi dua-duanya kebaca sebagai satu kotak nyambung. */
+	.vic-pf .cs-head { width: 100%; font-size: 11px; border: 1px solid #000; border-bottom: 0; }
+	/* tabel item nempel langsung tanpa jarak, biar garisnya nyambung */
+	.vic-pf .items { margin-top: 0 !important; }
+	.vic-pf .cs-head > tbody > tr > td { padding: 4px 6px !important; }
+	.vic-pf .cs-head table { width: 100%; border-collapse: collapse; }
+	.vic-pf .cs-head td { padding: 1px 0 !important; border: 0; vertical-align: top; }
+	.vic-pf .cs-head .lbl { width: 60px; white-space: nowrap; }
+	.vic-pf .cs-head .sep { width: 10px; }
+	.vic-pf .cs-head .side { vertical-align: top; }
+	.vic-pf .cs-head .side.right { width: 40%; padding-left: 20px !important; }
 
 	/* baris total di kaki tabel: cuma angkanya, lurus di kolom Total Selling Price */
 	.vic-pf .items tr.sum td { border-top: 1px solid #000; font-weight: 700; }
-	.vic-pf .tnc { margin-top: 22px; font-size: 11px; }
+
+	/* Garis luar tabel. Digambar per sel di pinggir kiri/kanan, bukan lewat `border` di elemen
+	   <table>: mesin render PDF-nya cuma nggambar garis tabel di baris yang selnya emang punya
+	   garis, jadi kalau cuma ngandelin border tabel, bingkainya putus di baris-baris item. */
+	.vic-pf .items th:first-child, .vic-pf .items td:first-child { border-left: 1px solid #000; }
+	.vic-pf .items th:last-child, .vic-pf .items td:last-child { border-right: 1px solid #000; }
+	.vic-pf .items tbody tr:last-child td { border-bottom: 1px solid #000; }
+	/* blok syarat nyambung langsung di bawah tabel item, jadi bingkainya nerusin */
+	.vic-pf .tnc { font-size: 11px; border: 1px solid #000; border-top: 0; padding: 8px 6px; }
 	.vic-pf .tnc .lbl { width: 130px; }
 	/* tabel syarat dikasih lebar tetap: kalau dibiarin auto, isinya kepotong ke baris baru
 	   padahal kertasnya melintang dan ruangnya masih lega */
@@ -36,42 +45,36 @@
 <div class="vic-pf">
 	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
 
-	<div id="header-html">
-		<table class="cs-head">
-			<tr>
-				<td class="side">
-					<table>
-						<tr><td class="lbl">Our Ref</td><td class="sep">:</td><td>{{ doc.name }}</td></tr>
-						<tr><td class="lbl">Our RFQ</td><td class="sep">:</td><td>{{ rfq }}</td></tr>
-					</table>
-				</td>
-				<td class="side right">
-					<table>
-						<tr>
-							<td class="lbl">Page(s)</td>
-							<td class="sep">:</td>
-							<td><span class="page">1</span> of <span class="topage">1</span></td>
-						</tr>
-						<tr>
-							<td class="lbl">Date</td>
-							<td class="sep">:</td>
-							<td>{{ frappe.utils.formatdate(doc.posting_date, "MMMM d, yyyy") }}</td>
-						</tr>
-					</table>
-				</td>
-			</tr>
-		</table>
-	</div>
+	<table class="cs-head">
+		<tr>
+			<td class="side">
+				<table>
+					<tr><td class="lbl">Our Ref</td><td class="sep">:</td><td>{{ doc.name }}</td></tr>
+					<tr><td class="lbl">Our RFQ</td><td class="sep">:</td><td>{{ rfq }}</td></tr>
+					<tr><td class="lbl">Subject</td><td class="sep">:</td><td>{{ project }}</td></tr>
+				</table>
+			</td>
+			<td class="side right">
+				<table>
+					<tr>
+						<td class="lbl">Date</td>
+						<td class="sep">:</td>
+						<td>{{ frappe.utils.formatdate(doc.posting_date, "MMMM d, yyyy") }}</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+	</table>
 
 	<table class="items">
 		<thead>
-			<tr>
+		<tr>
 				<th style="width: 6%">No</th>
 				<th style="width: 44%; text-align: left">Description</th>
 				<th style="width: 14%">Qty</th>
 				<th style="width: 18%; text-align: right">Selling Price<div>{{ doc.currency }}</div></th>
 				<th style="width: 18%; text-align: right">Total Selling Price<div>{{ doc.currency }}</div></th>
-			</tr>
+		</tr>
 		</thead>
 		<tbody>
 			{%- set ns = namespace(no = 0) %}
@@ -84,16 +87,16 @@
 					{%- set ns.no = ns.no + 1 %}
 					{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
 					{%- set qty = item.qty | float %}
-					<tr>
-						<td class="num">{{ ns.no }}</td>
-						<td class="{{ indent }}">
+				<tr>
+					<td class="num">{{ ns.no }}</td>
+					<td class="{{ indent }}">
 							<div class="desc">{{ item.item_name }}</div>
 							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
-						</td>
-						<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
-						<td class="money">{{ frappe.utils.fmt_money(item.quotation_rate) }}</td>
-						<td class="money">{{ frappe.utils.fmt_money(item.quotation_amount) }}</td>
-					</tr>
+					</td>
+					<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
+					<td class="money">{{ frappe.utils.fmt_money(item.quotation_rate) }}</td>
+					<td class="money">{{ frappe.utils.fmt_money(item.quotation_amount) }}</td>
+				</tr>
 				{%- endfor %}
 			{%- endfor %}
 
@@ -101,52 +104,53 @@
 			{%- set note_lines = (doc.note or "").splitlines() | map("trim") | select | list %}
 			{%- if note_lines %}
 				<tr class="note">
-					<td></td>
-					<td>
+				<td></td>
+				<td>
 						<div>Note:</div>
 						{%- for line in note_lines %}
 							<div class="note-item">- {{ line }}</div>
 						{%- endfor %}
-					</td>
-					<td colspan="3"></td>
-				</tr>
+				</td>
+				<td colspan="3"></td>
+			</tr>
 			{%- endif %}
 
 			<tr class="sum">
-				<td colspan="4"></td>
-				<td class="money">{{ frappe.utils.fmt_money(doc.total_quotation_amount) }}</td>
-			</tr>
+			<td colspan="4"></td>
+			<td class="money">{{ frappe.utils.fmt_money(doc.total_quotation_amount) }}</td>
+		</tr>
 		</tbody>
 	</table>
 
 	<div class="tnc">
 		<div><b>Terms &amp; Conditions :</b></div>
 		<table class="terms">
-			<tr>
-				<td class="lbl">1. Mark up</td>
-				<td class="sep">:</td>
-				<td>{{ doc.get("mark_up") or "" }}</td>
-			</tr>
-			<tr>
-				<td class="lbl">2. Delivery Time</td>
-				<td class="sep">:</td>
-				<td>{{ doc.get("delivery_time") or "" }}</td>
-			</tr>
-			<tr>
-				<td class="lbl">3. Delivery Point</td>
-				<td class="sep">:</td>
-				<td>{{ doc.get("delivery_point") or "" }}</td>
-			</tr>
-			<tr>
-				<td class="lbl">4. Payment</td>
-				<td class="sep">:</td>
-				<td>{{ doc.get("payment") or "" }}</td>
-			</tr>
-			<tr>
-				<td class="lbl">5. Validity</td>
-				<td class="sep">:</td>
-				<td>{{ doc.get("validity") or "" }}</td>
-			</tr>
+		<tr>
+			<td class="lbl">1. Mark up</td>
+			<td class="sep">:</td>
+			<td>{{ doc.get("mark_up") or "" }}</td>
+		</tr>
+		<tr>
+			<td class="lbl">2. Delivery Time</td>
+			<td class="sep">:</td>
+			<td>{{ doc.get("delivery_time") or "" }}</td>
+		</tr>
+		<tr>
+			<td class="lbl">3. Delivery Point</td>
+			<td class="sep">:</td>
+			<td>{{ doc.get("delivery_point") or "" }}</td>
+		</tr>
+		<tr>
+			<td class="lbl">4. Payment</td>
+			<td class="sep">:</td>
+			<td>{{ doc.get("payment") or "" }}</td>
+		</tr>
+		<tr>
+			<td class="lbl">5. Validity</td>
+			<td class="sep">:</td>
+			<td>{{ doc.get("validity") or "" }}</td>
+		</tr>
 		</table>
 	</div>
+	{%- include "vic_addon/templates/print_formats/vic_footer.html" -%}
 </div>

@@ -13,10 +13,8 @@
   "company",
   "customer",
   "project",
-  "subject",
   "currency",
-  "column_break_remarks",
-  "remarks",
+  "column_break_note",
   "note",
   "items_section",
   "items",
@@ -102,12 +100,6 @@
    "options": "Project"
   },
   {
-   "fieldname": "subject",
-   "fieldtype": "Small Text",
-   "label": "Subject",
-   "description": "Judul pekerjaan, dicetak di print format Costing"
-  },
-  {
    "fetch_from": "company.default_currency",
    "fetch_if_empty": 1,
    "fieldname": "currency",
@@ -117,14 +109,8 @@
    "reqd": 1
   },
   {
-   "fieldname": "column_break_remarks",
+   "fieldname": "column_break_note",
    "fieldtype": "Column Break"
-  },
-  {
-   "description": "Catatan tambahan untuk costing ini",
-   "fieldname": "remarks",
-   "fieldtype": "Small Text",
-   "label": "Remarks"
   },
   {
    "fieldname": "note",
