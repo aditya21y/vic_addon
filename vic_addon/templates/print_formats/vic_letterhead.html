@@ -28,8 +28,17 @@
 	}
 	.vic-pf th { font-weight: 700; }
 	.vic-pf .head { width: 100%; }
-	.vic-pf .logo img { max-height: 68px; max-width: 200px; }
+	/* Lebarnya ditulis pasti, bukan lewat max-height: mesin render PDF-nya ngitung lebar kolom
+	   dari ukuran asli gambar (243px) dan baru nyusutin gambarnya belakangan, jadi kalau cuma
+	   dibatesin tingginya, kolom alamat di sebelahnya kejatah kurang dan tulisannya kebungkus. */
+	.vic-pf .head .logo { width: 160px; }
+	.vic-pf .logo img { width: 150px; height: auto; }
+	/* Blok alamat tetap nempel di pinggir kanan, tapi tulisannya rata kiri: yang didorong ke
+	   kanan kotaknya (.company), isinya (.box) dibikin rata kiri. Kalau `text-align: right`
+	   dipasang langsung ke tulisannya, tiap baris jadi mulai di tempat yang beda-beda. */
 	.vic-pf .company { text-align: right; }
+	.vic-pf .company .box { display: inline-block; text-align: left; }
+	.vic-pf .company .box div { white-space: nowrap; }
 	.vic-pf .company .name { font-size: 14px; font-weight: 700; }
 	.vic-pf .company .line { font-size: 9.5px; }
 	/* kotak judul, nomor & tanggal nempel persis di bawahnya */
@@ -117,6 +126,7 @@
 			<img src="/assets/vic_addon/img/vic%20logo.png" alt="{{ doc.company }}" />
 		</td>
 		<td class="company">
+			<div class="box">
 			<div class="name">{{ company.company_name | upper }}</div>
 			{%- if address %}
 				<div class="line">{{ address.address_line1 }}</div>
@@ -127,6 +137,7 @@
 			{%- if phone %}<div class="line">Phone : {{ phone }}</div>{% endif %}
 			{%- set fax = company.fax or (address.fax if address else None) %}
 			{%- if fax %}<div class="line">Fax : {{ fax }}</div>{% endif %}
+			</div>
 		</td>
 	</tr>
 </table>
