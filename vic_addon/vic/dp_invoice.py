@@ -11,6 +11,8 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
+from vic_addon.vic.dp_ppn import redirect_vat_account
+
 # dokumen referensi -> jenis DP
 DP_TYPE_BY_REFERENCE = {
 	"Sales Order": "Sales",
@@ -23,6 +25,8 @@ DP_TYPE_BY_REFERENCE = {
 TAX_FIELDS_TO_COPY = (
 	"charge_type",
 	"account_head",
+	# akun pajak asli, kalau akunnya dialihin ke akun penampung PPN uang muka (lihat dp_ppn.py)
+	"custom_original_account_head",
 	"description",
 	"rate",
 	"row_id",
@@ -186,6 +190,9 @@ def set_taxes_from_reference(doc, reference):
 			row["rate"] = 0
 
 		doc.append("custom_taxes", row)
+
+	# PPN uang muka ditampung dulu di akun sendiri kalau company-nya nyalain
+	redirect_vat_account(doc)
 
 
 def get_reference_doc(doc):

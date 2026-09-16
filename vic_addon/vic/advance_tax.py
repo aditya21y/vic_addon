@@ -78,6 +78,9 @@ def get_taxes_paid_on_advances(doc):
 
 	Dalam mata uang perusahaan, dan diprorata pakai porsi yang dialokasiin ke invoice ini
 	(satu DP bisa dipakai buat beberapa invoice).
+
+	Kuncinya akun pajak **asli**, bukan akun yang kepakai di Payment Entry-nya - biar tetap
+	ketemu sama baris pajak di invoice final waktu PPN uang muka ditampung di akun lain.
 	"""
 	taxes_paid = {}
 
@@ -96,7 +99,11 @@ def get_taxes_paid_on_advances(doc):
 			if tax.add_deduct_tax == "Deduct":
 				continue
 
-			taxes_paid.setdefault(tax.account_head, 0)
-			taxes_paid[tax.account_head] += flt(tax.base_tax_amount) * allocated_ratio
+			# Kalau PPN-nya sempat dialihin ke akun penampung uang muka (lihat dp_ppn.py), yang
+			# dipakai akun aslinya - invoice finalnya pakai akun itu, bukan akun penampungnya.
+			account = tax.get("custom_original_account_head") or tax.account_head
+
+			taxes_paid.setdefault(account, 0)
+			taxes_paid[account] += flt(tax.base_tax_amount) * allocated_ratio
 
 	return taxes_paid

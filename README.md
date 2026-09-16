@@ -355,6 +355,12 @@ Contoh (SO 100.000 + PPN 11%, DP 30%):
 Kolom **Paid on DP** di baris pajak nunjukin berapa yang udah dibayar duluan. Kalau satu DP
 dipakai buat beberapa invoice, potongannya diprorata sesuai porsi yang dialokasiin.
 
+Pencocokannya lewat **akun pajak**. Kalau PPN uang muka ditampung di akun lain (lihat *PPN uang
+muka ditampung dulu*), yang dipakai buat nyocokin tetap **akun aslinya**, bukan akun penampung —
+invoice finalnya pakai akun asli itu. Yang dipotong cuma DP yang **kedaftar di tabel Advances**
+invoice-nya; kalau tabelnya kosong (Payment Entry-nya belum dialokasiin ke invoice ini), gak ada
+yang dipotong walau checkbox-nya nyala.
+
 Setelan asli baris pajak (charge type + rate) disimpan di field tersembunyi, terus dibalikin
 tiap dokumen disimpan sebelum ERPNext ngitung ulang — jadi potongannya gak numpuk walau
 dokumennya disave berkali-kali, dan matiin checkbox-nya bikin pajak balik penuh.
@@ -367,6 +373,52 @@ Implementasi:
 - `vic_addon/public/js/payment_request.js` — persentase DP + load template pajak
 
 Belum: print format refund.
+
+#### PPN uang muka ditampung dulu, baru dipindah waktu DP kebayar
+
+Waktu bayar DP ke supplier, faktur pajaknya belum ada. Jadi PPN-nya belum boleh masuk PPN
+Masukan — ditampung dulu di akun sendiri, baru dipindah setelah pembayarannya jadi.
+
+Dinyalain per company, di tab **Accounts** bagian **PPN Uang Muka (DP)**:
+
+| Field | Isi |
+| --- | --- |
+| Enable PPN DP Pembelian | centang buat nyalain sisi beli |
+| COA PPN DP Pembelian | akun penampung, mis. `1152.003 - PPN MASUKKAN BELUM DITAGIH` |
+| Enable PPN DP Penjualan | centang buat nyalain sisi jual |
+| COA PPN DP Penjualan | akun penampung sisi jual |
+
+Field akunnya cuma muncul (dan jadi wajib) kalau centangannya nyala, dan daftar akunnya
+kefilter ke akun milik company itu yang bukan akun induk.
+
+Jalannya:
+
+1. **DP Invoice dibikin dari PO/SO** — baris PPN yang ditarik dari dokumen referensi akunnya
+   diganti ke akun penampung. Akun aslinya disimpan di baris yang sama (`Original Account
+   Head`), jadi lawan jurnalnya nanti gak perlu ditebak.
+2. **Payment Entry** — baris pajaknya kebawa apa adanya, jadi jurnal DP-nya kena akun penampung.
+3. **Payment Entry disubmit** — Journal Entry otomatis mindahin saldonya ke akun asli:
+
+   ```
+   DR  PPN Masukan                          12.000
+   CR  PPN Masukan Belum Ditagih                    12.000
+   ```
+
+   Jurnalnya nyimpen nomor Payment Entry-nya (field `DP PPN Payment Entry`), dan ikut
+   **dibatalin otomatis** kalau Payment Entry-nya dibatalin.
+
+Arah jurnalnya ngikut jenis pembayaran: DP pembelian (`Pay`) nampung di sisi debit, jadi
+pemindahannya ngredit penampung; DP penjualan kebalikannya.
+
+**Yang dianggap baris PPN**: pajak yang *nambah* nilai bayar dan hitungannya persentase
+(`On Paid Amount`). PPh 23 kelewat karena dia motong (`Deduct`), begitu juga baris `Actual`
+kayak ongkos kirim.
+
+Pemindahannya bersandar ke jejak `Original Account Head` di barisnya, **bukan** ke centangan di
+Company. Jadi kalau centangannya dimatiin setelah DP kebayar, saldo yang terlanjur nyangkut di
+akun penampung tetap kepindah.
+
+Implementasi: `vic_addon/vic/dp_ppn.py`.
 
 #### Sales Order: PO per supplier + dropship
 
@@ -762,6 +814,20 @@ Implementasi: `vic_addon/vic/sales_invoice.py` + `vic_addon/public/js/sales_invo
 
 #### Harga dikunci ke dokumen sumbernya
 
+> **Status: penguncian sisi jual dimatiin.** Hook `before_validate` buat Quotation dan Sales
+> Order dikomentarin di `vic_addon/hooks.py` karena user perlu bisa ngedit rate sendiri di dua
+> dokumen itu. Jadi yang masih jalan cuma penguncian sisi beli (Purchase Order ← net rate
+> Supplier Quotation). Buat nyalain lagi, buka komentar barisnya:
+>
+> ```python
+> for doctype in ("Quotation", "Sales Order"):
+> 	doc_events[doctype]["before_validate"] = "vic_addon.vic.rate_lock.set_selling_rate_from_costing"
+> ```
+>
+> Konsekuensinya: harga di Quotation/Sales Order **gak** ketiban Quotation Rate dari Costing lagi
+> tiap simpan — termasuk kalau dokumennya nempel ke Costing. Penjelasan di bawah ini nyeritain
+> cara kerja aslinya, dan tetap berlaku penuh buat Purchase Order.
+
 Tiap dokumen baru kebuka di form, ERPNext jalanin trigger `currency` → `apply_price_list()`
 yang narik ulang harga dari Item Price, terus **maksa `rate = price_list_rate`**
 (`transaction.js`, `_set_values_for_item_list`). Di alur VIC harganya bukan dari price list,
@@ -782,9 +848,8 @@ Rate-nya sengaja gak dihitung sendiri, cuma `price_list_rate` yang dipasang lalu
 rate-nya biar ERPNext yang ngitung — beda pembulatan 1 sen aja bikin diskon persennya kereset.
 
 **Price List Rate di Quotation & Sales Order bisa diketik manual** (read-only-nya dilepas lewat
-property setter). Berlaku buat dokumen yang **gak** nempel ke Costing. Kalau dokumennya punya
-field Costing, angka ketikan tetap ketiban Quotation Rate dari costing tiap disimpan — itu emang
-gunanya penguncian di atas.
+property setter). Selama hook sisi jual dimatiin (lihat catatan di atas), angka ketikan itu
+bertahan buat semua dokumen — termasuk yang nempel ke Costing.
 
 Implementasi: `vic_addon/vic/rate_lock.py`.
 

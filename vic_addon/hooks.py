@@ -269,8 +269,8 @@ doc_events["Delivery Note"]["on_submit"] = "vic_addon.vic.serial_no.update_seria
 doc_events["Sales Invoice"]["validate"].append("vic_addon.vic.sales_invoice.set_customer_wapu")
 
 # harga dikunci ke dokumen sumbernya, jangan ketiban Item Price
-for doctype in ("Quotation", "Sales Order"):
-	doc_events[doctype]["before_validate"] = "vic_addon.vic.rate_lock.set_selling_rate_from_costing"
+# for doctype in ("Quotation", "Sales Order"):
+# 	doc_events[doctype]["before_validate"] = "vic_addon.vic.rate_lock.set_selling_rate_from_costing"
 
 doc_events["Purchase Order"]["before_validate"] = [
 	# jalan duluan: link SQTN disamain dulu sama supplier PO-nya, baru harganya dipasang
@@ -295,7 +295,12 @@ doc_events["Payment Request"] = {
 	],
 	"validate": "vic_addon.vic.dp_invoice.set_dp_details",
 }
-doc_events["Payment Entry"] = {"before_validate": "vic_addon.vic.dp_invoice.set_advance_taxes"}
+doc_events["Payment Entry"] = {
+	"before_validate": "vic_addon.vic.dp_invoice.set_advance_taxes",
+	# PPN uang muka pindah dari akun penampung ke akun aslinya begitu DP-nya kebayar
+	"on_submit": "vic_addon.vic.dp_ppn.make_vat_reclass_entry",
+	"on_cancel": "vic_addon.vic.dp_ppn.cancel_vat_reclass_entry",
+}
 
 # Purchase Request dari Sales Order: nomor PO customer ikut kebawa
 doc_events["Material Request"] = {
