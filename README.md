@@ -777,6 +777,28 @@ Quotation, kuncinya wajib alfanumerik, dan PDF-nya dikirim `inline` biar kebuka 
 Implementasi: `vic_addon/vic/supplier_comparison.py`, `vic_addon/templates/supplier_comparison.html`,
 `vic_addon/public/js/request_for_quotation.js`.
 
+#### Customer ngalir dari Opportunity sampai ke Quotation
+
+Rantainya: **Opportunity → Request for Quotation → Supplier Quotation → Costing → Quotation →
+Sales Order**. Yang di tengah itu dokumen ke supplier, jadi bawaan ERPNext gak nyimpen customer
+sama sekali — padahal yang dicariin harga itu kebutuhan customer tertentu.
+
+Request for Quotation dikasih field **Customer**, dan dua sambungan yang bolong diisi:
+
+| Sambungan | Caranya |
+| --- | --- |
+| Opportunity → RFQ | Mapper bawaan nyalin nama Opportunity ke tiap baris item RFQ (`opportunity`), jadi customer-nya dibaca balik dari situ |
+| RFQ → Costing | Costing gak nyimpen nomor RFQ; yang kesimpan link ke baris Supplier Quotation, dan dari situ nomor RFQ-nya kebaca |
+
+Sisanya udah jalan sendiri: Costing → Quotation lewat `make_quotation`, Quotation → Sales Order
+lewat mapper bawaan.
+
+Dua-duanya cuma ngisi kalau field-nya **masih kosong**, jadi pilihan user gak pernah ketiban.
+Opportunity yang punya **Lead** (belum jadi Customer) dilewat, dan RFQ yang dibikin manual
+tanpa Opportunity ya customer-nya kosong — bukan error.
+
+Implementasi: `vic_addon/vic/customer_chain.py`.
+
 #### Project ngalir dari Opportunity sampai ke bawah
 
 Field **Project** ditambahin di tiga dokumen yang belum punya: **Opportunity**, **Request for

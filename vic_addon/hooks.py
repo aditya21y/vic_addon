@@ -307,6 +307,14 @@ doc_events["Material Request"] = {
 	"before_validate": "vic_addon.vic.material_request.set_customer_po_no",
 }
 
+# Customer ngalir dari Opportunity -> Request for Quotation -> Costing
+doc_events.setdefault("Request for Quotation", {}).setdefault("validate", []).append(
+	"vic_addon.vic.customer_chain.set_customer_from_opportunity"
+)
+doc_events.setdefault("Costing", {}).setdefault("validate", []).append(
+	"vic_addon.vic.customer_chain.set_customer_from_request_for_quotation"
+)
+
 # Header di baris item: yang dikosongin ngikut baris di atasnya
 for doctype in ITEM_HEADER_DOCTYPES:
 	events = doc_events.setdefault(doctype, {})
