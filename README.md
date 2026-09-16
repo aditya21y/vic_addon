@@ -369,7 +369,7 @@ Implementasi:
 
 - `vic_addon/vic/dp_invoice.py` — Payment Request + auto-fetch pajak ke Payment Entry
 - `vic_addon/vic/advance_tax.py` — sisa PPN/PPh di Sales/Purchase Invoice
-- `vic_addon/vic/labels.py` — label doctype "Advance Invoice"
+- `vic_addon/vic/labels.py` — label doctype "Advance Invoice" (lihat *Nama dokumen di desk beda dari bawaan ERPNext*)
 - `vic_addon/public/js/payment_request.js` — persentase DP + load template pajak
 
 Belum: print format refund.
@@ -776,6 +776,40 @@ Quotation, kuncinya wajib alfanumerik, dan PDF-nya dikirim `inline` biar kebuka 
 
 Implementasi: `vic_addon/vic/supplier_comparison.py`, `vic_addon/templates/supplier_comparison.html`,
 `vic_addon/public/js/request_for_quotation.js`.
+
+#### Nama dokumen di desk beda dari bawaan ERPNext
+
+Istilah yang dipakai sehari-hari di VIC beda dari nama doctype ERPNext, jadi labelnya diganti.
+Doctype-nya sendiri **gak** di-rename — nama aslinya tetap kepakai di kode, hooks, link field,
+dan laporan. Yang berubah cuma tulisan yang kelihatan user.
+
+| Doctype ERPNext | Kelihatan di desk |
+| --- | --- |
+| Opportunity | **Request For Quotation** (permintaan harga dari customer) |
+| Request for Quotation | **Inquiry** (permintaan harga ke supplier) |
+| Payment Request | **Advance Invoice** |
+
+Caranya lewat record `Translation`, dipasang tiap install & migrate
+(`vic_addon/vic/labels.py`). Frappe gak nyediain field label buat doctype — yang bisa dicustom
+lewat Customize Form cuma label field-nya.
+
+Yang dicocokin **teks persis**, dan berlaku di seluruh desk. Jadi field yang labelnya persis
+`Opportunity` di doctype lain (Quotation, Supplier Quotation, Customer) ikut kebaca jadi label
+baru — itu emang dimau, soalnya nunjuk ke dokumen yang sama. Label gabungan di form Opportunity
+(`Opportunity Type`, `Opportunity From`, dst) ikut diganti juga biar gak setengah-setengah.
+
+Tulisan `Request For Quotation` muncul dua kali di daftar terjemahan: sebagai **hasil**
+terjemahan Opportunity, dan sebagai **teks asli** yang diterjemahin jadi Inquiry (itu tulisan
+tombol `Create` di Opportunity — satu-satunya tempat di ERPNext yang nulisnya pakai F besar).
+Gak muter-muter: Frappe nerjemahin sekali, hasilnya gak dilempar balik buat diterjemahin lagi.
+
+Gara-gara itu, nyari record Translation-nya **gak boleh** ngandelin pencarian database —
+collation bawaan MySQL gak bedain huruf besar-kecil, jadi `Request For Quotation` bakal nimpa
+`Request for Quotation` dan salah satunya gak pernah kepasang. Kandidatnya diambil dulu, baru
+dicocokin persis di Python (`find_translation`).
+
+Print format-nya udah ngikut dari dulu: **Request For Quotation (Customer)** buat Opportunity,
+**Inquiry** buat Request for Quotation.
 
 #### Customer ngalir dari Opportunity sampai ke Quotation
 
