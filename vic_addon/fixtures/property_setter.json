@@ -702,5 +702,21 @@
   "property_type": "Check",
   "row_name": null,
   "value": "1"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Request for Quotation",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "suppliers",
+  "is_system_generated": 1,
+  "modified": "2026-09-18 10:00:00.000000",
+  "module": "VIC",
+  "name": "Request for Quotation-suppliers-allow_on_submit",
+  "property": "allow_on_submit",
+  "property_type": "Check",
+  "row_name": null,
+  "value": "1"
  }
 ]

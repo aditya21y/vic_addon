@@ -777,6 +777,26 @@ Quotation, kuncinya wajib alfanumerik, dan PDF-nya dikirim `inline` biar kebuka 
 Implementasi: `vic_addon/vic/supplier_comparison.py`, `vic_addon/templates/supplier_comparison.html`,
 `vic_addon/public/js/request_for_quotation.js`.
 
+#### Nambah supplier ke Inquiry yang udah disubmit
+
+Tabel **Suppliers** di Request for Quotation (di desk namanya *Inquiry*) dikasih Allow on Submit,
+jadi supplier masih bisa ditambah setelah dokumennya disubmit — kejadian biasa: inquiry-nya udah
+jalan, terus ada supplier lain yang mau dimintain harga juga.
+
+Yang bisa dan yang enggak:
+
+| Aksi di dokumen yang udah submit | Hasil |
+| --- | --- |
+| Nambah baris supplier baru | bisa |
+| Hapus baris supplier | bisa |
+| Ubah isi baris supplier yang udah ada (mis. Email ID) | ditolak |
+
+Yang terakhir itu bawaan Frappe: Allow on Submit di tabelnya cuma ngebolehin baris **baru**;
+baris lama tiap field-nya masih dicek satu-satu. Kalau emang perlu, field anaknya mesti
+dikasih Allow on Submit sendiri.
+
+Dinyalain lewat property setter `Request for Quotation-suppliers-allow_on_submit`.
+
 #### Isi tabel item Opportunity lewat file
 
 Tabel **Items** di Opportunity (di desk namanya *Request For Quotation*) dinyalain Bulk Edit-nya,
