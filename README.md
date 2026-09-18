@@ -777,6 +777,22 @@ Quotation, kuncinya wajib alfanumerik, dan PDF-nya dikirim `inline` biar kebuka 
 Implementasi: `vic_addon/vic/supplier_comparison.py`, `vic_addon/templates/supplier_comparison.html`,
 `vic_addon/public/js/request_for_quotation.js`.
 
+#### Isi tabel item Opportunity lewat file
+
+Tabel **Items** di Opportunity (di desk namanya *Request For Quotation*) dinyalain Bulk Edit-nya,
+jadi di pojok grid muncul tombol **Download** sama **Upload**. Kepakai buat permintaan yang
+itemnya banyak: download dulu buat dapet template kolomnya, isi di Excel, terus upload.
+
+Format filenya **CSV**, bukan `.xlsx` — itu bawaan Frappe, tombol upload-nya emang cuma nerima
+`.csv`. Excel bisa buka dan nyimpen CSV, jadi alurnya tetap lewat Excel: buka file hasil
+download, edit, terus *Save As* → CSV sebelum diupload.
+
+Catatan cara kerjanya: upload **ngeganti seluruh isi tabel**, bukan nambahin ke baris yang udah
+ada. Baris 1–7 file itu header template (judul, label kolom, nama field, keterangan) — jangan
+diutak-atik, data mulai baris 8. Maksimal 5000 baris sekali upload.
+
+Dinyalain lewat property setter `Opportunity-items-allow_bulk_edit`.
+
 #### Nama dokumen di desk beda dari bawaan ERPNext
 
 Istilah yang dipakai sehari-hari di VIC beda dari nama doctype ERPNext, jadi labelnya diganti.
@@ -857,16 +873,16 @@ mesti dicabut. Itu risiko yang diambil sadar — imbalannya nol kode tambahan di
 WAPU (Wajib Pungut): PPN-nya dipungut dan disetor sendiri sama customer — biasanya instansi
 pemerintah atau BUMN — bukan sama kita.
 
-| Doctype | Field |
-| --- | --- |
-| Customer | **WAPU Status** (Select: `Non WAPU` / `WAPU`), di tab Tax |
-| Sales Invoice | **Customer WAPU** (checkbox, read only), diambil dari master Customer |
+Sales Invoice punya checkbox **Customer WAPU**, **diisi manual per invoice**, dan bisa dipakai
+filter di list view.
 
-Checkbox-nya keisi otomatis waktu customer dipilih di form, dan di-set ulang tiap invoice
-disimpan — jadi kalau status customernya berubah, invoice yang belum submit ikut nyesuaiin.
-Dua-duanya bisa dipakai filter di list view.
+Dulu statusnya disimpan di master Customer (field **WAPU Status**) terus diturunin otomatis ke
+tiap invoice. Itu udah dibuang — field di Customer-nya dihapus lewat patch
+`vic_addon/patches/drop_customer_wapu_status.py`, begitu juga pengisian otomatisnya
+(`vic_addon/vic/sales_invoice.py` + `public/js/sales_invoice.js`, dua-duanya udah gak ada).
 
-Implementasi: `vic_addon/vic/sales_invoice.py` + `vic_addon/public/js/sales_invoice.js`.
+Kolom `custom_wapu_status` di tabel Customer sengaja dibiarin — Frappe gak pernah ngedrop
+kolom, jadi status lama masih kesimpan kalau sewaktu-waktu dibutuhin.
 
 #### Harga dikunci ke dokumen sumbernya
 

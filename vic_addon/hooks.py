@@ -93,8 +93,6 @@ doctype_js["Payment Request"] = ["public/js/payment_request.js"]
 doctype_js["Sales Order"].append("public/js/sales_order.js")
 # PO dropship: tombol bikin Delivery Note, tombol Purchase Receipt disembunyiin
 doctype_js["Purchase Order"].append("public/js/purchase_order.js")
-# penanda customer WAPU
-doctype_js["Sales Invoice"].append("public/js/sales_invoice.js")
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -264,9 +262,6 @@ doc_events["Purchase Receipt"]["validate"].append("vic_addon.vic.serial_no.set_s
 # garansi mulai jalan pas barang dikirim, tanggalnya diturunin ke tiap Serial No
 doc_events["Delivery Note"]["validate"].append("vic_addon.vic.serial_no.set_warranty_dates")
 doc_events["Delivery Note"]["on_submit"] = "vic_addon.vic.serial_no.update_serial_no_warranty"
-
-# penanda customer WAPU, diambil dari master Customer
-doc_events["Sales Invoice"]["validate"].append("vic_addon.vic.sales_invoice.set_customer_wapu")
 
 # harga dikunci ke dokumen sumbernya, jangan ketiban Item Price
 # for doctype in ("Quotation", "Sales Order"):

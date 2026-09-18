@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 vic_addon.patches.set_costing_status
 vic_addon.patches.set_serial_no_label_defaults
+vic_addon.patches.drop_customer_wapu_status
