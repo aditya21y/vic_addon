@@ -777,6 +777,35 @@ Quotation, kuncinya wajib alfanumerik, dan PDF-nya dikirim `inline` biar kebuka 
 Implementasi: `vic_addon/vic/supplier_comparison.py`, `vic_addon/templates/supplier_comparison.html`,
 `vic_addon/public/js/request_for_quotation.js`.
 
+#### Biaya dari Journal Entry ditarik ke Landed Cost Voucher
+
+Biaya impor (ongkos kapal, bea masuk, jasa forwarder) biasanya udah kecatat duluan lewat Journal
+Entry. Yang belum kejadian: biayanya masih nangkring di akun biaya, belum nempel ke nilai
+barangnya. Landed Cost Voucher yang mindahin — cuma bawaannya biayanya mesti diketik ulang
+satu-satu.
+
+Alurnya sekarang:
+
+1. Di **Journal Entry Template**, baris biaya yang nambah nilai persediaan dicentang
+   **Biaya yang masuk nilai barang**. Dicentang sekali di templatenya.
+2. Waktu template dipilih di **Journal Entry**, centangannya kebawa sendiri. Nama field-nya
+   sengaja sama persis di dua doctype, dan ERPNext nyalin semua field baris template apa adanya
+   — jadi gak perlu kode tambahan.
+3. Di **Landed Cost Voucher**, tombol **Get Expenses From → Journal Entry**. Pilihan jurnalnya
+   udah kesaring: cuma yang punya minimal satu baris bercentang, submitted, dan se-company.
+4. Yang ketarik ke tabel Landed Cost **cuma baris bercentang**. Jurnal yang isinya campur (biaya
+   barang + biaya lain) tetap aman — yang gak dicentang gak ikut.
+
+Yang diambil cuma sisi **debit**: itu yang nunjukin biaya keluar. Baris kredit di jurnal yang
+sama (kas/hutang) bukan biaya, jadi dilewat. Tiap baris nyimpen nomor jurnal asalnya di field
+**Journal Entry**, dan jurnal yang udah pernah ditarik ditolak kalau dipilih dua kali.
+
+Tabel **Vendor Invoices** di Landed Cost Voucher disembunyiin (property setter `hidden`) — biaya
+diambil dari Journal Entry, bukan dari invoice supplier. Tabel itu emang opsional di ERPNext,
+cuma dipakai nyatet klaim landed cost ke Purchase Invoice.
+
+Implementasi: `vic_addon/vic/landed_cost.py` + `vic_addon/public/js/landed_cost_voucher.js`.
+
 #### Tanggal jurnal ikut pindah ke tanggal cair di bank
 
 Bank Clearance bawaan cuma nulis **Clearance Date** ke dokumennya — tanggal posting sama

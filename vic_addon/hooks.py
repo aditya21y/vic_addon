@@ -89,6 +89,8 @@ doctype_js["Supplier Quotation"] = ["public/js/supplier_quotation.js"]
 doctype_js["Request for Quotation"] = ["public/js/request_for_quotation.js"]
 # DP Invoice: persentase DP + template pajak DP
 doctype_js["Payment Request"] = ["public/js/payment_request.js"]
+# tarik biaya yang nambah nilai barang dari Journal Entry
+doctype_js["Landed Cost Voucher"] = ["public/js/landed_cost_voucher.js"]
 # tombol bikin PO per supplier
 doctype_js["Sales Order"].append("public/js/sales_order.js")
 # PO dropship: tombol bikin Delivery Note, tombol Purchase Receipt disembunyiin

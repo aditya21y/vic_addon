@@ -718,5 +718,37 @@
   "property_type": "Check",
   "row_name": null,
   "value": "1"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Landed Cost Voucher",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "vendor_invoices",
+  "is_system_generated": 1,
+  "modified": "2026-09-24 10:00:00.000000",
+  "module": "VIC",
+  "name": "Landed Cost Voucher-vendor_invoices-hidden",
+  "property": "hidden",
+  "property_type": "Check",
+  "row_name": null,
+  "value": "1"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Landed Cost Voucher",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "total_vendor_invoices_cost",
+  "is_system_generated": 1,
+  "modified": "2026-09-24 10:00:00.000000",
+  "module": "VIC",
+  "name": "Landed Cost Voucher-total_vendor_invoices_cost-hidden",
+  "property": "hidden",
+  "property_type": "Check",
+  "row_name": null,
+  "value": "1"
  }
 ]
