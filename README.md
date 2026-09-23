@@ -777,6 +777,44 @@ Quotation, kuncinya wajib alfanumerik, dan PDF-nya dikirim `inline` biar kebuka 
 Implementasi: `vic_addon/vic/supplier_comparison.py`, `vic_addon/templates/supplier_comparison.html`,
 `vic_addon/public/js/request_for_quotation.js`.
 
+#### Tanggal jurnal ikut pindah ke tanggal cair di bank
+
+Bank Clearance bawaan cuma nulis **Clearance Date** ke dokumennya — tanggal posting sama
+jurnalnya gak kesentuh, jadi kas tetap kecatat di tanggal dokumen dibikin, bukan tanggal duitnya
+beneran cair. Di sini tanggal postingnya digeser ikut Clearance Date, terus jurnalnya ditulis
+ulang lewat **Repost Accounting Ledger** bawaan ERPNext.
+
+| Langkah | Yang terjadi |
+| --- | --- |
+| Clearance Date diisi | Tanggal semula disimpan di **Original Posting Date**, `posting_date` diganti jadi tanggal clearance, jurnalnya ditulis ulang |
+| Clearance Date dikosongin | `posting_date` balik ke Original Posting Date, field-nya dikosongin, jurnalnya ditulis ulang |
+| Clearance Date **sama** dengan posting date | Gak ngapa-ngapain |
+
+**Urutannya gak boleh kebalik**: tanggal dokumennya diganti dulu, baru di-repost. Repost bikin
+jurnal baru dari nilai dokumen yang sekarang — kalau repost duluan, jurnalnya cuma ketulis ulang
+di tanggal yang lama.
+
+**Yang ikut kegeser**: GL Entry **dan** Payment Ledger Entry (yang dipakai buat umur piutang/
+hutang). Jurnal lama gak dihapus — barisnya tetap ada dengan tanda cancelled, gak keitung di
+laporan tapi masih bisa ditelusuri.
+
+**Yang digeser cuma Payment Entry sama Journal Entry**, dan cuma kalau doctype-nya kedaftar di
+*Accounts Settings → Repost → Allowed DocTypes* (tabel itu kosong dari sananya, jadi harus diisi
+dulu). Invoice sengaja gak ikut walau kedaftar di situ: geser tanggal invoice itu mindahin
+pengakuan pendapatan/biaya, bukan cuma tanggal kas.
+
+Pengaman periode gak dibikin sendiri — ERPNext ngecek dua-duanya: periode **asal** dicek waktu
+jurnal lama dibalikin, periode **tujuan** dicek waktu jurnal baru ditulis. Kalau salah satu
+ketutup (Accounting Period, Period Closing Voucher, atau tanggal beku), semuanya dibatalin, gak
+ada yang setengah jalan.
+
+> **Jangan nyalain *Enable Immutable Ledger*** di Accounts Settings tanpa ngobrol dulu. Kalau
+> nyala, jurnal lama gak boleh ditandain cancelled — dia dibalikin pakai jurnal pembalik
+> bertanggal **hari ini**, jadi bulan asalnya tetap kecatat dan fitur ini berubah arti sama
+> sekali.
+
+Implementasi: `vic_addon/vic/bank_clearance.py` (lewat `override_doctype_class`).
+
 #### Nambah supplier ke Inquiry yang udah disubmit
 
 Tabel **Suppliers** di Request for Quotation (di desk namanya *Inquiry*) dikasih Allow on Submit,

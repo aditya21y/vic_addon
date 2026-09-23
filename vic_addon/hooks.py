@@ -395,6 +395,9 @@ for doctype in ("Purchase Order", "Purchase Receipt", "Purchase Invoice"):
 # Overriding Methods
 # ------------------------------
 #
+# Bank Clearance: tanggal jurnal ikut digeser ke tanggal cair di bank
+override_doctype_class = {"Bank Clearance": "vic_addon.vic.bank_clearance.VICBankClearance"}
+
 # PO dropship: Delivery Note-nya ikut nongol di tab Connections
 override_doctype_dashboards = {
 	"Purchase Order": "vic_addon.vic.purchase_order.get_dashboard_data",
