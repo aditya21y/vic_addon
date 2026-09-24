@@ -46,12 +46,16 @@ def get_comparison(request_for_quotation):
 	for row in items:
 		row["prices"] = [
 			{
+				# `quoted` dibaca dari ADA-nya baris di penawaran, bukan dari nilainya. Baris yang
+				# dihapus manual di SQTN beda artinya sama baris yang harganya kebetulan nol.
+				"quoted": (offer["name"], row["item_code"]) in rates,
 				"rate": rates.get((offer["name"], row["item_code"])),
 				"amount": flt(rates.get((offer["name"], row["item_code"])) or 0) * flt(row["qty"]),
 			}
 			for offer in offers
 		]
 
+	set_coverage(offers, items)
 	set_totals(offers, items)
 
 	# key-nya sengaja bukan `items`: di `frappe._dict` itu ketabrak method `dict.items()`
@@ -148,6 +152,18 @@ def get_rates(offers):
 	return {(row.parent, row.item_code): flt(row.net_rate) or flt(row.rate) for row in rows}
 
 
+def set_coverage(offers, items):
+	"""Berapa item yang beneran ditawar tiap penawaran.
+
+	Supplier boleh cuma nawar sebagian - barangnya emang dipecah per jenis. Yang gak boleh itu
+	penawaran sebagian dibandingin totalnya lawan penawaran lengkap, soalnya isinya beda.
+	"""
+	for index, offer in enumerate(offers):
+		offer["quoted_items"] = sum(1 for row in items if row["prices"][index]["quoted"])
+		offer["item_count"] = len(items)
+		offer["is_complete"] = offer["quoted_items"] == len(items)
+
+
 def set_totals(offers, items):
 	"""Total, PPN, grand total per penawaran, plus selisihnya."""
 	for index, offer in enumerate(offers):
@@ -174,18 +190,28 @@ def set_differences(offers):
 		)
 		previous[offer["supplier"]] = offer
 
-	latest = [offer for offer in offers if offer["is_latest"] and offer["grand_total"]]
+	# Cuma penawaran LENGKAP yang diadu totalnya. Kalau yang sebagian ikut, dia menang gampang -
+	# totalnya kecil bukan karena murah, tapi karena itemnya kurang.
+	latest = [
+		offer
+		for offer in offers
+		if offer["is_latest"] and offer["grand_total"] and offer.get("is_complete", True)
+	]
+
+	for offer in offers:
+		offer["cheapest"] = False
+		offer["vs_cheapest"] = None
+
 	if not latest:
 		return
 
 	cheapest = min(latest, key=lambda offer: offer["grand_total"])
 
-	for offer in offers:
-		# yang dibandingin cuma penawaran terakhir tiap supplier - penawaran lama udah kelewat
+	for offer in latest:
 		offer["cheapest"] = offer is cheapest
 		offer["vs_cheapest"] = (
 			(offer["grand_total"] - cheapest["grand_total"]) / cheapest["grand_total"]
-			if offer["is_latest"] and cheapest["grand_total"]
+			if cheapest["grand_total"]
 			else None
 		)
 
@@ -221,6 +247,8 @@ def build_workbook(comparison):
 	box = Border(left=thin, right=thin, top=thin, bottom=thin)
 	head_fill = PatternFill("solid", fgColor="F2F2F2")
 	cheap_fill = PatternFill("solid", fgColor="FFF2CC")
+	# abu-abu buat baris yang gak ditawar supplier itu
+	blank_fill = PatternFill("solid", fgColor="EDEDED")
 	money = "#,##0"
 	percent = "0.00%"
 
@@ -281,6 +309,13 @@ def build_workbook(comparison):
 		for index, price in enumerate(item["prices"]):
 			column = first_offer_column + index * 2
 
+			if not price["quoted"]:
+				# ditandain jelas: sel kosong gampang kebaca sebagai harga nol
+				for offset in (0, 1):
+					cell = sheet.cell(row=row_number, column=column + offset, value="\u2014")
+					cell.alignment, cell.border, cell.fill = center, box, blank_fill
+				continue
+
 			rate = sheet.cell(row=row_number, column=column, value=price["rate"])
 			amount = sheet.cell(row=row_number, column=column + 1, value=price["amount"] or None)
 			rate.number_format = amount.number_format = money
@@ -308,8 +343,23 @@ def build_workbook(comparison):
 
 		row_number += 1
 
+	# ---- berapa item yang ditawar ----
+	cell = sheet.cell(row=row_number, column=1, value=_("Item Ditawar"))
+	cell.font = bold
+	sheet.merge_cells(start_row=row_number, start_column=1, end_row=row_number, end_column=4)
+
+	for index, offer in enumerate(offers):
+		column = first_offer_column + index * 2 + 1
+		value = sheet.cell(
+			row=row_number, column=column, value=f"{offer['quoted_items']} / {offer['item_count']}"
+		)
+		value.alignment, value.border = center, box
+		if not offer["is_complete"]:
+			value.fill, value.font = blank_fill, bold
+
+	row_number += 2
+
 	# ---- dua lapis selisih ----
-	row_number += 1
 	for title, key, note in (
 		(_("Lama vs Baru"), "negotiated", _("turun dari penawaran sebelumnya")),
 		(_("vs Termurah"), "vs_cheapest", _("selisih ke penawaran terakhir termurah")),
@@ -331,6 +381,25 @@ def build_workbook(comparison):
 				value.font = bold
 
 		row_number += 1
+
+	# ---- catatan kaki ----
+	if any(not offer["is_complete"] for offer in offers):
+		row_number += 1
+		note = sheet.cell(
+			row=row_number,
+			column=1,
+			value=_(
+				"Tanda \u2014 berarti supplier tidak menawar barang tersebut. Penawaran yang tidak "
+				"lengkap tidak diikutkan dalam penentuan termurah, karena totalnya tidak sebanding."
+			),
+		)
+		note.font = Font(italic=True)
+		note.alignment = Alignment(wrap_text=True, vertical="top")
+		sheet.merge_cells(
+			start_row=row_number, start_column=1, end_row=row_number,
+			end_column=first_offer_column + len(offers) * 2 - 1,
+		)
+		sheet.row_dimensions[row_number].height = 28
 
 	# ---- lebar kolom secukupnya ----
 	sheet.column_dimensions["A"].width = 6

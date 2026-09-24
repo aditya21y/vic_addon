@@ -778,6 +778,24 @@ purchasing.
 dokumennya — yang lebih tua diabaikan. Supplier yang baru nawar sekali cuma dapat satu kolom
 (nama suppliernya turun nutupin baris Lama/Baru).
 
+**Penawaran yang gak lengkap.** Barang sering dipecah per jenis supplier, jadi wajar kalau ada
+supplier yang cuma nawar sebagian item RFQ (baris sisanya dihapus manual di Supplier Quotation).
+Yang dijaga di sini: penawaran sebagian **gak boleh diadu totalnya** lawan penawaran lengkap —
+totalnya kecil bukan karena murah, tapi karena itemnya kurang.
+
+| Keadaan | Yang dilakuin |
+| --- | --- |
+| Item gak ditawar | Selnya diisi tanda `—` berlatar abu-abu, bukan dibiarin kosong (kosong gampang kebaca sebagai harga nol) |
+| Baris **Item Ditawar** | Nunjukin `3 / 5` — berapa item yang ditawar dari total item RFQ |
+| Penentuan termurah | Cuma penawaran **lengkap** yang diadu. Yang sebagian gak dapat sorotan termurah dan gak dapat angka **vs Termurah** |
+| Catatan kaki | Muncul otomatis kalau ada penawaran yang gak lengkap, ngejelasin arti tanda `—` |
+
+Penandaan harga termurah **per baris item** tetap jalan seperti biasa — itu perbandingan yang
+sah, soalnya barangnya sama. Yang dibatesin cuma perbandingan total antar supplier.
+
+Yang dibaca sebagai "ditawar" itu **ada atau enggaknya baris** di Supplier Quotation, bukan
+nilainya — jadi barang yang emang ditawar dengan harga nol tetap kehitung ditawar.
+
 | Kolom | Isinya |
 | --- | --- |
 | Item, Description, Qty, UOM | Dari baris RFQ — jadi qty-nya satu acuan buat semua supplier |
