@@ -699,6 +699,44 @@ server tiap disimpan — yang di server itu yang jadi pegangan.
 
 Implementasi: `vic_addon/vic/doctype/selling_price_estimate/`.
 
+#### Kertas Kerja Arus Uang dan Barang (PPN masukan vs keluaran)
+
+Kertas kerja buat pemeriksaan pajak: **penyerahan** diadu sama **pembelian**, dikelompokin per
+**proyek**. Kiri faktur pajak keluaran, kanan faktur pajak masukan — buat nunjukin barang yang
+dijual itu asalnya dari pembelian yang mana.
+
+Dua bentuk, datanya sama:
+
+| Bentuk | Buat apa |
+| --- | --- |
+| Report **Arus Uang dan Barang** di desk | dilihat & difilter langsung, bisa di-drill ke dokumennya |
+| Tombol **Download Excel** di report itu | bentuknya persis kertas kerja pemeriksa, buat diserahin |
+
+Filternya: Company, From Date, To Date, Project (opsional — kosong berarti semua proyek, plus
+satu kelompok "Tanpa Proyek").
+
+Sumber datanya:
+
+| Kolom | Dari |
+| --- | --- |
+| NPWP | `tax_id` di Sales/Purchase Invoice (ketarik dari master Customer/Supplier) |
+| Faktur Pajak jual | field baru **Nomor Faktur Pajak** + **Tanggal Faktur Pajak** di Sales Invoice |
+| Faktur Pajak beli | `bill_no` + `bill_date` di Purchase Invoice |
+| DPP | `net_total` |
+| PPN | total baris pajak, **kecuali** baris PPh (`is_tax_withholding_account` atau `Deduct`) |
+| Quantity, UOM, harga satuan | baris item Purchase Invoice |
+
+Dua sisinya gak punya hubungan baris-per-baris — yang nyambungin cuma proyeknya. Jadi barisnya
+disusun berdampingan: kiri jalan sendiri, kanan jalan sendiri, yang pendek diganjal baris kosong
+sampai sejajar. Satu invoice bisa makan beberapa baris: baris pertama bawa identitas lawan
+transaksi + nomor faktur + DPP + PPN, baris berikutnya cuma rincian barang.
+
+Versi Excel-nya disusun sendiri pakai openpyxl (bukan export bawaan Frappe) karena judul
+kolomnya bertingkat tiga dan perlu di-merge — report bawaan gak bisa gitu.
+
+Implementasi: `vic_addon/vic/report/arus_uang_dan_barang/` (data + tampilan desk) dan
+`vic_addon/vic/arus_uang_dan_barang.py` (versi Excel).
+
 #### Inquiry versi Excel
 
 Print format **Inquiry** itu buat dicetak dan diisi tangan. Tombol **Actions > Download Inquiry**
