@@ -96,7 +96,11 @@ def get_taxes_paid_on_advances(doc):
 		allocated_ratio = min(flt(advance.allocated_amount) / party_amount, 1)
 
 		for tax in payment_entry.get("taxes") or []:
-			if tax.add_deduct_tax == "Deduct":
+			# Baris PPh dilewat - itu potongan pajak penghasilan, bukan pajak yang ditagih di
+			# invoice. Yang dipakai penanda `is_tax_withholding_account`, bukan arah Add/Deduct:
+			# ERPNext maksa arahnya jadi "Add" kalau party-nya Customer, jadi kalau nyaring pakai
+			# arah, baris PPh sisi penjualan lolos dan salah dikurangin dari pajak invoice.
+			if tax.get("is_tax_withholding_account") or tax.add_deduct_tax == "Deduct":
 				continue
 
 			# Kalau PPN-nya sempat dialihin ke akun penampung uang muka (lihat dp_ppn.py), yang

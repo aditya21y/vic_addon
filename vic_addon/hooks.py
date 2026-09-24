@@ -293,7 +293,11 @@ doc_events["Payment Request"] = {
 	"validate": "vic_addon.vic.dp_invoice.set_dp_details",
 }
 doc_events["Payment Entry"] = {
-	"before_validate": "vic_addon.vic.dp_invoice.set_advance_taxes",
+	"before_validate": [
+		"vic_addon.vic.dp_invoice.set_advance_taxes",
+		# PPh atas uang muka: dinyalain di sini, hitungannya ERPNext yang ngerjain
+		"vic_addon.vic.tax_withholding.set_apply_tds",
+	],
 	# PPN uang muka pindah dari akun penampung ke akun aslinya begitu DP-nya kebayar
 	"on_submit": "vic_addon.vic.dp_ppn.make_vat_reclass_entry",
 	"on_cancel": "vic_addon.vic.dp_ppn.cancel_vat_reclass_entry",

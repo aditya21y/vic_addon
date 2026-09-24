@@ -120,6 +120,7 @@ def set_dp_from_reference(doc):
 	set_dp_type(doc)
 	set_dp_amount_from_schedule(doc, reference)
 	set_taxes_from_reference(doc, reference)
+	set_apply_tds(doc, reference)
 
 
 def set_dp_amount_from_schedule(doc, reference):
@@ -195,6 +196,44 @@ def set_taxes_from_reference(doc, reference):
 	redirect_vat_account(doc)
 
 
+def set_apply_tds(doc, reference):
+	"""Nyalain centangan Potong PPh kalau dokumen sumbernya emang kena PPh.
+
+	Cuma dipasang sekali waktu dokumennya lahir dari PO/SO - sesudah itu ikut pilihan user.
+	"""
+	from vic_addon.vic.tax_withholding import resolve_category
+
+	party_type = "Customer" if doc.custom_dp_type == "Sales" else "Supplier"
+	party = reference.get("customer") if party_type == "Customer" else reference.get("supplier")
+
+	category, _group = resolve_category(reference.doctype, reference.name, party_type, party)
+	doc.custom_apply_tds = 1 if category else 0
+
+
+def set_tax_withholding_amount(doc):
+	"""Perkiraan potongan PPh atas DP ini.
+
+	Cuma angka tampilan biar user tau duit yang bakal keluar/masuk berapa. Yang beneran
+	dibukukan dihitung ERPNext di Payment Entry, pakai tarif yang berlaku di tanggal posting
+	pembayarannya - jadi dua angka ini bisa beda kalau tarifnya ganti di antara dua tanggal itu.
+	"""
+	from vic_addon.vic.tax_withholding import get_tax_rate, resolve_category
+
+	if not doc.get("custom_apply_tds"):
+		doc.custom_tax_withholding_amount = 0
+		return
+
+	party_type = "Customer" if doc.custom_dp_type == "Sales" else "Supplier"
+	party = frappe.db.get_value(doc.reference_doctype, doc.reference_name, party_type.lower())
+
+	category, group = resolve_category(doc.reference_doctype, doc.reference_name, party_type, party)
+	rate = get_tax_rate(category, group, doc.transaction_date)
+
+	doc.custom_tax_withholding_amount = flt(
+		flt(doc.grand_total) * rate / 100, doc.precision("custom_tax_withholding_amount")
+	)
+
+
 def get_reference_doc(doc):
 	if not (doc.reference_doctype and doc.reference_name):
 		return None
@@ -239,6 +278,7 @@ def set_dp_details(doc, method=None):
 	set_dp_type(doc)
 	set_dp_percentage(doc)
 	calculate_taxes(doc)
+	set_tax_withholding_amount(doc)
 	validate_dp_amount(doc)
 	warn_if_different_from_payment_term(doc)
 

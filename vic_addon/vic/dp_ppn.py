@@ -44,9 +44,15 @@ def get_holding_account(company, dp_type):
 def is_vat_row(tax):
 	"""Baris PPN = pajak yang nambah nilai bayar dan hitungannya persentase.
 
-	PPh 23 kebedain dari sini: dia motong (`Deduct`), bukan nambah. Baris `Actual` - ongkos
-	kirim dan sejenisnya - juga kelewat, karena bukan pajak yang perlu dipindah akunnya.
+	PPh kebedain dua lapis: baris yang dibikin mesin PPh ERPNext ketandain
+	`is_tax_withholding_account`, dan PPh yang diketik tangan biasanya motong (`Deduct`).
+	Dua-duanya dilewat - arah Add/Deduct doang gak cukup, soalnya ERPNext maksa arah "Add" buat
+	PPh sisi customer. Baris `Actual` - ongkos kirim dan sejenisnya - juga kelewat, karena bukan
+	pajak yang perlu dipindah akunnya.
 	"""
+	if tax.get("is_tax_withholding_account"):
+		return False
+
 	return tax.get("charge_type") == "On Paid Amount" and tax.get("add_deduct_tax") != "Deduct"
 
 
