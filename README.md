@@ -796,6 +796,14 @@ sah, soalnya barangnya sama. Yang dibatesin cuma perbandingan total antar suppli
 Yang dibaca sebagai "ditawar" itu **ada atau enggaknya baris** di Supplier Quotation, bukan
 nilainya — jadi barang yang emang ditawar dengan harga nol tetap kehitung ditawar.
 
+**Harga dicocokin per BARIS RFQ, bukan per item code.** Satu RFQ sering punya beberapa baris
+dengan item code yang sama — misalnya satu item jasa dipakai berkali-kali dan yang ngebedain
+cuma deskripsinya. Kalau dicocokin pakai item code, baris-baris itu nabrak satu sama lain dan
+semua baris jadi nampilin harga yang sama. Yang dipakai `request_for_quotation_item`, link balik
+dari baris penawaran ke baris RFQ-nya, yang diisi ERPNext waktu Supplier Quotation dibikin dari
+RFQ. Baris penawaran lama yang link-nya kosong dicocokin lewat item code — tapi cuma kalau item
+code itu munculnya sekali doang di RFQ.
+
 | Kolom | Isinya |
 | --- | --- |
 | Item, Description, Qty, UOM | Dari baris RFQ — jadi qty-nya satu acuan buat semua supplier |
