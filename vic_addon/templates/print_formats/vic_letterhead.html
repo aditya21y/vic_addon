@@ -31,8 +31,8 @@
 	/* Lebarnya ditulis pasti, bukan lewat max-height: mesin render PDF-nya ngitung lebar kolom
 	   dari ukuran asli gambar (243px) dan baru nyusutin gambarnya belakangan, jadi kalau cuma
 	   dibatesin tingginya, kolom alamat di sebelahnya kejatah kurang dan tulisannya kebungkus. */
-	.vic-pf .head .logo { width: 160px; }
-	.vic-pf .logo img { width: 150px; height: auto; }
+	.vic-pf .head .logo { width: 195px; }
+	.vic-pf .logo img { width: 185px; height: auto; }
 	/* Blok alamat tetap nempel di pinggir kanan, tapi tulisannya rata kiri: yang didorong ke
 	   kanan kotaknya (.company), isinya (.box) dibikin rata kiri. Kalau `text-align: right`
 	   dipasang langsung ke tulisannya, tiap baris jadi mulai di tempat yang beda-beda. */
@@ -68,17 +68,22 @@
 	   yang sengaja dikosongin (buat diisi tangan) kekempis dan header-nya gak sejajar */
 	.vic-pf .items { width: 100%; margin-top: 14px; table-layout: fixed; }
 	.vic-pf .items td, .vic-pf .items th { word-wrap: break-word; overflow-wrap: anywhere; }
+	/* Judul kolom rata tengah semua - wajib ditulis eksplisit. CSS print bawaan Frappe
+	   (print.bundle.css) maksa judul tabel rata kiri, jadi kalau cuma ngandelin bawaan browser
+	   (yang rata tengah), di hasil print judulnya malah nempel kiri. */
 	.vic-pf .items th {
 		border-top: 1px solid #000;
 		border-bottom: 1px solid #000;
 		padding: 6px 4px !important;
+		text-align: center !important;
 	}
 	.vic-pf .items td { padding: 8px 4px !important; }
 	.vic-pf .items tbody tr:last-child td { border-bottom: 1px solid #000; }
 	.vic-pf .items .num { text-align: center; }
-	/* Qty rata kanan, sejajar kolom duit: isinya angka yang panjangnya beda-beda tiap baris,
-	   kalau rata tengah tepinya geser terus dan gak pernah selurus judul kolomnya. */
-	.vic-pf .items .qty { text-align: right; white-space: nowrap; }
+	/* Qty rata tengah, bukan rata kanan. Ada formulir yang kolomnya berhenti di Qty (Purchase
+	   Request dari Sales Order) - di situ rata kanan bikin angkanya nempel banget ke pinggir
+	   kertas. Kolom duit tetap rata kanan lewat `.money`. */
+	.vic-pf .items .qty { text-align: center; white-space: nowrap; }
 	.vic-pf .items .money { text-align: right; white-space: nowrap; }
 	.vic-pf .items .desc { font-weight: 700; }
 	/* Baris judul kelompok item: tebal, ngambil selebar tabel, dan gak dikasih border kanan-kiri

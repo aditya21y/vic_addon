@@ -52,7 +52,7 @@
 		<thead>
 			<tr>
 				<th style="width: 6%">Item</th>
-				<th style="width: 34%; text-align: left">Description</th>
+				<th style="width: 34%">Description</th>
 				<th style="width: 12%">Qty</th>
 				<th class="fill" style="width: 18%">Unit Price</th>
 				<th class="fill" style="width: 12%">Weight</th>
@@ -71,7 +71,7 @@
 					</td>
 					<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
 					{#- Unit Price sengaja kosong, itu jatah supplier yang ngisi -#}
-					<td class="fill"></td>
+					<td class="fill money"></td>
 					<td class="fill qty">{{ item.get("custom_weight") or "" }}</td>
 					<td class="fill">{{ item.get("custom_remarks") or "" }}</td>
 				</tr>
