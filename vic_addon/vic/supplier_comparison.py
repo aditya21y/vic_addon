@@ -41,16 +41,16 @@ def get_comparison(request_for_quotation):
 		)
 
 	items = get_items(doc)
-	rates = get_rates(offers)
+	rates = get_rates(offers, items)
 
 	for row in items:
 		row["prices"] = [
 			{
 				# `quoted` dibaca dari ADA-nya baris di penawaran, bukan dari nilainya. Baris yang
 				# dihapus manual di SQTN beda artinya sama baris yang harganya kebetulan nol.
-				"quoted": (offer["name"], row["item_code"]) in rates,
-				"rate": rates.get((offer["name"], row["item_code"])),
-				"amount": flt(rates.get((offer["name"], row["item_code"])) or 0) * flt(row["qty"]),
+				"quoted": (offer["name"], row["name"]) in rates,
+				"rate": rates.get((offer["name"], row["name"])),
+				"amount": flt(rates.get((offer["name"], row["name"])) or 0) * flt(row["qty"]),
 			}
 			for offer in offers
 		]
@@ -131,6 +131,8 @@ def get_items(request_for_quotation):
 	return [
 		{
 			"idx": item.idx,
+			# nama baris RFQ - ini kunci harga yang dipakai, bukan item_code
+			"name": item.name,
 			"item_code": item.item_code,
 			"item_name": item.item_name or item.item_code,
 			"description": item.description or item.item_name or item.item_code,
@@ -141,15 +143,44 @@ def get_items(request_for_quotation):
 	]
 
 
-def get_rates(offers):
-	"""Harga satuan tiap item per penawaran, pakai net rate (harga setelah diskon)."""
+def get_rates(offers, items):
+	"""Harga satuan per BARIS RFQ, bukan per item code.
+
+	Satu RFQ sering punya beberapa baris dengan item code yang sama - misalnya satu item jasa
+	dipakai berkali-kali dan yang ngebedain cuma deskripsinya. Kalau dikunci pakai item code,
+	baris-baris itu nabrak satu sama lain dan yang kesisa cuma harga baris terakhir.
+
+	Yang dipakai `request_for_quotation_item`: link balik dari baris penawaran ke baris RFQ-nya,
+	diisi ERPNext waktu Supplier Quotation dibikin dari RFQ. Buat baris penawaran lama yang
+	link-nya kosong, harganya dicocokin lewat item code - tapi cuma kalau item code itu munculnya
+	sekali doang di RFQ, biar gak nebak-nebak baris mana yang dimaksud.
+	"""
 	rows = frappe.get_all(
 		"Supplier Quotation Item",
 		filters={"parent": ["in", [offer["name"] for offer in offers]]},
-		fields=["parent", "item_code", "rate", "net_rate"],
+		fields=["parent", "item_code", "rate", "net_rate", "request_for_quotation_item"],
 	)
 
-	return {(row.parent, row.item_code): flt(row.net_rate) or flt(row.rate) for row in rows}
+	unique_items = get_unique_item_rows(items)
+	rates = {}
+
+	for row in rows:
+		rate = flt(row.net_rate) or flt(row.rate)
+		key = row.request_for_quotation_item or unique_items.get(row.item_code)
+
+		if key:
+			rates[(row.parent, key)] = rate
+
+	return rates
+
+
+def get_unique_item_rows(items):
+	"""Item code -> nama baris RFQ, cuma buat item code yang munculnya sekali."""
+	counts = {}
+	for row in items:
+		counts.setdefault(row["item_code"], []).append(row["name"])
+
+	return {code: names[0] for code, names in counts.items() if len(names) == 1}
 
 
 def set_coverage(offers, items):
