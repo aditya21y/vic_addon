@@ -312,6 +312,10 @@ doc_events["Material Request"] = {
 doc_events.setdefault("Request for Quotation", {}).setdefault("validate", []).append(
 	"vic_addon.vic.customer_chain.set_customer_from_opportunity"
 )
+# baris item Inquiry yang warehouse-nya kosong diisi gudang default Stock Settings
+doc_events["Request for Quotation"]["before_validate"] = [
+	"vic_addon.vic.request_for_quotation.set_default_warehouse"
+]
 doc_events.setdefault("Costing", {}).setdefault("validate", []).append(
 	"vic_addon.vic.customer_chain.set_customer_from_request_for_quotation"
 )

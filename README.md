@@ -737,6 +737,24 @@ kolomnya bertingkat tiga dan perlu di-merge — report bawaan gak bisa gitu.
 Implementasi: `vic_addon/vic/report/arus_uang_dan_barang/` (data + tampilan desk) dan
 `vic_addon/vic/arus_uang_dan_barang.py` (versi Excel).
 
+#### Warehouse default di Inquiry
+
+Baris item Inquiry yang warehouse-nya **kosong** diisi gudang dari **Stock Settings → Default
+Warehouse**. Yang udah ada isinya — dipilih user atau kebawa dari Material Request — dibiarin.
+
+| Jalur | Kapan keisi |
+| --- | --- |
+| Tombol *Create → Inquiry* di RFQ | langsung, sebelum disimpan |
+| Nambah baris manual / jalur lain | waktu disimpan |
+
+Dipasang di `before_validate`, bukan `validate`: cek field wajib jalan di antara dua itu, jadi
+kalau warehouse-nya diwajibin, baris kosong udah keburu ditolak sebelum sempat diisi.
+
+Catatan: Stock Settings itu satu nilai buat **semua company**. Kalau nanti butuh gudang default
+yang beda per company, perlu field tambahan di Company.
+
+Implementasi: `set_default_warehouse` di `vic_addon/vic/request_for_quotation.py`.
+
 #### Kirim Inquiry ke supplier (pilih item dulu)
 
 Tombol **Actions → Send Inquiry** di Request for Quotation (di desk namanya *Inquiry*) buka satu

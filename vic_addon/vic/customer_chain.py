@@ -79,6 +79,11 @@ def make_request_for_quotation(source_name, target_doc=None):
 	if customer and not doc.get("custom_customer"):
 		doc.custom_customer = customer
 
+	# gudang default juga diisi di sini, sama alasannya: biar udah kelihatan sebelum disimpan
+	from vic_addon.vic.request_for_quotation import set_default_warehouse
+
+	set_default_warehouse(doc)
+
 	return doc
 
 

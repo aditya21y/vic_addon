@@ -26,6 +26,24 @@ INQUIRY_PREFIX = "Inquiry-"
 PRINT_FORMAT = "Inquiry"
 
 
+def set_default_warehouse(doc, method=None):
+	"""Hook `before_validate` Request for Quotation: warehouse kosong diisi gudang default.
+
+	Gudangnya dari Stock Settings > Default Warehouse. Yang diisi cuma baris yang masih kosong -
+	gudang yang udah dipilih user atau kebawa dari Material Request dibiarin.
+
+	Sengaja `before_validate`, bukan `validate`: cek field wajib jalan di antara dua itu, jadi
+	kalau warehouse-nya diwajibin, baris kosong udah keburu ditolak sebelum sempat diisi.
+	"""
+	warehouse = frappe.db.get_single_value("Stock Settings", "default_warehouse")
+	if not warehouse:
+		return
+
+	for row in doc.get("items") or []:
+		if not row.get("warehouse"):
+			row.warehouse = warehouse
+
+
 @frappe.whitelist()
 def download_inquiry(request_for_quotation, items=None):
 	"""Tombol unduh Excel: kirim file-nya ke browser, cuma item yang dipilih."""
