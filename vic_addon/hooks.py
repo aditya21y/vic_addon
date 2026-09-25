@@ -414,6 +414,8 @@ override_whitelisted_methods = {
 	"erpnext.accounts.doctype.payment_request.payment_request.make_payment_entry": "vic_addon.vic.dp_invoice.make_payment_entry",
 	# tombol Create Payment Request di SO/PO: DP dihitung dari net total + tabel pajak keisi
 	"erpnext.accounts.doctype.payment_request.payment_request.make_payment_request": "vic_addon.vic.dp_invoice.make_payment_request",
+	# tombol Create Inquiry di Opportunity: Customer-nya udah keisi waktu formnya kebuka
+	"erpnext.crm.doctype.opportunity.opportunity.make_request_for_quotation": "vic_addon.vic.customer_chain.make_request_for_quotation",
 }
 
 # override_whitelisted_methods = {

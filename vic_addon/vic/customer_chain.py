@@ -29,17 +29,57 @@ def set_customer_from_opportunity(doc, method=None):
 		return
 
 	opportunities = {item.opportunity for item in doc.get("items") or [] if item.get("opportunity")}
-	if not opportunities:
-		return
 
-	for name in sorted(opportunities):
+	customer = get_customer_of_opportunities(opportunities)
+	if customer:
+		doc.custom_customer = customer
+
+
+@frappe.whitelist()
+def get_customer_of_opportunities(opportunities):
+	"""Customer dari sekumpulan Opportunity, `None` kalau gak ada yang punya.
+
+	Dipanggil juga dari form (lihat `public/js/request_for_quotation.js`): waktu item ditarik
+	lewat `Get Items From > Opportunity`, dokumennya belum disimpan - jadi kalau cuma ngandelin
+	hook `validate`, kolom Customer-nya baru keisi setelah user nge-save. Di sini diisi duluan
+	biar langsung kelihatan.
+	"""
+	if isinstance(opportunities, str):
+		opportunities = frappe.parse_json(opportunities)
+
+	for name in sorted(set(opportunities or [])):
 		opportunity = frappe.db.get_value(
 			"Opportunity", name, ["opportunity_from", "party_name"], as_dict=True
 		)
 		# Opportunity bisa punya Lead, dan Lead belum jadi Customer - itu dilewat
 		if opportunity and opportunity.opportunity_from == "Customer" and opportunity.party_name:
-			doc.custom_customer = opportunity.party_name
-			return
+			return opportunity.party_name
+
+	return None
+
+
+@frappe.whitelist()
+def make_request_for_quotation(source_name, target_doc=None):
+	"""Tombol `Create > Inquiry` di Opportunity.
+
+	Sama kayak versi ERPNext, cuma Customer-nya langsung diisi di dokumen yang dibalikin - jadi
+	udah kelihatan di form sebelum disimpan. Kalau cuma ngandelin hook `validate`, kolomnya baru
+	keisi setelah user nge-save, dan itu yang bikin kelihatan kayak gak jalan.
+
+	Customernya dibaca dari Opportunity-nya langsung, bukan dari baris item - jadi tetap keisi
+	walaupun itemnya belum ada atau dihapus lagi di Inquiry-nya.
+	"""
+	from erpnext.crm.doctype.opportunity.opportunity import (
+		make_request_for_quotation as make_erpnext_request_for_quotation,
+	)
+
+	doc = make_erpnext_request_for_quotation(source_name, target_doc)
+
+	customer = get_customer_of_opportunities([source_name])
+	if customer and not doc.get("custom_customer"):
+		doc.custom_customer = customer
+
+	return doc
 
 
 def set_customer_from_request_for_quotation(doc, method=None):

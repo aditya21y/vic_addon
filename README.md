@@ -1073,6 +1073,11 @@ Dua-duanya cuma ngisi kalau field-nya **masih kosong**, jadi pilihan user gak pe
 Opportunity yang punya **Lead** (belum jadi Customer) dilewat, dan RFQ yang dibikin manual
 tanpa Opportunity ya customer-nya kosong — bukan error.
 
+Di form RFQ, Customer-nya diisi **dua kali**: sekali dari form begitu item ditarik lewat
+*Get Items From → Opportunity* (biar langsung kelihatan tanpa nge-save dulu), sekali lagi di
+server tiap dokumennya disimpan. Yang di server tetap perlu — dokumen yang dibikin lewat API
+atau import gak lewat form sama sekali.
+
 Implementasi: `vic_addon/vic/customer_chain.py`.
 
 #### Project ngalir dari Opportunity sampai ke bawah
