@@ -737,6 +737,46 @@ kolomnya bertingkat tiga dan perlu di-merge — report bawaan gak bisa gitu.
 Implementasi: `vic_addon/vic/report/arus_uang_dan_barang/` (data + tampilan desk) dan
 `vic_addon/vic/arus_uang_dan_barang.py` (versi Excel).
 
+#### Kirim Inquiry ke supplier (pilih item dulu)
+
+Tombol **Actions → Send Inquiry** di Request for Quotation (di desk namanya *Inquiry*) buka satu
+pop up: pilih supplier, centang item mana aja yang mau dimintain harganya, tulis subject sama
+isi emailnya. Barang sering dipecah per jenis supplier, jadi jarang satu supplier dimintain
+semua item di dokumen.
+
+Empat tombol di pop up-nya, semuanya pakai item yang dicentang doang:
+
+| Tombol | Yang terjadi |
+| --- | --- |
+| **Send Email** | Kirim ke email supplier di baris tabel Suppliers, lampirannya Excel atau PDF. Emailnya masuk timeline dokumen |
+| **Send WhatsApp** | Bikin file publik + link, terus buka WhatsApp Web/Desktop dengan teksnya udah keisi |
+| **Download Excel** | Unduh sendiri |
+| **Download PDF** | Print format Inquiry jadi PDF |
+
+**Jejaknya:** tiap kirim, file yang dikirim nempel di dokumennya — jadi kelihatan kapan dikirim
+ke siapa dan isinya apa. File buat email disimpan **privat**; file buat WhatsApp **publik**,
+soalnya penerimanya buka dari HP tanpa akun. Nama filenya dikasih kode acak 8 karakter di
+ujungnya, itu yang jadi kunci link — gak bisa ditebak dari nomor dokumen, dan link-nya mati
+begitu lampirannya dihapus dari dokumen.
+
+Penyaringan itemnya cuma di **salinan memori** — dokumen aslinya gak disentuh, jadi kirim ke
+supplier A dengan 3 item dan ke supplier B dengan 2 item lain gak saling ganggu.
+
+**Tombol bawaan yang dicopot.** Grup **Tools** di dokumen yang udah submit isinya dua tombol
+yang sekarang digantiin Send Inquiry, dan dua-duanya disembunyiin biar gak bikin bingung:
+
+| Tombol | Kelakuan bawaannya |
+| --- | --- |
+| Send Emails to Suppliers | Ngirim *link portal* supaya supplier ngisi harga sendiri di web, subject/body dari Email Template, lampirannya semua file yang nempel di dokumen |
+| Download PDF | Nanya print format + supplier lewat prompt, terus diunduh — tanpa pilih item |
+
+Dicopotnya waktu `refresh`, bukan `setup` — tombolnya baru dipasang ERPNext pas refresh jalan.
+Tombol **Tools** waktu dokumennya masih draft (*Link to Material Requests*, *Get Suppliers*)
+sengaja **dibiarin** — itu buat nyusun dokumennya, bukan buat ngirim, dan gak ada gantinya.
+
+Implementasi: `vic_addon/vic/request_for_quotation.py` +
+`vic_addon/public/js/request_for_quotation.js`.
+
 #### Inquiry versi Excel
 
 Print format **Inquiry** itu buat dicetak dan diisi tangan. Tombol **Actions > Download Inquiry**

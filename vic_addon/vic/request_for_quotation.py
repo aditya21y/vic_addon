@@ -1,8 +1,16 @@
-"""Inquiry: permintaan penawaran ke supplier, versi Excel.
+"""Inquiry: permintaan penawaran ke supplier.
 
-Print format `Inquiry` itu buat dicetak dan diisi tangan. Yang ini isinya sama persis, cuma
-bentuknya file Excel - supplier tinggal ngisi kolom Unit Price / Weight / Remarks di
-spreadsheet lalu dikirim balik, jadi purchasing gak perlu ngetik ulang.
+Print format `Inquiry` itu buat dicetak dan diisi tangan. Versi Excel-nya isinya sama persis -
+supplier tinggal ngisi kolom Unit Price / Weight / Remarks di spreadsheet lalu dikirim balik,
+jadi purchasing gak perlu ngetik ulang.
+
+Di sini juga ada pengiriman ke supplier: user milih supplier, nyentang item mana aja yang mau
+dimintain harga, terus kirim lewat email atau WhatsApp - atau diunduh sendiri. Barang sering
+dipecah per jenis supplier, jadi jarang satu supplier dimintain semua item di dokumen.
+
+Yang dikirim ikut lampir di dokumennya, biar kelihatan kapan dikirim ke siapa dan isinya apa.
+File buat email disimpan privat; file buat WhatsApp mesti publik supaya bisa dibuka dari HP
+tanpa akun, dan link-nya bisa dicabut dengan ngehapus lampirannya.
 """
 
 import frappe
@@ -12,16 +20,168 @@ from frappe.utils import flt
 # kolom yang sengaja dikosongin buat diisi supplier
 FILL_COLUMNS = ("Unit Price", "Weight", "Remarks")
 
+# awalan nama file yang dikirim ke supplier - dipakai buat nyari lampiran lama
+INQUIRY_PREFIX = "Inquiry-"
+
+PRINT_FORMAT = "Inquiry"
+
 
 @frappe.whitelist()
-def download_inquiry(request_for_quotation):
-	"""Tombol `Download Inquiry` di Request for Quotation: kirim file Excel-nya ke browser."""
-	doc = frappe.get_doc("Request for Quotation", request_for_quotation)
-	doc.check_permission("read")
+def download_inquiry(request_for_quotation, items=None):
+	"""Tombol unduh Excel: kirim file-nya ke browser, cuma item yang dipilih."""
+	doc = get_inquiry_doc(request_for_quotation, items)
 
 	frappe.response["filename"] = f"{doc.name} - Inquiry.xlsx"
 	frappe.response["filecontent"] = build_workbook(doc).getvalue()
 	frappe.response["type"] = "binary"
+
+
+@frappe.whitelist()
+def download_inquiry_pdf(request_for_quotation, items=None):
+	"""Tombol unduh PDF: print format Inquiry, cuma item yang dipilih."""
+	doc = get_inquiry_doc(request_for_quotation, items)
+
+	frappe.response["filename"] = f"{doc.name} - Inquiry.pdf"
+	frappe.response["filecontent"] = build_pdf(doc)
+	frappe.response["type"] = "pdf"
+
+
+def get_inquiry_doc(request_for_quotation, items=None):
+	"""Dokumen RFQ dengan baris item disaring sesuai centangan user.
+
+	Yang disaring salinan di memori doang - dokumen aslinya gak disentuh. Kalau gak ada yang
+	dipilih, semua item kebawa.
+	"""
+	doc = frappe.get_doc("Request for Quotation", request_for_quotation)
+	doc.check_permission("read")
+
+	selected = frappe.parse_json(items) if isinstance(items, str) else items
+	if not selected:
+		return doc
+
+	doc.items = [row for row in doc.items if row.name in set(selected)]
+	if not doc.items:
+		frappe.throw(_("No item selected."), title=_("Nothing to Send"))
+
+	return doc
+
+
+def build_pdf(doc):
+	"""Print format Inquiry jadi PDF, pakai dokumen yang itemnya udah disaring."""
+	return frappe.get_print(doc.doctype, doc.name, PRINT_FORMAT, doc=doc, as_pdf=True)
+
+
+def get_supplier_row(doc, supplier):
+	for row in doc.suppliers:
+		if row.supplier == supplier:
+			return row
+
+	frappe.throw(
+		_("Supplier {0} is not listed on {1}.").format(supplier, doc.name),
+		title=_("Supplier Not Found"),
+	)
+
+
+def attach_inquiry(doc, supplier, file_format, is_private):
+	"""Simpen file yang dikirim sebagai lampiran di dokumennya.
+
+	Nama filenya dikasih kode acak di ujungnya - itu yang jadi kunci link WhatsApp, biar URL-nya
+	gak bisa ditebak dari nomor dokumen.
+	"""
+	extension = "xlsx" if file_format == "Excel" else "pdf"
+	content = build_workbook(doc).getvalue() if file_format == "Excel" else build_pdf(doc)
+
+	return frappe.get_doc(
+		{
+			"doctype": "File",
+			"file_name": f"{INQUIRY_PREFIX}{doc.name}-{frappe.generate_hash(length=8)}.{extension}",
+			"attached_to_doctype": doc.doctype,
+			"attached_to_name": doc.name,
+			"content": content,
+			"is_private": 1 if is_private else 0,
+		}
+	).insert(ignore_permissions=True)
+
+
+@frappe.whitelist()
+def send_inquiry(request_for_quotation, supplier, items=None, subject=None, message=None, file_format="Excel"):
+	"""Kirim inquiry ke satu supplier lewat email, lengkap sama lampirannya."""
+	from frappe.core.doctype.communication.email import make
+
+	doc = get_inquiry_doc(request_for_quotation, items)
+	row = get_supplier_row(doc, supplier)
+
+	if not row.email_id:
+		frappe.throw(
+			_("Supplier {0} has no email address on this document.").format(supplier),
+			title=_("Email Address Missing"),
+		)
+
+	file = attach_inquiry(doc, supplier, file_format, is_private=True)
+
+	make(
+		subject=subject or _("Inquiry {0}").format(doc.name),
+		content=message or "",
+		recipients=row.email_id,
+		attachments=[file.name],
+		send_email=True,
+		doctype=doc.doctype,
+		name=doc.name,
+	)
+
+	return {"email": row.email_id, "file_name": file.file_name, "items": len(doc.items)}
+
+
+@frappe.whitelist()
+def share_inquiry(request_for_quotation, supplier, items=None, file_format="Excel"):
+	"""Bikin file publik + link-nya, buat dibagi lewat WhatsApp."""
+	doc = get_inquiry_doc(request_for_quotation, items)
+	get_supplier_row(doc, supplier)
+
+	file = attach_inquiry(doc, supplier, file_format, is_private=False)
+
+	return {
+		"file_name": file.file_name,
+		"url": frappe.utils.get_url(
+			f"/api/method/vic_addon.vic.request_for_quotation.view_inquiry?key={get_share_key(file.file_name)}"
+		),
+		"items": len(doc.items),
+	}
+
+
+def get_share_key(file_name):
+	"""Kode acak di ujung nama file - itu yang jadi kunci link."""
+	return file_name.rsplit("-", 1)[-1].rsplit(".", 1)[0]
+
+
+@frappe.whitelist(allow_guest=True)
+def view_inquiry(key):
+	"""Buka file inquiry dari link yang dibagiin - tanpa perlu login.
+
+	Sama kayak link perbandingan supplier: yang dicari cuma lampiran inquiry di Request for
+	Quotation, jadi endpoint ini gak bisa dipakai buat narik file lain. Nama site dibaca dari
+	header yang dipasang nginx, jadi jalurnya gak lewat `/files/...` yang bisa 404 di server
+	multi-domain.
+	"""
+	if not (key and key.isalnum()):
+		raise frappe.DoesNotExistError
+
+	name = frappe.db.get_value(
+		"File",
+		{
+			"file_name": ["like", f"{INQUIRY_PREFIX}%-{key}.%"],
+			"attached_to_doctype": "Request for Quotation",
+		},
+		"name",
+	)
+	if not name:
+		raise frappe.DoesNotExistError
+
+	file = frappe.get_doc("File", name)
+
+	frappe.response["filename"] = file.file_name
+	frappe.response["filecontent"] = file.get_content()
+	frappe.response["type"] = "pdf" if file.file_name.endswith(".pdf") else "binary"
 
 
 def build_workbook(doc):
