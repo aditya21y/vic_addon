@@ -1140,6 +1140,22 @@ Konsekuensi yang perlu diinget: karena namanya nabrak nama field bawaan, kalau s
 nambahin field `project` sendiri di salah satu doctype itu, custom field kita bakal bentrok dan
 mesti dicabut. Itu risiko yang diambil sadar — imbalannya nol kode tambahan di semua mapper.
 
+#### Form Project dirampingin
+
+Semua lewat property setter di `fixtures/property_setter.json`, gak ada kode:
+
+- **Disembunyiin**: From Template, % Complete Method, Estimated Cost, Department, dan seluruh
+  tab **Progress** (cukup tab break-nya yang di-hide, field di dalamnya ikut ketutup).
+- **Customer Details** (Customer, Sales Order) dan **Notes** dipindah ke tab **Details**, di bawah
+  section Timeline — lewat property setter `field_order` di level DocType.
+
+Field yang disembunyiin tetap jalan pakai default-nya: % Complete Method tetap `Task Completion`,
+jadi % Completed masih keitung dari Task.
+
+Kalau ERPNext nambah field baru di Project, field itu gak ada di daftar `field_order` kita —
+Frappe naruh field yang gak kedaftar sesuai urutan bawaan, jadi aman, cuma posisinya mungkin perlu
+dicek.
+
 #### Customer WAPU
 
 WAPU (Wajib Pungut): PPN-nya dipungut dan disetor sendiri sama customer — biasanya instansi
