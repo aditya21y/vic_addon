@@ -374,48 +374,71 @@ Implementasi:
 
 Belum: print format refund.
 
-#### PPh atas uang muka dipotong di Payment Entry
+#### PPh dipotong di Payment Entry, bukan di invoice
 
-ERPNext udah punya mesin PPh di Payment Entry: begitu **Consider for Tax Withholding**
-(`apply_tds`) nyala dan kategorinya keisi, potongannya dihitung sendiri waktu dokumennya
-divalidasi. Dasar hitungnya uang yang belum dialokasi plus alokasi ke dokumen uang muka (PO/SO)
-— jadi pembayaran DP emang kasus yang dia dukung.
+PPh (misalnya PPh 23 jasa) diakui waktu **dibayar**, bukan waktu invoice dibikin. Dua jalurnya:
 
-Yang bolong: **Payment Request gak kenal PPh sama sekali** (gak ada field, gak ada hook), dan
-Payment Entry gak pernah nyalain `apply_tds` sendiri. Jadi DP yang dibayar lewat Advance Invoice
-gak pernah motong PPh. Yang ditambal cuma sambungan itu:
-
-1. Advance Invoice dapat centangan **Potong PPh** + field **Perkiraan PPh**. Centangannya keisi
-   otomatis waktu dokumennya lahir dari PO/SO, kalau kategori PPh-nya ketemu.
-2. Waktu Payment Entry-nya dibikin, `apply_tds` dinyalain dan kategorinya diisi. Sisanya mesin
-   ERPNext yang ngerjain.
-
-Kategorinya dicari persis kayak cara ERPNext nyari buat baris invoice
-(`stock/get_item_details.py`): kategori di master **Item** dulu
-(`purchase_tax_withholding_category` / `sales_tax_withholding_category` sesuai arah transaksi),
-baru jatuh ke kategori di master Supplier/Customer.
-
-**Pelunasan sengaja gak ikut.** ERPNext gak ngitung alokasi ke invoice sebagai dasar PPh —
-asumsinya invoice-nya sendiri yang motong. Jadi PI/SI **tetap** motong PPh kayak biasa, dan
-yang udah kepotong di DP otomatis dikurangin dari invoice asal Payment Entry DP-nya ditempelin
-di tabel **Advances** invoice itu. Contoh, PO jasa 100jt tarif 2%:
-
-| Dokumen | PPh |
+| Pembayaran | Caranya |
 | --- | --- |
-| Payment Entry DP 30jt | 600.000 |
-| Purchase Invoice 100jt (DP ditempelin) | 1.400.000 |
-| **total** | **2.000.000** — pas, gak dobel gak bolong |
+| **Uang muka** lewat Advance Invoice | Mesin PPh bawaan ERPNext (`apply_tds`) — dinyalain otomatis waktu PE lahir dari Advance Invoice |
+| **Pelunasan** Purchase / Sales Invoice | Baris PPh dihitung sendiri — centangan **Potong PPh atas Invoice** di PE |
 
-Angka **Perkiraan PPh** di Advance Invoice cuma buat tau duit yang bakal keluar berapa. Yang
-dibukukan dihitung ulang di Payment Entry pakai tarif yang berlaku di tanggal posting
-pembayarannya — dua angka ini bisa beda kalau tarifnya ganti di antara dua tanggal itu.
+Karena itu **Consider for Tax Withholding** di Purchase / Sales Invoice **default mati** (di
+form, `public/js/invoice_tds.js`). Masih boleh dicentang manual buat kasus khusus — PE-nya bakal
+ngelewatin invoice yang udah motong sendiri, biar gak kepotong dua kali.
 
-> **Baru dites buat sisi pembelian.** Di sisi customer, ERPNext maksa arah potongannya jadi
-> `Add` — di Payment Entry itu artinya **nambah** uang masuk (skema TCS), kebalikan dari PPh 23
-> Indonesia yang bikin uang masuk berkurang. Checkbox-nya udah dibikin kelihatan buat Customer,
-> tapi arahnya belum dibetulin, jadi jangan dipakai di sisi penjualan dulu.
+**Kenapa pelunasan gak pakai mesin bawaan:** dasar hitung PPh di PE bawaan cuma uang yang belum
+dialokasi plus alokasi ke PO/SO — alokasi ke invoice dianggap **nol**, karena ERPNext ngira
+invoice-nya udah motong sendiri. Dan buat Customer arahnya dipaksa `Add` (skema TCS).
 
-Implementasi: `vic_addon/vic/tax_withholding.py` + sambungannya di `vic_addon/vic/dp_invoice.py`.
+**Rumus baris PPh pelunasan:**
+
+```
+PPh = (PPh penuh invoice − yang udah kepotong) × porsi yang dibayar sekarang
+
+PPh penuh      = DPP invoice (base_net_total) × tarif kategori
+udah kepotong  = PPh di PE uang muka yang ditempel di tabel Advances invoice
+               + PPh pelunasan sebelumnya atas invoice yang sama (buat yang nyicil)
+porsi          = alokasi sekarang / sisa tagihan sebelum pembayaran ini
+```
+
+Dasarnya **DPP, bukan uang yang dibayar** — uang pelunasan udah termasuk PPN, dan PPh gak boleh
+kena PPN. Contoh PI jasa 100jt + PPN 11%, tarif 2%:
+
+| Kasus | PPh |
+| --- | --- |
+| Lunas sekali (bayar 111jt) | 2.000.000 — bukan 2% × 111jt = 2.220.000 |
+| Nyicil dua kali | 1.000.000 + 1.000.000 |
+| DP 30% dulu | 600.000 di PE DP + 1.400.000 di PE pelunasan |
+| Invoice yang motong sendiri | 0 di PE — biar gak dobel |
+
+Barisnya tipe `Actual`, **Deduct**, dan dihitung ulang tiap PE disimpan (alokasi diganti → PPh
+ikut). Nilai per invoice kecatat di kolom **PPh** di tabel referensi PE, dan itu yang dibaca
+waktu ngitung "yang udah kepotong" buat pembayaran berikutnya. Barisnya **gak** pakai penanda
+bawaan `is_tax_withholding_account` — baris bertanda itu dinolin mesin PPh bawaan tiap validate.
+
+**Dua sisi sama-sama `Deduct`, tapi akunnya beda:**
+
+| Sisi | Jurnal | Akun |
+| --- | --- | --- |
+| Pembelian (Pay) | kredit akun PPh, bank keluar lebih sedikit | **Utang PPh 23** (kewajiban) |
+| Penjualan (Receive) | debit akun PPh, bank masuk lebih sedikit | **PPh 23 dibayar dimuka** (aset) |
+
+Akunnya diambil dari Tax Withholding Category. Jadi **sisi penjualan butuh kategori sendiri**
+yang akunnya aset, dipasang di **Sales Tax Withholding Category** master Item. Kalau sisi
+penjualan kebaca akun kewajiban, PE-nya **ditolak** — kalau dibiarin, PE bakal ndebit Utang
+PPh 23 dan kelihatan kayak kita udah nyetor PPh.
+
+Kategorinya dicari kayak cara ERPNext: kategori di master **Item** dulu, baru jatuh ke kategori
+di master Supplier/Customer.
+
+**Advance Invoice** dapat centangan **Potong PPh** + field **Perkiraan PPh** (cuma angka
+perkiraan — yang dibukukan dihitung ulang di PE, pakai tarif di tanggal posting pembayarannya).
+
+**Belum ditangani:** PO/PI mata uang asing (angka PPh-nya bisa meleset), dan PO bertermin di
+jalur uang muka (dasar PPh bisa kegedean kalau PE punya beberapa baris referensi ke PO).
+
+Implementasi: `vic_addon/vic/tax_withholding.py`.
 
 #### PPN uang muka ditampung dulu, baru dipindah waktu DP kebayar
 

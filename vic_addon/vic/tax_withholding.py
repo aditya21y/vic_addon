@@ -21,6 +21,7 @@ asal Payment Entry DP-nya ditempelin di tabel Advances invoice itu.
 """
 
 import frappe
+from frappe import _
 from frappe.utils import flt
 
 # arah transaksi -> field kategori di master Item
@@ -117,3 +118,239 @@ def set_apply_tds(doc, method=None):
 	doc.tax_withholding_category = category
 	if group:
 		doc.tax_withholding_group = group
+
+
+# ---------------------------------------------------------------------------------------------
+# PPh atas pelunasan invoice
+# ---------------------------------------------------------------------------------------------
+#
+# Mesin PPh bawaan Payment Entry gak bisa dipakai buat pelunasan: dasar hitungnya cuma uang yang
+# belum dialokasi plus alokasi ke PO/SO - alokasi ke invoice dianggap nol, karena ERPNext ngira
+# invoice-nya udah motong sendiri. Dan buat Customer arahnya dipaksa "Add" (skema TCS), padahal
+# PPh 23 di sisi penjualan itu customer yang motong, uang masuk kita berkurang.
+#
+# Jadi di sini baris PPh-nya dibikin sendiri, sama kayak baris pajak di Advance Invoice:
+#
+#   PPh baris ini = (PPh penuh invoice - yang udah kepotong) x porsi yang dibayar sekarang
+#
+# - PPh penuh    = DPP invoice (`base_net_total`) x tarif kategori. Bukan dari uang yang dibayar:
+#                  uang pelunasan udah termasuk PPN, dan PPh gak boleh kena PPN.
+# - udah kepotong = PPh di Payment Entry uang muka yang ditempel di tabel Advances invoice, plus
+#                  PPh pelunasan sebelumnya atas invoice yang sama (buat yang nyicil).
+# - porsi        = alokasi sekarang / sisa tagihan sebelum pembayaran ini.
+#
+# Dua sisinya sama-sama "Deduct". Bedanya di akun: pembelian ngredit Utang PPh 23 (kewajiban),
+# penjualan ndebit PPh 23 dibayar dimuka (aset) - makanya sisi penjualan butuh kategori sendiri.
+
+INVOICE_PARTY = {"Purchase Invoice": "Supplier", "Sales Invoice": "Customer"}
+
+TOGGLE_FIELD = "custom_apply_invoice_tds"
+ROW_FLAG = "custom_invoice_withholding"
+REFERENCE_AMOUNT = "custom_withholding_amount"
+
+
+def apply_invoice_withholding(doc, method=None):
+	"""Hook `before_validate` Payment Entry: susun ulang baris PPh atas pelunasan invoice.
+
+	Tiap disimpan dihitung dari awal - baris yang kita pasang dibuang dulu - jadi kalau alokasi
+	atau tanggalnya diganti, PPh-nya ikut. Baris pajak lain (PPN, baris ketikan user) gak disentuh.
+	"""
+	if doc.docstatus != 0:
+		return
+
+	keep = [row for row in doc.get("taxes") or [] if not row.get(ROW_FLAG)]
+	if len(keep) != len(doc.get("taxes") or []):
+		doc.set("taxes", keep)
+		for index, row in enumerate(doc.taxes, start=1):
+			row.idx = index
+
+	for reference in doc.get("references") or []:
+		reference.set(REFERENCE_AMOUNT, 0)
+
+	if not doc.get(TOGGLE_FIELD):
+		return
+
+	per_account = {}
+	for reference in get_invoice_references(doc):
+		amount, account = get_reference_withholding(doc, reference)
+		if not amount:
+			continue
+
+		reference.set(REFERENCE_AMOUNT, amount)
+		per_account[account] = per_account.get(account, 0) + amount
+
+	for account, amount in per_account.items():
+		doc.append(
+			"taxes",
+			{
+				"charge_type": "Actual",
+				"account_head": account,
+				"description": account,
+				"add_deduct_tax": "Deduct",
+				"tax_amount": flt(amount, doc.precision("paid_amount")),
+				"cost_center": doc.get("cost_center") or erpnext_default_cost_center(doc.company),
+				# sengaja gak pakai `is_tax_withholding_account`: baris yang ditandain itu
+				# dinolin mesin PPh bawaan tiap validate
+				ROW_FLAG: 1,
+			},
+		)
+
+
+def get_invoice_references(doc):
+	return [
+		row
+		for row in doc.get("references") or []
+		if row.reference_doctype in INVOICE_PARTY and flt(row.allocated_amount)
+	]
+
+
+def get_reference_withholding(payment, reference):
+	"""PPh atas satu baris alokasi ke invoice: `(nilai, akun)`, `(0, None)` kalau gak kena."""
+	invoice = frappe.get_cached_doc(reference.reference_doctype, reference.reference_name)
+
+	# invoice yang motong sendiri dilewat - kalau enggak, PPh-nya kepotong dua kali
+	if invoice.get("apply_tds"):
+		return 0, None
+
+	party_type = INVOICE_PARTY[invoice.doctype]
+	party = invoice.get(party_type.lower())
+
+	category, group = resolve_category(invoice.doctype, invoice.name, party_type, party)
+	if not category:
+		return 0, None
+
+	rate = get_tax_rate(category, group, payment.posting_date)
+	if not rate:
+		return 0, None
+
+	account = frappe.get_cached_doc("Tax Withholding Category", category).get_company_account(
+		payment.company
+	)
+	validate_account_side(account, party_type, category)
+
+	full = flt(invoice.base_net_total) * rate / 100
+	already = get_withheld_on_advances(invoice) + get_withheld_on_earlier_payments(
+		invoice, exclude=payment.name
+	)
+	remaining = max(full - already, 0)
+
+	outstanding = flt(reference.outstanding_amount)
+	portion = min(flt(reference.allocated_amount) / outstanding, 1) if outstanding else 1
+
+	return flt(remaining * portion, payment.precision("paid_amount")), account
+
+
+def validate_account_side(account, party_type, category):
+	"""Sisi penjualan wajib pakai akun aset, bukan kewajiban.
+
+	Customer yang motong PPh-nya, jadi potongannya hak kita (PPh dibayar dimuka). Kalau yang
+	kepakai akun Utang PPh, Payment Entry-nya bakal ndebit utang - kelihatan kayak kita udah nyetor
+	PPh ke kantor pajak. Dicegah di sini biar gak salah posting diem-diem.
+	"""
+	if party_type != "Customer":
+		return
+
+	if frappe.db.get_value("Account", account, "root_type") == "Liability":
+		frappe.throw(
+			_(
+				"Tax Withholding Category {0} posts to {1}, which is a liability account. On the sales side the customer withholds the tax, so it must go to an asset account (prepaid tax). Use a separate category for sales in the Item's Sales Tax Withholding Category."
+			).format(frappe.bold(category), frappe.bold(account)),
+			title=_("Wrong Account for Sales Withholding"),
+		)
+
+
+def get_withheld_on_advances(invoice):
+	"""PPh yang udah kepotong di Payment Entry uang muka yang ditempel ke invoice ini.
+
+	Diprorata sesuai porsi uang mukanya yang dipakai di invoice ini - satu uang muka bisa kebagi
+	ke beberapa invoice.
+	"""
+	total = 0.0
+
+	for advance in invoice.get("advances") or []:
+		if advance.reference_type != "Payment Entry" or not flt(advance.allocated_amount):
+			continue
+
+		payment = frappe.get_cached_doc("Payment Entry", advance.reference_name)
+		party_amount = flt(payment.paid_amount) or flt(payment.received_amount)
+		if not party_amount:
+			continue
+
+		withheld = sum(
+			flt(row.base_tax_amount)
+			for row in payment.get("taxes") or []
+			if row.get("is_tax_withholding_account") or row.get(ROW_FLAG)
+		)
+		total += withheld * min(flt(advance.allocated_amount) / party_amount, 1)
+
+	return total
+
+
+def get_withheld_on_earlier_payments(invoice, exclude=None):
+	"""PPh pelunasan yang udah dipotong di Payment Entry lain atas invoice yang sama."""
+	reference = frappe.qb.DocType("Payment Entry Reference")
+	payment = frappe.qb.DocType("Payment Entry")
+
+	query = (
+		frappe.qb.from_(reference)
+		.inner_join(payment)
+		.on(payment.name == reference.parent)
+		.select(reference[REFERENCE_AMOUNT])
+		.where(
+			(reference.reference_doctype == invoice.doctype)
+			& (reference.reference_name == invoice.name)
+			& (payment.docstatus == 1)
+		)
+	)
+	if exclude:
+		query = query.where(payment.name != exclude)
+
+	return sum(flt(row[0]) for row in query.run())
+
+
+def erpnext_default_cost_center(company):
+	return frappe.get_cached_value("Company", company, "cost_center")
+
+
+@frappe.whitelist()
+def get_payment_entry(
+	dt,
+	dn,
+	party_amount=None,
+	bank_account=None,
+	bank_amount=None,
+	party_type=None,
+	payment_type=None,
+	reference_date=None,
+	created_from_payment_request=False,
+):
+	"""Tombol `Create > Payment` di Purchase / Sales Invoice.
+
+	Sama kayak versi ERPNext, cuma centangan Potong PPh atas Invoice langsung dinyalain kalau
+	invoice-nya kena PPh, dan barisnya udah keisi - biar kelihatan di form sebelum disimpan.
+
+	Argumennya sengaja ditulis satu-satu, sama persis kayak versi ERPNext - jangan diganti
+	`*args, **kwargs`. Frappe nyaring isi request sesuai argumen fungsinya; kalau fungsinya nerima
+	`**kwargs`, semuanya ikut kelempar (termasuk `cmd`), dan versi ERPNext-nya bakal nolak.
+	"""
+	from erpnext.accounts.doctype.payment_entry.payment_entry import (
+		get_payment_entry as get_erpnext_payment_entry,
+	)
+
+	doc = get_erpnext_payment_entry(
+		dt,
+		dn,
+		party_amount=party_amount,
+		bank_account=bank_account,
+		bank_amount=bank_amount,
+		party_type=party_type,
+		payment_type=payment_type,
+		reference_date=reference_date,
+		created_from_payment_request=created_from_payment_request,
+	)
+
+	if any(get_reference_withholding(doc, row)[0] for row in get_invoice_references(doc)):
+		doc.set(TOGGLE_FIELD, 1)
+		apply_invoice_withholding(doc)
+
+	return doc

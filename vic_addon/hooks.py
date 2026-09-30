@@ -91,6 +91,9 @@ doctype_js["Request for Quotation"] = ["public/js/request_for_quotation.js"]
 doctype_js["Payment Request"] = ["public/js/payment_request.js"]
 # tarik biaya yang nambah nilai barang dari Journal Entry
 doctype_js["Landed Cost Voucher"] = ["public/js/landed_cost_voucher.js"]
+# PPh diakui di Payment Entry, jadi "Consider for Tax Withholding" di invoice default mati
+for doctype in ("Purchase Invoice", "Sales Invoice"):
+	doctype_js.setdefault(doctype, []).append("public/js/invoice_tds.js")
 # tombol bikin PO per supplier
 doctype_js["Sales Order"].append("public/js/sales_order.js")
 # PO dropship: tombol bikin Delivery Note, tombol Purchase Receipt disembunyiin
@@ -297,6 +300,9 @@ doc_events["Payment Entry"] = {
 		"vic_addon.vic.dp_invoice.set_advance_taxes",
 		# PPh atas uang muka: dinyalain di sini, hitungannya ERPNext yang ngerjain
 		"vic_addon.vic.tax_withholding.set_apply_tds",
+		# PPh atas pelunasan invoice: barisnya dihitung sendiri. Harus paling akhir - kalau duluan,
+		# `set_advance_taxes` ngira tabel pajaknya udah diisi user dan gak nyalin PPN dari DP
+		"vic_addon.vic.tax_withholding.apply_invoice_withholding",
 	],
 	# PPN uang muka pindah dari akun penampung ke akun aslinya begitu DP-nya kebayar
 	"on_submit": "vic_addon.vic.dp_ppn.make_vat_reclass_entry",
@@ -420,6 +426,8 @@ override_whitelisted_methods = {
 	"erpnext.accounts.doctype.payment_request.payment_request.make_payment_request": "vic_addon.vic.dp_invoice.make_payment_request",
 	# tombol Create Inquiry di Opportunity: Customer-nya udah keisi waktu formnya kebuka
 	"erpnext.crm.doctype.opportunity.opportunity.make_request_for_quotation": "vic_addon.vic.customer_chain.make_request_for_quotation",
+	# tombol Create Payment di PI/SI: baris PPh pelunasan udah keisi waktu formnya kebuka
+	"erpnext.accounts.doctype.payment_entry.payment_entry.get_payment_entry": "vic_addon.vic.tax_withholding.get_payment_entry",
 }
 
 # override_whitelisted_methods = {
