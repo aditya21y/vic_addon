@@ -1,9 +1,8 @@
-// "Consider for Tax Withholding" di Purchase / Sales Invoice default mati.
+// "Consider for Tax Withholding" di Purchase / Sales Invoice selalu mati.
 //
-// PPh sekarang diakui di Payment Entry (uang muka lewat Advance Invoice, pelunasan lewat
-// centangan "Potong PPh atas Invoice") - lihat vic_addon/vic/tax_withholding.py. Kalau invoice-nya
-// ikut motong, PPh-nya kepotong dua kali. User masih boleh nyentang manual buat kasus khusus;
-// Payment Entry-nya bakal ngelewatin invoice yang udah motong sendiri.
+// PPh selalu diakui di Payment Entry - lihat vic_addon/vic/tax_withholding.py. Server juga
+// matiin centangannya (`turn_off_invoice_tds`), jadi file ini cuma biar form-nya gak sempat
+// nampilin centangan nyala sebelum disimpan.
 //
 // ERPNext nyalain centangannya di dua tempat: waktu dokumen baru kebuka, dan di callback
 // pengambilan data supplier/customer yang jalannya asinkron. `after_ajax` nunggu callback itu

@@ -1,23 +1,20 @@
-"""PPh atas uang muka diakui di Payment Entry.
+"""PPh diakui di Payment Entry - uang muka maupun pelunasan - dan dihitung per baris item.
 
-ERPNext udah punya mesin PPh di Payment Entry: begitu `apply_tds` nyala dan kategorinya keisi,
-`PaymentTaxWithholding` ngitung sendiri waktu dokumennya divalidasi, terus naruh hasilnya di
-tabel pajak. Dasar hitungnya `unallocated_amount` plus alokasi ke dokumen uang muka (PO/SO) -
-jadi pembayaran DP emang kasus yang dia dukung.
+Semua baris PPh di Payment Entry dihitung sendiri di modul ini; mesin PPh bawaan ERPNext
+(`apply_tds`) dimatiin total. Alasannya:
 
-Yang bolong: **Payment Request gak kenal PPh sama sekali** (gak ada field, gak ada hook), dan
-Payment Entry gak pernah nyalain `apply_tds` sendiri. Jadi DP yang dibayar lewat Advance Invoice
-gak pernah motong PPh. Modul ini yang nyambungin: pas Payment Entry lahir dari Advance Invoice,
-`apply_tds` dinyalain dan kategorinya diisi - sisanya ERPNext yang ngerjain.
+- Mesin bawaan ngambil dasar dari **seluruh uang** yang dialokasi ke PO/SO (plus yang belum
+  dialokasi), gak lihat item. DP 20% dari PO yang cuma satu itemnya jasa jadi kepotong PPh atas
+  seluruh DP - termasuk barang, dan PPN-nya kalau ada.
+- Alokasi ke invoice dianggap nol, karena ERPNext ngira invoice-nya udah motong sendiri.
+- Buat Customer arahnya dipaksa "Add" (skema TCS), kebalikan PPh 23.
 
-Kategorinya dicari persis kayak cara ERPNext nyari buat baris invoice
+Kategorinya dicari persis kayak cara ERPNext ngisi baris invoice
 (`stock/get_item_details.py`, `get_tax_withholding_category`): kategori di master **Item** dulu,
-baru jatuh ke kategori di master Supplier/Customer.
+baru jatuh ke kategori di master Supplier/Customer. Baris tanpa kategori gak kena.
 
-Catatan: pelunasan **gak** ikut ke sini. Alokasi ke invoice sengaja gak diitung ERPNext sebagai
-dasar PPh (`tax_withholding_entry.py`, `PaymentTaxWithholding._update_taxable_amounts`), karena
-invoice-nya sendiri yang motong. PPh yang udah kepotong di DP otomatis dikurangin dari invoice,
-asal Payment Entry DP-nya ditempelin di tabel Advances invoice itu.
+Semua centangan PPh **otomatis dan read only** - user gak milih. Di Purchase / Sales Invoice
+centangannya dipaksa mati, karena PPh selalu diakui waktu dibayar.
 """
 
 import frappe
@@ -85,81 +82,54 @@ def get_tax_rate(category, group, posting_date):
 	return flt(row.tax_withholding_rate)
 
 
-def set_apply_tds(doc, method=None):
-	"""Hook `before_validate` Payment Entry: nyalain PPh buat pembayaran uang muka.
-
-	Cuma buat dokumen baru dan yang `apply_tds`-nya masih mati, biar pilihan user gak ketiban.
-	"""
-	if doc.get("apply_tds") or not doc.is_new():
-		return
-
-	from vic_addon.vic.dp_invoice import get_payment_request
-
-	name = get_payment_request(doc)
-	if not name:
-		return
-
-	request = frappe.db.get_value(
-		"Payment Request",
-		name,
-		["reference_doctype", "reference_name", "custom_apply_tds"],
-		as_dict=True,
-	)
-	if not (request and request.custom_apply_tds):
-		return
-
-	category, group = resolve_category(
-		request.reference_doctype, request.reference_name, doc.party_type, doc.party
-	)
-	if not category:
-		return
-
-	doc.apply_tds = 1
-	doc.tax_withholding_category = category
-	if group:
-		doc.tax_withholding_group = group
-
-
 # ---------------------------------------------------------------------------------------------
-# PPh atas pelunasan invoice
+# Baris PPh di Payment Entry
 # ---------------------------------------------------------------------------------------------
 #
-# Mesin PPh bawaan Payment Entry gak bisa dipakai buat pelunasan: dasar hitungnya cuma uang yang
-# belum dialokasi plus alokasi ke PO/SO - alokasi ke invoice dianggap nol, karena ERPNext ngira
-# invoice-nya udah motong sendiri. Dan buat Customer arahnya dipaksa "Add" (skema TCS), padahal
-# PPh 23 di sisi penjualan itu customer yang motong, uang masuk kita berkurang.
+# PPh penuh satu dokumen (PO/SO/PI/SI) = Σ per kategori: DPP baris item berkategori x tarif.
+# Dasarnya DPP, bukan uang yang dibayar - uang itu bisa udah termasuk PPN, dan PPh gak boleh kena
+# PPN. Tiap baris alokasi di PE motong sebagian dari PPh penuh itu:
 #
-# Jadi di sini baris PPh-nya dibikin sendiri, sama kayak baris pajak di Advance Invoice:
-#
-#   PPh baris ini = (PPh penuh invoice - yang udah kepotong) x porsi yang dibayar sekarang
-#
-# - PPh penuh    = DPP invoice (`base_net_total`) x tarif kategori. Bukan dari uang yang dibayar:
-#                  uang pelunasan udah termasuk PPN, dan PPh gak boleh kena PPN.
-# - udah kepotong = PPh di Payment Entry uang muka yang ditempel di tabel Advances invoice, plus
-#                  PPh pelunasan sebelumnya atas invoice yang sama (buat yang nyicil).
-# - porsi        = alokasi sekarang / sisa tagihan sebelum pembayaran ini.
+# - alokasi ke PO/SO (uang muka):  PPh penuh x porsi DP
+#       porsi = alokasi / Net Total kalau lewat Advance Invoice (DP-nya dihitung dari Net Total,
+#               PPN-nya jadi baris pajak sendiri), selain itu alokasi / Grand Total.
+# - alokasi ke PI/SI (pelunasan):  (PPh penuh - yang udah kepotong) x alokasi / sisa tagihan
+#       yang udah kepotong = PPh di PE uang muka yang ditempel di tabel Advances invoice, plus
+#       PPh pelunasan sebelumnya atas invoice yang sama (buat yang nyicil).
+# - uang yang belum dialokasi:     uang itu x tarif kategori master party - gak ada item yang
+#       bisa dilihat, jadi ikut cara ERPNext.
 #
 # Dua sisinya sama-sama "Deduct". Bedanya di akun: pembelian ngredit Utang PPh 23 (kewajiban),
 # penjualan ndebit PPh 23 dibayar dimuka (aset) - makanya sisi penjualan butuh kategori sendiri.
 
 INVOICE_PARTY = {"Purchase Invoice": "Supplier", "Sales Invoice": "Customer"}
+ADVANCE_DOCTYPES = ("Purchase Order", "Sales Order")
 
+# centangan read only "Potong PPh" - nama field-nya peninggalan waktu cuma buat pelunasan invoice
 TOGGLE_FIELD = "custom_apply_invoice_tds"
 ROW_FLAG = "custom_invoice_withholding"
 REFERENCE_AMOUNT = "custom_withholding_amount"
 
 
-def apply_invoice_withholding(doc, method=None):
-	"""Hook `before_validate` Payment Entry: susun ulang baris PPh atas pelunasan invoice.
+def apply_withholding(doc, method=None):
+	"""Hook `before_validate` Payment Entry: susun ulang semua baris PPh.
 
-	Tiap disimpan dihitung dari awal - baris yang kita pasang dibuang dulu - jadi kalau alokasi
-	atau tanggalnya diganti, PPh-nya ikut. Baris pajak lain (PPN, baris ketikan user) gak disentuh.
+	Tiap disimpan dihitung dari awal - baris PPh dibuang dulu - jadi kalau alokasi atau tanggalnya
+	diganti, PPh-nya ikut. Baris pajak lain (PPN, baris ketikan user) gak disentuh. Centangan
+	Potong PPh (read only) cuma penanda: nyala kalau ada baris yang kepasang.
 	"""
 	if doc.docstatus != 0:
 		return
 
-	keep = [row for row in doc.get("taxes") or [] if not row.get(ROW_FLAG)]
-	if len(keep) != len(doc.get("taxes") or []):
+	# mesin bawaan dimatiin; baris bertanda `is_tax_withholding_account` itu sisa draft lama
+	doc.apply_tds = 0
+	doc.tax_withholding_category = None
+	doc.tax_withholding_group = None
+	doc.set("tax_withholding_entries", [])
+
+	taxes = doc.get("taxes") or []
+	keep = [row for row in taxes if not (row.get(ROW_FLAG) or row.get("is_tax_withholding_account"))]
+	if len(keep) != len(taxes):
 		doc.set("taxes", keep)
 		for index, row in enumerate(doc.taxes, start=1):
 			row.idx = index
@@ -167,17 +137,38 @@ def apply_invoice_withholding(doc, method=None):
 	for reference in doc.get("references") or []:
 		reference.set(REFERENCE_AMOUNT, 0)
 
-	if not doc.get(TOGGLE_FIELD):
+	doc.set(TOGGLE_FIELD, 0)
+
+	if doc.party_type not in ITEM_CATEGORY_FIELD:
 		return
 
 	per_account = {}
-	for reference in get_invoice_references(doc):
-		amount, account = get_reference_withholding(doc, reference)
-		if not amount:
+
+	def add(amounts):
+		for account, amount in amounts.items():
+			per_account[account] = per_account.get(account, 0) + amount
+
+	for reference in doc.get("references") or []:
+		if not flt(reference.allocated_amount):
 			continue
 
-		reference.set(REFERENCE_AMOUNT, amount)
-		per_account[account] = per_account.get(account, 0) + amount
+		if reference.reference_doctype in INVOICE_PARTY:
+			amounts = get_reference_withholding(doc, reference)
+		elif reference.reference_doctype in ADVANCE_DOCTYPES:
+			amounts = get_order_withholding(doc, reference)
+		else:
+			continue
+
+		reference.set(REFERENCE_AMOUNT, sum(amounts.values()))
+		add(amounts)
+
+	add(get_unallocated_withholding(doc))
+
+	precision = doc.precision("paid_amount")
+	per_account = {account: flt(amount, precision) for account, amount in per_account.items()}
+	per_account = {account: amount for account, amount in per_account.items() if amount}
+	if per_account:
+		doc.set(TOGGLE_FIELD, 1)
 
 	for account, amount in per_account.items():
 		doc.append(
@@ -187,10 +178,8 @@ def apply_invoice_withholding(doc, method=None):
 				"account_head": account,
 				"description": account,
 				"add_deduct_tax": "Deduct",
-				"tax_amount": flt(amount, doc.precision("paid_amount")),
+				"tax_amount": amount,
 				"cost_center": doc.get("cost_center") or erpnext_default_cost_center(doc.company),
-				# sengaja gak pakai `is_tax_withholding_account`: baris yang ditandain itu
-				# dinolin mesin PPh bawaan tiap validate
 				ROW_FLAG: 1,
 			},
 		)
@@ -205,39 +194,166 @@ def get_invoice_references(doc):
 
 
 def get_reference_withholding(payment, reference):
-	"""PPh atas satu baris alokasi ke invoice: `(nilai, akun)`, `(0, None)` kalau gak kena."""
+	"""PPh atas satu baris alokasi ke invoice: `{akun: nilai}`, kosong kalau gak kena."""
 	invoice = frappe.get_cached_doc(reference.reference_doctype, reference.reference_name)
 
 	# invoice yang motong sendiri dilewat - kalau enggak, PPh-nya kepotong dua kali
 	if invoice.get("apply_tds"):
-		return 0, None
+		return {}
 
 	party_type = INVOICE_PARTY[invoice.doctype]
-	party = invoice.get(party_type.lower())
+	full = get_full_withholding(invoice, party_type, invoice.get(party_type.lower()), payment)
+	total = sum(full.values())
+	if not total:
+		return {}
 
-	category, group = resolve_category(invoice.doctype, invoice.name, party_type, party)
-	if not category:
-		return 0, None
-
-	rate = get_tax_rate(category, group, payment.posting_date)
-	if not rate:
-		return 0, None
-
-	account = frappe.get_cached_doc("Tax Withholding Category", category).get_company_account(
-		payment.company
-	)
-	validate_account_side(account, party_type, category)
-
-	full = flt(invoice.base_net_total) * rate / 100
 	already = get_withheld_on_advances(invoice) + get_withheld_on_earlier_payments(
 		invoice, exclude=payment.name
 	)
-	remaining = max(full - already, 0)
+	remaining = max(total - already, 0)
 
 	outstanding = flt(reference.outstanding_amount)
 	portion = min(flt(reference.allocated_amount) / outstanding, 1) if outstanding else 1
 
-	return flt(remaining * portion, payment.precision("paid_amount")), account
+	# yang udah kepotong gak kecatat per kategori, jadi sisanya dibagi ke tiap akun sebanding
+	# PPh penuhnya
+	return {account: remaining * portion * amount / total for account, amount in full.items()}
+
+
+def get_order_withholding(payment, reference):
+	"""PPh uang muka atas satu baris alokasi ke PO/SO: `{akun: nilai}`."""
+	order = frappe.get_cached_doc(reference.reference_doctype, reference.reference_name)
+	party_type = "Supplier" if order.doctype == "Purchase Order" else "Customer"
+
+	full = get_full_withholding(order, party_type, order.get(party_type.lower()), payment)
+	if not full:
+		return {}
+
+	# lewat Advance Invoice yang dialokasi DP net (PPN-nya baris pajak sendiri), jadi porsinya
+	# dari Net Total; bayar langsung dari PO/SO dialokasi dari tagihan penuh, jadi dari Grand Total
+	base = flt(order.net_total) if reference.get("payment_request") else flt(order.grand_total)
+	if not base:
+		return {}
+
+	portion = flt(reference.allocated_amount) / base
+	return {account: amount * portion for account, amount in full.items()}
+
+
+def get_unallocated_withholding(payment):
+	"""PPh atas uang yang belum dialokasi ke dokumen mana pun - pakai kategori master party."""
+	references = payment.get("references") or []
+	party_amount = (
+		flt(payment.paid_amount) if payment.payment_type == "Receive" else flt(payment.received_amount)
+	)
+	# `unallocated_amount` baru dihitung ulang di validate, jadi di sini dihitung sendiri
+	unallocated = party_amount - sum(flt(row.allocated_amount) for row in references)
+	if unallocated <= 0.005:
+		return {}
+
+	category = frappe.db.get_value(payment.party_type, payment.party, "tax_withholding_category")
+	if not category:
+		return {}
+
+	group = frappe.db.get_value(payment.party_type, payment.party, "tax_withholding_group")
+	rate = get_tax_rate(category, group, payment.posting_date)
+	if not rate:
+		warn_missing_rate(category, group, payment.posting_date)
+		return {}
+
+	account = get_category_account(category, payment.company, payment.party_type)
+	return {account: unallocated * rate / 100}
+
+
+def get_full_withholding(source, party_type, party, payment):
+	"""PPh penuh satu dokumen per akun: Σ per kategori (DPP baris berkategori x tarif)."""
+	# grup tarif: yang kesimpan di dokumen dulu (ERPNext ngisinya dari master party), baru master
+	group = source.get("tax_withholding_group") or frappe.db.get_value(
+		party_type, party, "tax_withholding_group"
+	)
+
+	full = {}
+	for category, taxable in get_taxable_by_category(source, party_type, party).items():
+		rate = get_tax_rate(category, group, payment.posting_date)
+		if not rate:
+			warn_missing_rate(category, group, payment.posting_date)
+			continue
+
+		account = get_category_account(category, payment.company, party_type)
+		full[account] = full.get(account, 0) + taxable * rate / 100
+
+	return full
+
+
+def get_category_account(category, company, party_type):
+	account = frappe.get_cached_doc("Tax Withholding Category", category).get_company_account(company)
+	validate_account_side(account, party_type, category)
+	return account
+
+
+def get_taxable_by_category(invoice, party_type, party):
+	"""Dasar PPh dokumen per kategori, dijumlah dari baris item - sama kayak ERPNext.
+
+	Kategorinya diambil dari yang kesimpan di baris item (`tax_withholding_category`, diisi
+	ERPNext waktu item dipilih di invoice: master Item dulu, kalau kosong master Supplier/Customer).
+	Baris PO/SO gak nyimpen kategori, jadi dicari pakai urutan yang sama. Baris invoice yang
+	`apply_tds`-nya mati dilewat, kayak di ERPNext (`TaxWithholdingController._update_amount_for_item`);
+	baris PO/SO gak punya field itu.
+	"""
+	field = ITEM_CATEGORY_FIELD[party_type]
+	party_category = frappe.db.get_value(party_type, party, "tax_withholding_category")
+
+	taxable = {}
+	for item in invoice.get("items") or []:
+		if item.get("apply_tds") == 0:
+			continue
+
+		category = (
+			item.get("tax_withholding_category")
+			or frappe.db.get_value("Item", item.item_code, field)
+			or party_category
+		)
+		if not category:
+			continue
+
+		amount = flt(item.base_net_amount)
+		if get_deduction_basis(category) == "Gross Total" and flt(invoice.base_net_total):
+			# ERPNext nambahin pajak baris itu; di sini dibagi rata sebanding DPP-nya
+			amount += amount / flt(invoice.base_net_total) * flt(invoice.base_total_taxes_and_charges)
+
+		taxable[category] = taxable.get(category, 0) + amount
+
+	return taxable
+
+
+def get_deduction_basis(category):
+	return frappe.get_cached_value("Tax Withholding Category", category, "tax_deduction_basis")
+
+
+def warn_missing_rate(category, group, posting_date):
+	"""Kasih tau user kalau invoice-nya kena PPh tapi gak ada baris tarif yang cocok.
+
+	Baris tarif cocok kalau tanggalnya masuk **dan** grupnya persis sama dengan grup party - party
+	tanpa grup cuma cocok sama baris yang grupnya juga kosong. Dua-duanya disebut di pesan, soalnya
+	penyebab yang sering kejadian dua: `to_date` udah lewat, atau party-nya belum dikasih grup.
+	Tanpa peringatan ini PE kesimpen tanpa PPh diem-diem. Sekali per kategori per request.
+	"""
+	key = (category, group, str(posting_date))
+	warned = frappe.flags.setdefault("vic_missing_withholding_rate", set())
+	if key in warned:
+		return
+	warned.add(key)
+
+	frappe.msgprint(
+		_(
+			"Tax Withholding Category {0} has no rate row for date {1} and Tax Withholding Group {2}, so no tax is withheld on this payment. A rate row must match both the date range and the group exactly. Set the group on the Supplier / Customer, or add a matching rate row in the category, then save again."
+		).format(
+			frappe.bold(category),
+			frappe.bold(frappe.format(posting_date, "Date")),
+			frappe.bold(group or _("(empty)")),
+		),
+		title=_("Tax Withholding Rate Not Found"),
+		indicator="orange",
+	)
 
 
 def validate_account_side(account, party_type, category):
@@ -324,10 +440,10 @@ def get_payment_entry(
 	reference_date=None,
 	created_from_payment_request=False,
 ):
-	"""Tombol `Create > Payment` di Purchase / Sales Invoice.
+	"""Tombol `Create > Payment` di PO / SO / Purchase Invoice / Sales Invoice.
 
-	Sama kayak versi ERPNext, cuma centangan Potong PPh atas Invoice langsung dinyalain kalau
-	invoice-nya kena PPh, dan barisnya udah keisi - biar kelihatan di form sebelum disimpan.
+	Sama kayak versi ERPNext, cuma PPh-nya langsung dihitung - biar barisnya udah kelihatan di form
+	sebelum disimpan. Waktu disimpan dihitung ulang lagi di hook `before_validate`.
 
 	Argumennya sengaja ditulis satu-satu, sama persis kayak versi ERPNext - jangan diganti
 	`*args, **kwargs`. Frappe nyaring isi request sesuai argumen fungsinya; kalau fungsinya nerima
@@ -349,8 +465,16 @@ def get_payment_entry(
 		created_from_payment_request=created_from_payment_request,
 	)
 
-	if any(get_reference_withholding(doc, row)[0] for row in get_invoice_references(doc)):
-		doc.set(TOGGLE_FIELD, 1)
-		apply_invoice_withholding(doc)
+	apply_withholding(doc)
 
 	return doc
+
+
+def turn_off_invoice_tds(doc, method=None):
+	"""Hook `before_validate` Purchase / Sales Invoice: PPh gak pernah dipotong di invoice.
+
+	Centangannya disembunyiin, tapi ERPNext tetap nyalainnya sendiri dari kategori supplier /
+	customer (juga lewat jalur tanpa form: mapper, import, API) - jadi dimatiin di server juga.
+	"""
+	if doc.docstatus == 0 and doc.get("apply_tds"):
+		doc.apply_tds = 0

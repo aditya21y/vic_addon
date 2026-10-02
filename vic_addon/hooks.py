@@ -91,7 +91,7 @@ doctype_js["Request for Quotation"] = ["public/js/request_for_quotation.js"]
 doctype_js["Payment Request"] = ["public/js/payment_request.js"]
 # tarik biaya yang nambah nilai barang dari Journal Entry
 doctype_js["Landed Cost Voucher"] = ["public/js/landed_cost_voucher.js"]
-# PPh diakui di Payment Entry, jadi "Consider for Tax Withholding" di invoice default mati
+# PPh diakui di Payment Entry, jadi "Consider for Tax Withholding" di invoice langsung dimatiin
 for doctype in ("Purchase Invoice", "Sales Invoice"):
 	doctype_js.setdefault(doctype, []).append("public/js/invoice_tds.js")
 # tombol bikin PO per supplier
@@ -298,11 +298,10 @@ doc_events["Payment Request"] = {
 doc_events["Payment Entry"] = {
 	"before_validate": [
 		"vic_addon.vic.dp_invoice.set_advance_taxes",
-		# PPh atas uang muka: dinyalain di sini, hitungannya ERPNext yang ngerjain
-		"vic_addon.vic.tax_withholding.set_apply_tds",
-		# PPh atas pelunasan invoice: barisnya dihitung sendiri. Harus paling akhir - kalau duluan,
-		# `set_advance_taxes` ngira tabel pajaknya udah diisi user dan gak nyalin PPN dari DP
-		"vic_addon.vic.tax_withholding.apply_invoice_withholding",
+		# semua baris PPh (uang muka & pelunasan) dihitung sendiri per item, mesin bawaan dimatiin.
+		# Harus paling akhir - kalau duluan, `set_advance_taxes` ngira tabel pajaknya udah diisi
+		# user dan gak nyalin PPN dari DP
+		"vic_addon.vic.tax_withholding.apply_withholding",
 	],
 	# PPN uang muka pindah dari akun penampung ke akun aslinya begitu DP-nya kebayar
 	"on_submit": "vic_addon.vic.dp_ppn.make_vat_reclass_entry",
@@ -350,7 +349,11 @@ for doctype, handler in (
 
 # invoice final cuma nagih sisa PPN/PPh yang belum dibayar lewat DP
 for doctype in ("Sales Invoice", "Purchase Invoice"):
-	doc_events[doctype]["before_validate"] = "vic_addon.vic.advance_tax.restore_tax_rows"
+	doc_events[doctype]["before_validate"] = [
+		"vic_addon.vic.advance_tax.restore_tax_rows",
+		# PPh selalu diakui di Payment Entry - centangan PPh di invoice dipaksa mati
+		"vic_addon.vic.tax_withholding.turn_off_invoice_tds",
+	]
 	doc_events[doctype]["validate"].append("vic_addon.vic.advance_tax.deduct_advance_taxes")
 
 # alamat kirim dropship itu alamat customer, yang ditolak validasi alamat bawaan ERPNext -
