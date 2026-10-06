@@ -7,3 +7,4 @@
 vic_addon.patches.set_costing_status
 vic_addon.patches.set_serial_no_label_defaults
 vic_addon.patches.drop_customer_wapu_status
+vic_addon.patches.show_inquiry_subject_in_print

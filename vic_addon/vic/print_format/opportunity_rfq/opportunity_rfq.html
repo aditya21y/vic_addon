@@ -1,5 +1,10 @@
 {#- Permintaan penawaran yang masuk dari customer, dicetak dari Opportunity -#}
 
+<style>
+	/* deskripsi item bisa berupa HTML dari editor - paragrafnya jangan nambah jarak */
+	.vic-pf .items .desc p { margin: 0; }
+</style>
+
 <div class="vic-pf">
 	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
 
@@ -17,6 +22,13 @@
 					<td class="sep">:</td>
 					<td>{{ frappe.utils.formatdate(doc.transaction_date, "MMMM d, yyyy") }}</td>
 				</tr>
+				{%- if doc.get("custom_your_ref") %}
+					<tr>
+						<td class="lbl">Your Ref</td>
+						<td class="sep">:</td>
+						<td>{{ doc.custom_your_ref }}</td>
+					</tr>
+				{%- endif %}
 			</table>
 		</div>
 	</div>
@@ -27,6 +39,20 @@
 			<td class="sep">:</td>
 			<td>{{ doc.customer_name or doc.party_name or "" }}</td>
 		</tr>
+		{%- if doc.get("project") and doc.get("custom_show_project") %}
+			<tr>
+				<td class="lbl">Project</td>
+				<td class="sep">:</td>
+				<td>{{ frappe.db.get_value("Project", doc.project, "project_name") or doc.project }}</td>
+			</tr>
+		{%- endif %}
+		{%- if doc.get("custom_subject") and doc.get("custom_show_subject") %}
+			<tr>
+				<td class="lbl">Subject</td>
+				<td class="sep">:</td>
+				<td>{{ doc.custom_subject }}</td>
+			</tr>
+		{%- endif %}
 		{%- if doc.contact_display %}
 			<tr>
 				<td class="lbl">Attn</td>
@@ -52,17 +78,27 @@
 			</tr>
 		</thead>
 		<tbody>
-			{%- for item in doc.items %}
-				{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
-				{%- set qty = item.qty | float %}
-				<tr>
-					<td class="num">{{ loop.index }}</td>
-					<td>
-						<div class="desc">{{ item.item_name or item.item_code }}</div>
-						{%- if size %}<div>Size : {{ size }}</div>{% endif %}
-					</td>
-					<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
-				</tr>
+			{%- set ns = namespace(no = 0) %}
+			{%- for header, rows in group_items_by_header(doc.items) %}
+				{%- set indent = "indent" if header else "" %}
+				{%- if header %}
+					<tr class="group"><td colspan="3">{{ header }}</td></tr>
+				{%- endif %}
+				{%- for item in rows %}
+					{%- set ns.no = ns.no + 1 %}
+					{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
+					{%- set qty = item.qty | float %}
+					{#- deskripsi duluan; kalau kosong (atau cuma tag HTML kosong) baru nama item -#}
+					{%- set has_description = (item.description or "") | striptags | trim %}
+					<tr>
+						<td class="num">{{ ns.no }}</td>
+						<td class="{{ indent }}">
+							<div class="desc">{{ item.description if has_description else (item.item_name or item.item_code) }}</div>
+							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
+						</td>
+						<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
+					</tr>
+				{%- endfor %}
 			{%- endfor %}
 		</tbody>
 	</table>
@@ -72,7 +108,8 @@
 			<td style="width: 60%"></td>
 			<td>
 				<div class="role">SALES</div>
-				<div>{{ frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
+				{#- Sales Name di form duluan; kosong -> nama user yang bikin -#}
+				<div>{{ doc.get("custom_sales_name") or frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
 			</td>
 		</tr>
 	</table>

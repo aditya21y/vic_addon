@@ -1491,6 +1491,8 @@ Field yang ditambah buat nutupin isian di kertas:
 | --- | --- | --- |
 | Material Request | Subject, Customer's Purchase Order | Nomor PO customer keisi otomatis dari Sales Order (lihat di bawah) |
 | Request for Quotation | Subject | Judul inquiry |
+| Opportunity | Subject, Your Ref | Dicetak di RFQ (Subject di bawah From, Your Ref di bawah Date). Subject-nya ikut kebawa ke Inquiry — nama field-nya sama (`custom_subject`) |
+| Opportunity, Request for Quotation | Show Project in Print, Show Subject in Print | Centangan di samping Project / Subject — yang dicetak cuma yang dicentang |
 | Request for Quotation Item | Weight, Remarks | Kolom tambahan di tabel inquiry |
 | Costing | Subject, Mark Up, Delivery Time, Delivery Point, Payment, Validity | Blok Terms & Conditions di Costing (Sales) |
 
@@ -1517,6 +1519,39 @@ jadi satu file bisa dipasang di dua doctype:
 Kalau field-nya kosong (atau SO-nya gak lahir dari Quotation), tiga baris jatuh ke cadangan:
 `payment_terms_template`, alamat pengiriman, dan tanggal `valid_till`; Delivery Time jatuh ke teks
 "Reconfrom stock before PO". Your Ref dari contact person.
+
+**Request For Quotation (Customer)** (Opportunity):
+
+- Di bawah **From** ada **Project** (nama project-nya) dan **Subject**. Dua-duanya bisa diisi,
+  jadi yang dicetak ditentuin centangan di sampingnya: **Show Project in Print** dan **Show
+  Subject in Print** (default mati). Centangannya ikut kebawa ke Inquiry (nama field-nya sama),
+  dan print format **Inquiry** pakai aturan yang sama. **Your Ref** di bawah Date.
+- Inquiry lama yang udah punya Subject dicentangin otomatis lewat patch
+  `show_inquiry_subject_in_print`, biar Subject-nya gak mendadak ilang dari kertas — dulu Subject
+  di Inquiry selalu dicetak kalau diisi.
+- Kolom Description ngambil **deskripsi item duluan**; kalau kosong (termasuk editor yang isinya
+  cuma tag kosong kayak `<p></p>`) baru **nama item**.
+- Nama di bawah **SALES** ngambil field **Sales Name**; kalau kosong, nama user yang bikin.
+
+Form Opportunity-nya juga dirapiin lewat property setter: section **Organization** dibikin
+collapsible, dan **Opportunity Date** (`transaction_date`) dipindah dari More Information ke
+header, persis di atas section Organization (`field_order`).
+
+#### Header buat ngelompokin baris item
+
+Field **Header** (`custom_header`) di baris item: Opportunity (RFQ), Request for Quotation
+(Inquiry), Costing, Quotation, Sales Order, Purchase Order, Purchase Receipt, Purchase Invoice,
+Delivery Note, Sales Invoice. Cukup diisi di baris pertama tiap kelompok — baris yang dikosongin
+ikut Header baris di atasnya, dan waktu disimpan nilainya ditulis balik ke tiap baris. Baris
+pertama gak boleh kosong kalau dokumennya pakai Header.
+
+Karena nama field-nya sama di semua doctype, Header ikut kebawa sendiri lewat mapper bawaan
+(RFQ → Inquiry, Quotation → Sales Order → dst). Di print format tiap Header dicetak jadi baris
+tebal sendiri, item di bawahnya menjorok. Implementasi: `vic_addon/vic/item_header.py`.
+
+Catatan: Supplier Quotation **belum** punya field Header, jadi kelompok dari Inquiry putus di situ
+— Costing yang dibikin dari Supplier Quotation mulai tanpa Header. Versi Excel Inquiry juga belum
+nampilin Header.
 
 #### Print Format: Delivery Order (Delivery Note)
 

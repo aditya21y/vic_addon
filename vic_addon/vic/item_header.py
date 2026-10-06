@@ -21,6 +21,9 @@ FIELDNAME = "custom_header"
 
 # doctype induk -> nama child table yang barisnya dikelompokin
 HEADER_TABLES = {
+	# Opportunity (RFQ) -> Request for Quotation (Inquiry): Header ikut kebawa lewat field senama
+	"Opportunity": "items",
+	"Request for Quotation": "items",
 	"Costing": "items",
 	"Quotation": "items",
 	"Sales Order": "items",

@@ -36,13 +36,25 @@
 		</div>
 	</div>
 
-	{%- if doc.get("custom_subject") %}
+	{#- Project & Subject cuma dicetak kalau centangan Show ... in Print-nya nyala -#}
+	{%- set show_project = doc.get("project") and doc.get("custom_show_project") %}
+	{%- set show_subject = doc.get("custom_subject") and doc.get("custom_show_subject") %}
+	{%- if show_project or show_subject %}
 		<table class="terms">
-			<tr>
-				<td class="lbl">Subject</td>
-				<td class="sep">:</td>
-				<td>{{ doc.custom_subject }}</td>
-			</tr>
+			{%- if show_project %}
+				<tr>
+					<td class="lbl">Project</td>
+					<td class="sep">:</td>
+					<td>{{ frappe.db.get_value("Project", doc.project, "project_name") or doc.project }}</td>
+				</tr>
+			{%- endif %}
+			{%- if show_subject %}
+				<tr>
+					<td class="lbl">Subject</td>
+					<td class="sep">:</td>
+					<td>{{ doc.custom_subject }}</td>
+				</tr>
+			{%- endif %}
 		</table>
 	{%- endif %}
 
@@ -60,21 +72,29 @@
 			</tr>
 		</thead>
 		<tbody>
-			{%- for item in doc.items %}
-				{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
-				{%- set qty = item.qty | float %}
-				<tr>
-					<td class="num">{{ loop.index }}</td>
-					<td>
-						<div class="desc">{{ item.item_name or item.item_code }}</div>
-						{%- if size %}<div>Size : {{ size }}</div>{% endif %}
-					</td>
-					<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
-					{#- Unit Price sengaja kosong, itu jatah supplier yang ngisi -#}
-					<td class="fill money"></td>
-					<td class="fill qty">{{ item.get("custom_weight") or "" }}</td>
-					<td class="fill">{{ item.get("custom_remarks") or "" }}</td>
-				</tr>
+			{%- set ns = namespace(no = 0) %}
+			{%- for header, rows in group_items_by_header(doc.items) %}
+				{%- set indent = "indent" if header else "" %}
+				{%- if header %}
+					<tr class="group"><td colspan="6">{{ header }}</td></tr>
+				{%- endif %}
+				{%- for item in rows %}
+					{%- set ns.no = ns.no + 1 %}
+					{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
+					{%- set qty = item.qty | float %}
+					<tr>
+						<td class="num">{{ ns.no }}</td>
+						<td class="{{ indent }}">
+							<div class="desc">{{ item.item_name or item.item_code }}</div>
+							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
+						</td>
+						<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
+						{#- Unit Price sengaja kosong, itu jatah supplier yang ngisi -#}
+						<td class="fill money"></td>
+						<td class="fill qty">{{ item.get("custom_weight") or "" }}</td>
+						<td class="fill">{{ item.get("custom_remarks") or "" }}</td>
+					</tr>
+				{%- endfor %}
 			{%- endfor %}
 		</tbody>
 	</table>
