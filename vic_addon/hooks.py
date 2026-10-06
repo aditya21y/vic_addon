@@ -295,6 +295,8 @@ doc_events["Payment Request"] = {
 	],
 	"validate": "vic_addon.vic.dp_invoice.set_dp_details",
 }
+# satu Journal Entry cuma boleh ditarik ke satu Landed Cost Voucher
+doc_events["Landed Cost Voucher"] = {"validate": "vic_addon.vic.landed_cost.validate_journal_entries"}
 doc_events["Payment Entry"] = {
 	"before_validate": [
 		"vic_addon.vic.dp_invoice.set_advance_taxes",

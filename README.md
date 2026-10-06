@@ -1022,7 +1022,19 @@ Alurnya sekarang:
 
 Yang diambil cuma sisi **debit**: itu yang nunjukin biaya keluar. Baris kredit di jurnal yang
 sama (kas/hutang) bukan biaya, jadi dilewat. Tiap baris nyimpen nomor jurnal asalnya di field
-**Journal Entry**, dan jurnal yang udah pernah ditarik ditolak kalau dipilih dua kali.
+**Journal Entry**.
+
+**Satu jurnal cuma boleh dipakai di satu voucher aktif** (draft atau submit) — kalau kepakai dua
+kali, biayanya nempel dua kali ke nilai barang. Dicek di tiga lapis:
+
+| Lapis | Perilaku |
+| --- | --- |
+| Pilihan jurnal di dialog | Jurnal yang udah kepakai voucher lain gak ditawarin |
+| Tombol **Get Expenses** | Ditolak kalau jurnalnya udah kepakai (juga kalau dipilih dua kali di voucher yang sama) |
+| Simpan / submit voucher (hook `validate`) | Ditolak — nangkep jalur di luar form (import, API) dan dua draft yang narik jurnal sama |
+
+Pesannya nyebut voucher mana yang udah make. Voucher yang **dicancel** ngelepas jurnalnya, jadi
+bisa ditarik lagi ke voucher baru (atau amend-annya).
 
 Tabel **Vendor Invoices** di Landed Cost Voucher disembunyiin (property setter `hidden`) — biaya
 diambil dari Journal Entry, bukan dari invoice supplier. Tabel itu emang opsional di ERPNext,
