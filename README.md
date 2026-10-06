@@ -1493,6 +1493,7 @@ Field yang ditambah buat nutupin isian di kertas:
 | Request for Quotation | Subject | Judul inquiry |
 | Opportunity | Subject, Your Ref | Dicetak di RFQ (Subject di bawah From, Your Ref di bawah Date). Subject-nya ikut kebawa ke Inquiry — nama field-nya sama (`custom_subject`) |
 | Opportunity, Request for Quotation | Show Project in Print, Show Subject in Print | Centangan di samping Project / Subject — yang dicetak cuma yang dicentang |
+| Request for Quotation | Person in Charge | Nama penanggung jawab, dicetak di bawah **Best regards** di Inquiry (kosong → nama user pembuat) |
 | Request for Quotation Item | Weight, Remarks | Kolom tambahan di tabel inquiry |
 | Costing | Subject, Mark Up, Delivery Time, Delivery Point, Payment, Validity | Blok Terms & Conditions di Costing (Sales) |
 

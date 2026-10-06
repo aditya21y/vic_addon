@@ -107,7 +107,8 @@
 			<td>
 				<div>Best regards,</div>
 				<div class="role"></div>
-				<div>{{ frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
+				{#- Person in Charge di form duluan; kosong -> nama user yang bikin -#}
+				<div>{{ doc.get("custom_person_in_charge") or frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
 			</td>
 		</tr>
 	</table>
