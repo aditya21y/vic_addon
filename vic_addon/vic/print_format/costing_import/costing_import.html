@@ -51,10 +51,13 @@
 			<td class="side">
 				<table>
 					<tr><td class="lbl">To.</td><td class="sep">:</td><td>{{ customer }}</td></tr>
-					<tr><td class="lbl">Attn</td><td class="sep">:</td><td></td></tr>
-					<tr><td class="lbl">Phone</td><td class="sep">:</td><td></td></tr>
-					<tr><td class="lbl">Fax</td><td class="sep">:</td><td></td></tr>
-					<tr><td class="lbl">Subject</td><td class="sep">:</td><td>{{ project }}</td></tr>
+					{#- Project & Subject cuma dicetak kalau centangan Show ... in Print-nya nyala -#}
+					{%- if doc.project and doc.show_project_in_print %}
+						<tr><td class="lbl">Project</td><td class="sep">:</td><td>{{ project }}</td></tr>
+					{%- endif %}
+					{%- if doc.subject and doc.show_subject_in_print %}
+						<tr><td class="lbl">Subject</td><td class="sep">:</td><td>{{ doc.subject }}</td></tr>
+					{%- endif %}
 				</table>
 			</td>
 			<td class="side right">

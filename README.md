@@ -79,6 +79,17 @@ Doctype: **Costing** (`CST-.YYMM.-`), dengan child table **Costing Item** dan
 **Costing Additional Cost**. Ada field **Project** juga, yang ikut kebawa ke Quotation waktu
 costing-nya dijadiin penawaran.
 
+**Customer, Project, dan Subject diambil dari Inquiry** asal penawarannya (nomor Inquiry kebaca
+lewat baris Supplier Quotation di tabel item), masing-masing cuma kalau masih kosong — isian user
+gak pernah ketiban. Centangan **Show Project in Print** / **Show Subject in Print** ikut disalin
+bareng nilainya. Lewat tombol *Create > Costing* di Supplier Quotation semuanya udah keisi sebelum
+disimpan; lewat dialog *Get Items* keisinya waktu disimpan.
+
+Di print format **Costing (Import)** dan **Costing (Sales)**, Project dan Subject cuma dicetak
+kalau centangannya nyala — bisa salah satu atau dua-duanya. Baris Attn, Phone, dan Fax di Costing
+(Import) dibuang. Costing lama yang Project-nya udah keisi dicentangin otomatis lewat patch
+`show_costing_project_in_print` (dulu Project selalu dicetak, dengan label Subject).
+
 **Tombol `Get Items from Supplier Quotation`** ngebuka satu dialog berisi:
 
 | Isian | Gunanya |
@@ -1161,7 +1172,7 @@ Request for Quotation dikasih field **Customer**, dan dua sambungan yang bolong 
 | Sambungan | Caranya |
 | --- | --- |
 | Opportunity → RFQ | Mapper bawaan nyalin nama Opportunity ke tiap baris item RFQ (`opportunity`), jadi customer-nya dibaca balik dari situ |
-| RFQ → Costing | Costing gak nyimpen nomor RFQ; yang kesimpan link ke baris Supplier Quotation, dan dari situ nomor RFQ-nya kebaca |
+| RFQ → Costing | Costing gak nyimpen nomor RFQ; yang kesimpan link ke baris Supplier Quotation, dan dari situ nomor RFQ-nya kebaca. Project & Subject (plus centangan cetaknya) ikut diambil lewat jalur yang sama |
 
 Sisanya udah jalan sendiri: Costing → Quotation lewat `make_quotation`, Quotation → Sales Order
 lewat mapper bawaan.
@@ -1495,7 +1506,8 @@ Field yang ditambah buat nutupin isian di kertas:
 | Opportunity, Request for Quotation | Show Project in Print, Show Subject in Print | Centangan di samping Project / Subject — yang dicetak cuma yang dicentang |
 | Request for Quotation | Person in Charge | Nama penanggung jawab, dicetak di bawah **Best regards** di Inquiry (kosong → nama user pembuat) |
 | Request for Quotation Item | Weight, Remarks | Kolom tambahan di tabel inquiry |
-| Costing | Subject, Mark Up, Delivery Time, Delivery Point, Payment, Validity | Blok Terms & Conditions di Costing (Sales) |
+| Costing | Subject, Show Project in Print, Show Subject in Print | Project/Subject di kepala Costing (Import) & (Sales), cuma yang dicentang |
+| Costing | Mark Up, Delivery Time, Delivery Point, Payment, Validity | Blok Terms & Conditions di Costing (Sales) |
 
 **Nomor PO customer ikut turun ke Purchase Request.** Material Request yang lahir dari Sales
 Order (Create > Material Request) narik `po_no` dari Sales Order-nya lewat field `sales_order` di

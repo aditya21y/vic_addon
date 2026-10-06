@@ -315,7 +315,8 @@ doc_events["Material Request"] = {
 	"before_validate": "vic_addon.vic.material_request.set_customer_po_no",
 }
 
-# Customer ngalir dari Opportunity -> Request for Quotation -> Costing
+# Customer ngalir dari Opportunity -> Request for Quotation -> Costing (Costing juga narik
+# Project & Subject dari Inquiry-nya)
 doc_events.setdefault("Request for Quotation", {}).setdefault("validate", []).append(
 	"vic_addon.vic.customer_chain.set_customer_from_opportunity"
 )

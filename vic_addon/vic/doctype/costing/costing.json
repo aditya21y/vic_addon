@@ -13,8 +13,11 @@
   "company",
   "customer",
   "project",
+  "show_project_in_print",
   "currency",
   "column_break_note",
+  "subject",
+  "show_subject_in_print",
   "note",
   "items_section",
   "items",
@@ -100,6 +103,26 @@
    "options": "Project"
   },
   {
+   "default": "0",
+   "description": "Centang supaya Project dicetak di print format Costing. Terisi dari Inquiry asal penawarannya.",
+   "fieldname": "show_project_in_print",
+   "fieldtype": "Check",
+   "label": "Show Project in Print"
+  },
+  {
+   "description": "Terisi dari Inquiry asal penawarannya apabila masih kosong.",
+   "fieldname": "subject",
+   "fieldtype": "Small Text",
+   "label": "Subject"
+  },
+  {
+   "default": "0",
+   "description": "Centang supaya Subject dicetak di print format Costing. Terisi dari Inquiry asal penawarannya.",
+   "fieldname": "show_subject_in_print",
+   "fieldtype": "Check",
+   "label": "Show Subject in Print"
+  },
+  {
    "fetch_from": "company.default_currency",
    "fetch_if_empty": 1,
    "fieldname": "currency",
@@ -113,10 +136,10 @@
    "fieldtype": "Column Break"
   },
   {
+   "description": "Catatan yang ikut tercetak pada print format, ditempatkan di bawah baris item pada kolom Description. Setiap baris dicetak sebagai satu butir.",
    "fieldname": "note",
    "fieldtype": "Small Text",
-   "label": "Note",
-   "description": "Catatan yang ikut tercetak pada print format, ditempatkan di bawah baris item pada kolom Description. Setiap baris dicetak sebagai satu butir."
+   "label": "Note"
   },
   {
    "fieldname": "items_section",
@@ -236,10 +259,10 @@
    "read_only": 1
   },
   {
+   "description": "Dicetak di print format Costing (Sales)",
    "fieldname": "terms_section",
    "fieldtype": "Section Break",
-   "label": "Terms & Conditions",
-   "description": "Dicetak di print format Costing (Sales)"
+   "label": "Terms & Conditions"
   },
   {
    "fieldname": "mark_up",
@@ -274,7 +297,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-29 22:39:18.800106",
+ "modified": "2026-10-06 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "VIC",
  "name": "Costing",

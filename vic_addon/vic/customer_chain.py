@@ -88,14 +88,43 @@ def make_request_for_quotation(source_name, target_doc=None):
 
 
 def set_customer_from_request_for_quotation(doc, method=None):
-	"""Hook `validate` Costing: isi Customer dari RFQ di balik penawaran suppliernya."""
-	if doc.get("customer"):
-		return
+	"""Hook `validate` Costing: isi Customer, Project, dan Subject dari Inquiry di balik
+	penawaran suppliernya.
 
+	Tiap field cuma diisi kalau masih kosong, jadi isian user gak pernah ketiban. Centangan Show
+	... in Print ikut disalin bareng nilainya - kalau Project/Subject-nya udah diisi user, centangan
+	itu juga dibiarin. Inquiry pertama yang punya nilainya yang menang.
+	"""
 	from vic_addon.vic.doctype.costing.costing import get_request_for_quotations
 
-	for name in get_request_for_quotations(doc):
-		customer = frappe.db.get_value("Request for Quotation", name, "custom_customer")
-		if customer:
-			doc.customer = customer
-			return
+	names = get_request_for_quotations(doc)
+	if not names:
+		return
+
+	inquiries = frappe.get_all(
+		"Request for Quotation",
+		filters={"name": ["in", names]},
+		fields=[
+			"name",
+			"custom_customer",
+			"project",
+			"custom_show_project",
+			"custom_subject",
+			"custom_show_subject",
+		],
+	)
+	inquiries.sort(key=lambda row: names.index(row.name))
+
+	def first(field):
+		return next((row for row in inquiries if row.get(field)), None)
+
+	if not doc.get("customer") and (row := first("custom_customer")):
+		doc.customer = row.custom_customer
+
+	if not doc.get("project") and (row := first("project")):
+		doc.project = row.project
+		doc.show_project_in_print = row.custom_show_project
+
+	if not doc.get("subject") and (row := first("custom_subject")):
+		doc.subject = row.custom_subject
+		doc.show_subject_in_print = row.custom_show_subject

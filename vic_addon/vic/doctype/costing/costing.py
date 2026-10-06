@@ -328,6 +328,13 @@ def make_costing(source_name, target_doc=None):
 		target_item.supplier = source_parent.supplier
 		target_item.supplier_quotation_item = source_item.name
 
+	def set_missing_values(source, target):
+		# Customer/Project/Subject dari Inquiry-nya langsung keisi, biar udah kelihatan sebelum
+		# disimpan - hook validate-nya ngisi lagi kalau masih ada yang kosong
+		from vic_addon.vic.customer_chain import set_customer_from_request_for_quotation
+
+		set_customer_from_request_for_quotation(target)
+
 	return get_mapped_doc(
 		"Supplier Quotation",
 		source_name,
@@ -342,6 +349,7 @@ def make_costing(source_name, target_doc=None):
 			},
 		},
 		target_doc,
+		set_missing_values,
 	)
 
 
