@@ -7,9 +7,14 @@
 {%- set customer = (frappe.db.get_value("Customer", doc.customer, "customer_name") or doc.customer) if doc.customer else "" -%}
 {%- set symbol = frappe.db.get_value("Currency", doc.currency, "symbol") or doc.currency -%}
 {%- set project = (frappe.db.get_value("Project", doc.project, "project_name") or doc.project) if doc.project else "" -%}
-{#- Disc = potongan yang dikasih ke customer: selisih harga jual hasil margin lawan harga
-    penawaran yang beneran dipakai -#}
-{%- set discount = (doc.total_selling_amount | float) - (doc.total_quotation_amount | float) -%}
+{#- Ringkasan di bawah tabel:
+      Disc   = Additional Percentage x Total Additional Costs
+      Ongkir = Total Additional Costs
+      TSP    = Total Selling Price - Disc + Ongkir   (Total Selling Price after discount)
+      lalu TSP - Total Buying Price -#}
+{%- set shipping = doc.total_additional_costs | float -%}
+{%- set discount = shipping * (doc.additional_percentage | float) / 100 -%}
+{%- set tsp = (doc.total_quotation_amount | float) - discount + shipping -%}
 
 <style>
 	/* Frappe cuma baca aturan yang nempel persis di .print-format, terus dilempar ke
@@ -150,8 +155,18 @@
 			<td class="money">{{ frappe.utils.fmt_money(discount) }}</td>
 		</tr>
 			<tr class="tail">
+			<td colspan="6"></td>
+			<td class="money">Ongkir</td>
+			<td class="money">{{ frappe.utils.fmt_money(shipping) }}</td>
+		</tr>
+			<tr class="tail">
+			<td colspan="6"></td>
+			<td class="money">TSP</td>
+			<td class="money">{{ frappe.utils.fmt_money(tsp) }}</td>
+		</tr>
+			<tr class="tail">
 			<td colspan="7"></td>
-			<td class="money">{{ frappe.utils.fmt_money(doc.total_quotation_profit_amount) }}</td>
+			<td class="money">{{ frappe.utils.fmt_money(tsp - (doc.total_buying_amount | float)) }}</td>
 		</tr>
 		</tbody>
 	</table>

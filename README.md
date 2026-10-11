@@ -85,6 +85,16 @@ gak pernah ketiban. Centangan **Show Project in Print** / **Show Subject in Prin
 bareng nilainya. Lewat tombol *Create > Costing* di Supplier Quotation semuanya udah keisi sebelum
 disimpan; lewat dialog *Get Items* keisinya waktu disimpan.
 
+Ringkasan di bawah tabel **Costing (Import)**:
+
+| Baris | Rumus |
+| --- | --- |
+| Total Buying Price / Total Selling Price | Σ harga beli / Σ harga nego (Quotation Rate) |
+| Disc | Additional Percentage × Total Additional Costs |
+| Ongkir | Total Additional Costs |
+| TSP (Total Selling Price after discount) | Total Selling Price − Disc + Ongkir |
+| (tanpa label) | TSP − Total Buying Price |
+
 Di print format **Costing (Import)** dan **Costing (Sales)**, Project dan Subject cuma dicetak
 kalau centangannya nyala — bisa salah satu atau dua-duanya. Baris Attn, Phone, dan Fax di Costing
 (Import) dibuang. Costing lama yang Project-nya udah keisi dicentangin otomatis lewat patch
