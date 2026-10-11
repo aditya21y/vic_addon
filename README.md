@@ -30,6 +30,24 @@ bench --site site2.local set-config host_name http://site2.local:8000
 bench start
 
 
+### Realtime (socket.io) di staging
+
+Staging jalan pakai dev server (`bench serve` di belakang nginx). Di mode itu client socket.io
+Frappe nyambung **langsung ke port `socketio_port`** (`frappe/public/js/frappe/socketio_client.js`,
+`get_host`), bukan lewat `/socket.io` di nginx. Akibatnya header `X-Frappe-Site-Name` gak ikut,
+server socket nebak nama site dari domain (`vic.thenextflow.cloud` ≠ `vic-app`), dan koneksinya
+ditolak **"Invalid namespace"** — notifikasi, assign, dan update realtime lain gak nyampe sampai
+halaman di-refresh.
+
+Perbaikannya: `socketio_port` di **site_config** tiap site diset `80`, jadi browser nyambung lewat
+nginx yang nambahin header-nya. Server socket tetap dengerin port 9000 (dibaca dari
+`common_site_config.json`, bukan site config):
+
+```
+bench --site vic-app set-config socketio_port 80
+bench --site nic-app set-config socketio_port 80
+```
+
 ### Fitur
 
 #### Diskon bertingkat per item (Supplier Quotation)
@@ -1106,6 +1124,25 @@ ada. Baris 1–7 file itu header template (judul, label kolom, nama field, keter
 diutak-atik, data mulai baris 8. Maksimal 5000 baris sekali upload.
 
 Dinyalain lewat property setter `Opportunity-items-allow_bulk_edit`.
+
+#### Badge & pop-up notifikasi
+
+Lonceng **Notification** di sidebar dapet angka notifikasi belum dibaca (badge merah), dan tiap
+notifikasi baru (di-tag, di-assign, dll) muncul pop-up di pojok kanan bawah + suara `alert` bawaan
+Frappe (ikut setting *Mute Sounds* user). Klik pop-up → buka dokumennya.
+
+- Update tanpa refresh lewat event realtime `notification` yang dikirim Notification Log waktu
+  dibikin; cadangannya polling tiap 60 detik kalau socket-nya putus.
+- Client socket.io bawaan cuma nyoba nyambung ulang 3x lalu nyerah sampai halaman di-refresh —
+  batas itu dicabut (`reconnectionAttempts(Infinity)`).
+- Angkanya diitung ulang waktu notifikasi dibaca / *Mark all as read* di dropdown bawaan.
+- Subject notifikasi itu HTML; di pop-up cuma teksnya yang dipakai (`DOMParser`, gak ngejalanin
+  apa pun).
+
+Butuh realtime yang nyambung — lihat *Realtime (socket.io) di staging* di atas.
+
+Implementasi: `vic_addon/public/js/notification_badge.js` (`app_include_js`),
+`vic_addon/vic/notifications.py`.
 
 #### Nama dokumen di desk beda dari bawaan ERPNext
 

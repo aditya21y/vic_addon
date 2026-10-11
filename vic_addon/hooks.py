@@ -43,6 +43,8 @@ fixtures = [
 # include js, css files in header of desk.html
 # app_include_css = "/assets/vic_addon/css/vic_addon.css"
 # app_include_js = "/assets/vic_addon/js/vic_addon.js"
+# badge angka notifikasi belum dibaca + pop-up & suara notifikasi baru (sidebar desk)
+app_include_js = ["/assets/vic_addon/js/notification_badge.js"]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/vic_addon/css/vic_addon.css"
