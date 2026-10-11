@@ -9,7 +9,7 @@ pajaknya dibawa otomatis ke Payment Entry.
 
 import frappe
 from frappe import _
-from frappe.utils import flt, nowdate
+from frappe.utils import flt
 
 from vic_addon.vic.dp_ppn import redirect_vat_account
 
@@ -120,7 +120,6 @@ def set_dp_from_reference(doc):
 	set_dp_type(doc)
 	set_dp_amount_from_schedule(doc, reference)
 	set_taxes_from_reference(doc, reference)
-	set_apply_tds(doc, reference)
 
 
 def set_dp_amount_from_schedule(doc, reference):
@@ -196,45 +195,6 @@ def set_taxes_from_reference(doc, reference):
 	redirect_vat_account(doc)
 
 
-def set_apply_tds(doc, reference):
-	"""Nyalain centangan Potong PPh kalau dokumen sumbernya emang kena PPh.
-
-	Centangannya read only, jadi diisi ulang tiap draft disimpan - bukan pilihan user.
-	"""
-	from vic_addon.vic.tax_withholding import resolve_category
-
-	party_type = "Customer" if doc.custom_dp_type == "Sales" else "Supplier"
-	party = reference.get("customer") if party_type == "Customer" else reference.get("supplier")
-
-	category, _group = resolve_category(reference.doctype, reference.name, party_type, party)
-	doc.custom_apply_tds = 1 if category else 0
-
-
-def set_tax_withholding_amount(doc):
-	"""Perkiraan potongan PPh atas DP ini.
-
-	Dihitung kayak PE-nya nanti: PPh penuh dokumen referensi (per baris item berkategori) x porsi
-	DP terhadap Net Total-nya. Cuma angka tampilan - yang dibukukan dihitung ulang di Payment Entry,
-	pakai tarif di tanggal posting pembayarannya.
-	"""
-	from vic_addon.vic.tax_withholding import get_full_withholding
-
-	reference_total = get_reference_total(doc)
-	if not (doc.get("custom_apply_tds") and reference_total):
-		doc.custom_tax_withholding_amount = 0
-		return
-
-	reference = get_reference_doc(doc)
-	party_type = "Customer" if doc.custom_dp_type == "Sales" else "Supplier"
-	posting = frappe._dict(posting_date=doc.transaction_date or nowdate(), company=doc.company)
-
-	full = get_full_withholding(reference, party_type, reference.get(party_type.lower()), posting)
-	doc.custom_tax_withholding_amount = flt(
-		sum(full.values()) * flt(doc.grand_total) / reference_total,
-		doc.precision("custom_tax_withholding_amount"),
-	)
-
-
 def get_reference_doc(doc):
 	if not (doc.reference_doctype and doc.reference_name):
 		return None
@@ -279,9 +239,6 @@ def set_dp_details(doc, method=None):
 	set_dp_type(doc)
 	set_dp_percentage(doc)
 	calculate_taxes(doc)
-	if doc.docstatus == 0 and (reference := get_reference_doc(doc)):
-		set_apply_tds(doc, reference)
-	set_tax_withholding_amount(doc)
 	validate_dp_amount(doc)
 	warn_if_different_from_payment_term(doc)
 

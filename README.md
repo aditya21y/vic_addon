@@ -395,115 +395,20 @@ Implementasi:
 
 Belum: print format refund.
 
-#### PPh dipotong di Payment Entry, dihitung per item
+#### PPh pakai bawaan ERPNext
 
-PPh (misalnya PPh 23 jasa) diakui waktu **dibayar**, bukan waktu invoice dibikin — uang muka
-maupun pelunasan. Semua baris PPh di Payment Entry dihitung sendiri oleh
-`vic_addon/vic/tax_withholding.py`, dan **mesin PPh bawaan ERPNext dimatiin total**.
+PPh (misalnya PPh 23 jasa) ngikut cara **bawaan ERPNext**, gak ada kustomisasi: dipotong di
+Purchase / Sales Invoice lewat **Consider for Tax Withholding**, dan buat uang muka bisa dicentang
+manual di Payment Entry (kategori + grupnya diisi sendiri).
 
-**Logika bawaan ERPNext yang dimatiin** (`PaymentTaxWithholding` di
-`erpnext/accounts/doctype/tax_withholding_entry/tax_withholding_entry.py`, jalan kalau
-`apply_tds` / *Consider for Tax Withholding* di PE nyala):
+Sempat ada versi VIC (PPh selalu diakui di Payment Entry, dihitung per item, centangan dikunci),
+tapi gak jadi dipakai dan udah dicabut lewat patch `revert_custom_tax_withholding`: custom field &
+property setter-nya dihapus, dan baris PPh versi VIC di Payment Entry **draft** dibuang. PE yang
+udah submit gak disentuh. Kodenya masih ada di riwayat git kalau suatu saat dibutuhin lagi.
 
-```
-dasar PPh = uang yang belum dialokasi + Σ alokasi ke PO/SO      (_update_taxable_amounts)
-PPh       = dasar PPh × tarif kategori di header PE
-```
-
-Masalahnya:
-
-- **Gak lihat item.** Yang dihitung seluruh uang yang dialokasi ke PO/SO. Contoh
-  `PUR-ORD-2610-00002`: PO 14.000 (biaya bea 2.000 kena PPh, test 1 12.000 gak kena), DP 20% =
-  2.800 → bawaan motong 2% × 2.800 = **56**. Yang bener 2% × (20% × 2.000) = **8**.
-- **PPN ikut kena** kalau PE-nya bayar langsung dari PO yang ber-PPN (alokasinya udah termasuk
-  PPN).
-- **Alokasi ke invoice dianggap nol** — ERPNext ngira invoice-nya udah motong sendiri, jadi PE
-  pelunasan gak pernah motong.
-- **Customer dipaksa `Add`** (skema TCS: uang masuk nambah, akun pajak dikredit) — kebalikan PPh 23.
-- **PO bertermin** bisa punya beberapa baris referensi ke PO yang sama, semuanya keitung.
-
-Karena itu `apply_tds` di PE selalu `0`, kategori/grup di header PE dikosongin, dan baris lama
-bertanda `is_tax_withholding_account` dibuang tiap disimpan.
-
-**Rumusnya sekarang** — PPh penuh satu dokumen dihitung per baris item, persis cara ERPNext di
-invoice:
-
-```
-PPh penuh dokumen = Σ per kategori: (DPP baris item berkategori) × tarif kategori itu
-```
-
-Kategori tiap baris: master **Item** dulu, kalau kosong jatuh ke master **Supplier/Customer**
-(`get_item_details.get_tax_withholding_category`). Di invoice kategorinya udah kesimpan di
-barisnya; di PO/SO dicari pakai urutan yang sama. Baris tanpa kategori gak kena; satu dokumen bisa
-punya beberapa kategori dengan tarif dan akun masing-masing. Jadi kalau maunya cuma item jasa yang
-kena, **kosongin kategori di master Supplier/Customer** dan isi di master Item jasanya aja.
-
-Tiap baris alokasi di PE motong sebagian dari PPh penuh itu:
-
-| Alokasi di PE | PPh |
-| --- | --- |
-| ke **PO/SO** lewat Advance Invoice | PPh penuh PO × alokasi / **Net Total** PO (DP VIC dihitung dari Net Total, PPN-nya baris pajak sendiri) |
-| ke **PO/SO** langsung (tanpa Advance Invoice) | PPh penuh PO × alokasi / **Grand Total** PO (alokasinya udah termasuk PPN) |
-| ke **PI/SI** (pelunasan) | (PPh penuh invoice − yang udah kepotong) × alokasi / sisa tagihan |
-| uang yang **belum dialokasi** | uang itu × tarif kategori master party (gak ada item yang bisa dilihat — ikut cara ERPNext) |
-
-"Yang udah kepotong" = PPh di PE uang muka yang ditempel di tabel **Advances** invoice
-(diprorata) + PPh pelunasan sebelumnya atas invoice yang sama. Nilai per dokumen kecatat di kolom
-**PPh** tabel referensi PE.
-
-Dasarnya **DPP, bukan uang yang dibayar** — PPh gak boleh kena PPN. Contoh PO 14.000 (biaya bea
-2.000 kena 2%, test 1 12.000 gak kena) + PPN 11%, DP 20% lewat Advance Invoice:
-
-| Pembayaran | PPh |
-| --- | --- |
-| DP 2.800 + PPN 308 | **8** → dibayar 3.100 |
-| Pelunasan PI (DP ditempel di Advances) | 40 − 8 = **32** |
-| Atau lunas sekali langsung dari PO (15.540) | **40** — bukan 2% × 15.540 |
-| Nyicil pelunasan dua kali | dibagi sebanding uang yang dibayar |
-
-Baris PPh tipe `Actual`, **Deduct**, ditandain `custom_invoice_withholding`, dan dihitung ulang tiap
-PE draft disimpan (alokasi/tanggal diganti → PPh ikut).
-
-**Dua sisi sama-sama `Deduct`, tapi akunnya beda:**
-
-| Sisi | Jurnal | Akun |
-| --- | --- | --- |
-| Pembelian (Pay) | kredit akun PPh, bank keluar lebih sedikit | **Utang PPh 23** (kewajiban) |
-| Penjualan (Receive) | debit akun PPh, bank masuk lebih sedikit | **PPh 23 dibayar dimuka** (aset) |
-
-Akunnya diambil dari Tax Withholding Category, jadi **sisi penjualan butuh kategori sendiri** yang
-akunnya aset, dipasang di **Sales Tax Withholding Category** master Item. Kalau sisi penjualan
-kebaca akun kewajiban, PE-nya **ditolak**.
-
-**Tarif harus cocok tanggal *dan* grup.** ERPNext milih baris tarif yang tanggal posting PE masuk
-rentangnya **dan** grupnya persis sama dengan grup party (`get_applicable_tax_row`). Party tanpa
-grup cuma cocok sama baris yang grupnya juga kosong — baris kosong **bukan** "berlaku buat semua".
-Kalau gak ada yang cocok, PE tetap kesimpan tanpa PPh tapi muncul peringatan oranye *Tax
-Withholding Rate Not Found* yang nyebut tanggal dan grupnya.
-
-**Semua centangan PPh otomatis dan read only** — user gak milih apa-apa:
-
-- **Payment Entry**: **Potong PPh** (`custom_apply_invoice_tds`) nyala kalau ada baris PPh yang
-  kepasang, cuma tampil kalau nyala. *Consider for Tax Withholding* bawaan selalu mati (read only,
-  gak tampil). *Ignore Tax Withholding Threshold* dan *Edit Tax Withholding Entries* disembunyiin.
-- **Advance Invoice**: **Potong PPh** nyala kalau PO/SO-nya punya item/party berkategori, dihitung
-  ulang tiap disimpan. **Perkiraan PPh** pakai rumus yang sama dengan PE-nya (cuma tampilan — yang
-  dibukukan dihitung ulang di PE, pakai tarif di tanggal posting pembayarannya).
-- **Purchase / Sales Invoice**: **Consider for Tax Withholding** dipaksa mati di server
-  (`turn_off_invoice_tds`) dan di form; centangan per baris item disembunyiin. Invoice lama yang
-  udah telanjur motong sendiri masih nampilin centangannya (read only), dan PE-nya ngelewatin
-  invoice itu biar gak kepotong dua kali.
-
-Pernah kejadian di staging (`VPAY-10202601`): pas centangan PPh masih bisa diklik, user matiin
-centangan pelunasan dan nyalain *Consider for Tax Withholding* — PE kesubmit tanpa PPh. Itu alasan
-semuanya dikunci.
-
-**Belum ditangani:** dokumen mata uang asing (angka PPh-nya bisa meleset), threshold kategori
-(*single/cumulative threshold* gak dicek — tiap pembayaran langsung dipotong), dan PI dengan
-centangan **Is Paid** (dibayar di invoice tanpa PE — PPh-nya gak kepotong di mana-mana).
-
-Implementasi: `vic_addon/vic/tax_withholding.py`, perkiraan di Advance Invoice:
-`vic_addon/vic/dp_invoice.py` (`set_tax_withholding_amount`).
+Yang tetap dipertahanin: penanda `is_tax_withholding_account` dipakai di `advance_tax.py`,
+`dp_ppn.py`, dan report Arus Uang dan Barang supaya baris PPh bawaan ERPNext gak salah keitung
+sebagai PPN atau ikut dikurangin dari pajak invoice.
 
 #### PPN uang muka ditampung dulu, baru dipindah waktu DP kebayar
 
