@@ -271,7 +271,72 @@ Belum termasuk (nunggu prioritas):
   (perlu permlevel + role, sengaja belum dipasang biar gak ngunci field ke semua user)
 - Workflow approval (doctype-nya udah non-submittable, tinggal bikin Workflow-nya)
 
-#### DP Invoice (Payment Request) + sisa PPN/PPh di invoice final
+#### DP Invoice pakai Item DP (skema sekarang)
+
+Sumber: `new dp schemaa.xlsx`, **Opsi 2**. Gantiin alur DP lama lewat Advance Invoice (lihat
+bagian berikutnya) — tombol *Create > Payment Request* di Sales Order & Purchase Order
+disembunyiin, dokumen lama tetap kebaca.
+
+Contoh order DPP 1.000 + PPN 10%, payment schedule DP 20% + 80%, ditagih progress 50% dua kali:
+
+| # | Dokumen | Jurnal | Yang bikin |
+| --- | --- | --- | --- |
+| 1 | **Invoice DP** (centang *Is DP Invoice*) | Dr Piutang 220 / Cr Uang Muka Penjualan 200 / Cr PPN 20 | user |
+| 2 | Payment Entry DP | Dr Bank 220 / Cr Piutang 220 | bawaan ERPNext |
+| 3 | Invoice progress 50% (item asli) | Dr Piutang 550 / Cr Penjualan 500 / Cr PPN 50 | bawaan ERPNext |
+| 4 | **Reverse Journal** (otomatis waktu #3 disubmit) | Dr Uang Muka Penjualan 100 / Dr PPN 10 / Cr Piutang 110 → tagihan #3 tinggal 440 | sistem |
+| 5 | Payment Entry | Dr Bank 440 / Cr Piutang 440 | bawaan ERPNext |
+| 6 | Progress 50% kedua | sama kayak #3–#5: reverse 100 + 10, bayar 440 | |
+
+Sisi **pembelian** sama persis dengan arah kebalik: Dr Uang Muka Pembelian (aset) + PPN Masukan,
+reverse-nya Dr Hutang / Cr Uang Muka Pembelian / Cr PPN Masukan.
+
+**Setting (Company → section *DP Invoice (Item DP)*):** **DP Item** (item jasa, *Maintain Stock*
+mati, boleh dijual & dibeli), akun **Uang Muka Penjualan** (income baris DP di Sales Invoice) dan
+**Uang Muka Pembelian** (expense baris DP di Purchase Invoice).
+
+**Invoice DP** — bikin Sales/Purchase Invoice dari order seperti biasa, lalu centang **Is DP
+Invoice** dan pilih **DP Term** (baris Payment Schedule order). Waktu disimpan semua item diganti
+satu baris Item DP:
+
+- rate = porsi term × **Net Total** order (DPP, bukan grand total — pajaknya ikut tabel pajak
+  invoice). Dihitung ulang tiap draft disimpan.
+- akun baris = akun Uang Muka dari Company; kategori PPh baris ngikut cara ERPNext (master Item,
+  lalu master party), jadi PPh bawaan tetap jalan di invoice DP.
+- payment terms invoice dikosongin (satu tagihan), Update Stock dimatiin.
+- satu term cuma boleh di-DP sekali, dan total DP gak boleh lewat Net Total order.
+
+**Invoice progress** — tabel **DP Invoices** (di bawah Advances) narik DP dari order yang sama
+(party & company sama), otomatis waktu dokumen baru kebuka atau lewat tombol **Get DP Invoices**:
+
+| Kolom | Isinya |
+| --- | --- |
+| Allocated (DPP) | default DP order × DPP invoice ini / DPP order; invoice yang ngelunasin order ngambil semua sisa. **Boleh diedit**, maksimal sisa DP |
+| Tax | pajak DP (PPN/PPh) yang ikut dibalik, sebanding Allocated |
+| Total Reversed | Allocated + Tax — ngurangin tagihan invoice ini |
+
+Waktu invoice progress disubmit, **Reverse Journal** dibikin & disubmit otomatis (field *DP
+Reversal For* di JE nunjuk ke invoice-nya). Isinya ngebalik **jurnal GL invoice DP-nya sendiri**
+(semua baris selain piutang/hutang) × Allocated / DPP DP — akun Uang Muka, PPN, PPh, sampai cost
+center-nya persis yang dipakai invoice DP. Baris piutang/hutangnya nempel ke invoice progress.
+
+Contoh PPh (supplier kena 2%, sisi pembelian): invoice DP potong 4, tiap progress potong 10 tapi
+reverse-nya ngembaliin 2 → total 4 − 2 − 2 + 10 + 10 = **20** = 2% × 1.000, uang keluar 1.080.
+
+**Cancel:** cancel invoice progress → Reverse Journal-nya ikut dicancel duluan, DP-nya bisa dipakai
+lagi. Invoice DP yang udah dipakai invoice progress submitted **gak bisa dicancel**.
+
+**Belum ditangani:** invoice/akun party mata uang asing (reverse ditolak dengan pesan jelas), dan
+tabel deskripsi penagihan khusus buat print (Opsi A di Excel).
+
+Implementasi: `vic_addon/vic/dp_item_invoice.py`, `vic_addon/public/js/dp_item_invoice.js`,
+child table **DP Allocation**.
+
+#### DP Invoice (Payment Request) + sisa PPN/PPh di invoice final — alur lama
+
+> **Gak dipakai lagi buat dokumen baru** — diganti skema Item DP di atas. Tombol *Create >
+> Payment Request* di SO/PO disembunyiin; kodenya dibiarin supaya Advance Invoice & Payment Entry
+> DP lama tetap kebaca dan bisa diselesaikan.
 
 Alur: **PO/SO → Payment Request (DP Invoice) → Payment Entry (DP) → Invoice final**
 

@@ -91,6 +91,9 @@ doctype_js["Request for Quotation"] = ["public/js/request_for_quotation.js"]
 doctype_js["Payment Request"] = ["public/js/payment_request.js"]
 # tarik biaya yang nambah nilai barang dari Journal Entry
 doctype_js["Landed Cost Voucher"] = ["public/js/landed_cost_voucher.js"]
+# skema DP pakai Item DP: pilihan term DP + tombol Get DP Invoices
+for doctype in ("Sales Invoice", "Purchase Invoice"):
+	doctype_js.setdefault(doctype, []).append("public/js/dp_item_invoice.js")
 # tombol bikin PO per supplier
 doctype_js["Sales Order"].append("public/js/sales_order.js")
 # PO dropship: tombol bikin Delivery Note, tombol Purchase Receipt disembunyiin
@@ -345,8 +348,22 @@ for doctype, handler in (
 
 # invoice final cuma nagih sisa PPN/PPh yang belum dibayar lewat DP
 for doctype in ("Sales Invoice", "Purchase Invoice"):
-	doc_events[doctype]["before_validate"] = "vic_addon.vic.advance_tax.restore_tax_rows"
+	doc_events[doctype]["before_validate"] = [
+		# invoice DP (Is DP Invoice): semua item diganti satu baris Item DP senilai term DP-nya
+		"vic_addon.vic.dp_item_invoice.set_dp_invoice",
+		"vic_addon.vic.advance_tax.restore_tax_rows",
+	]
 	doc_events[doctype]["validate"].append("vic_addon.vic.advance_tax.deduct_advance_taxes")
+	# invoice progress: DP dari order yang sama dibalik lewat Reverse Journal waktu submit
+	doc_events[doctype]["validate"].append("vic_addon.vic.dp_item_invoice.validate_dp_allocations")
+	doc_events[doctype].setdefault("on_submit", [])
+	if isinstance(doc_events[doctype]["on_submit"], str):
+		doc_events[doctype]["on_submit"] = [doc_events[doctype]["on_submit"]]
+	doc_events[doctype]["on_submit"].append("vic_addon.vic.dp_item_invoice.make_reverse_journal")
+	doc_events[doctype]["before_cancel"] = [
+		"vic_addon.vic.dp_item_invoice.block_cancel_of_used_dp",
+		"vic_addon.vic.dp_item_invoice.cancel_reverse_journal",
+	]
 
 # alamat kirim dropship itu alamat customer, yang ditolak validasi alamat bawaan ERPNext -
 # disingkirin sebelum validasi inti, dipasang lagi sesudahnya

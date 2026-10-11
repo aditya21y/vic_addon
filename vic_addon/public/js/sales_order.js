@@ -254,3 +254,21 @@ function submit_purchase_orders(frm, selected_items) {
 		},
 	});
 }
+
+// Alur DP lama (Advance Invoice / Payment Request) dimatiin buat dokumen baru - DP sekarang ditagih
+// lewat invoice dengan centangan "Is DP Invoice" (lihat vic_addon/vic/dp_item_invoice.py).
+// Tombolnya ditambah di refresh controller ERPNext yang jalan SESUDAH handler custom, jadi
+// refresh controller-nya dibungkus: tombolnya dicabut begitu ERPNext selesai nambahin.
+frappe.ui.form.on("Sales Order", {
+	onload(frm) {
+		if (frm.__dp_request_hidden || !frm.cscript || !frm.cscript.refresh) return;
+		frm.__dp_request_hidden = true;
+
+		const refresh = frm.cscript.refresh;
+		frm.cscript.refresh = function (...args) {
+			const result = refresh.apply(this, args);
+			frm.remove_custom_button(__("Payment Request"), __("Create"));
+			return result;
+		};
+	},
+});

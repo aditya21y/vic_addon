@@ -1,0 +1,116 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-10-11 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "dp_invoice_type",
+  "dp_invoice",
+  "order",
+  "posting_date",
+  "column_break_amounts",
+  "dp_amount",
+  "available_amount",
+  "allocated_amount",
+  "tax_amount",
+  "total_amount"
+ ],
+ "fields": [
+  {
+   "fieldname": "dp_invoice_type",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "DP Invoice Type",
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "dp_invoice",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "DP Invoice",
+   "options": "dp_invoice_type",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "description": "Sales Order / Purchase Order yang di-DP",
+   "fieldname": "order",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "label": "DP Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_amounts",
+   "fieldtype": "Column Break"
+  },
+  {
+   "columns": 2,
+   "fieldname": "dp_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "DP Amount (DPP)",
+   "options": "Company:company:default_currency",
+   "read_only": 1
+  },
+  {
+   "description": "DPP DP yang belum dipakai invoice lain",
+   "fieldname": "available_amount",
+   "fieldtype": "Currency",
+   "label": "Available DP (DPP)",
+   "options": "Company:company:default_currency",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "description": "DPP DP yang dibalik di invoice ini. Default sebanding porsi tagihan terhadap order; boleh diubah.",
+   "fieldname": "allocated_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Allocated (DPP)",
+   "options": "Company:company:default_currency"
+  },
+  {
+   "columns": 2,
+   "description": "Pajak DP (PPN/PPh) yang ikut dibalik, sebanding Allocated",
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Tax",
+   "options": "Company:company:default_currency",
+   "read_only": 1
+  },
+  {
+   "description": "Allocated + Tax, ngurangin tagihan invoice ini lewat Reverse Journal",
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "label": "Total Reversed",
+   "options": "Company:company:default_currency",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-11 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "VIC",
+ "name": "DP Allocation",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
