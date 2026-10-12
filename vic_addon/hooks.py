@@ -81,6 +81,8 @@ after_install = [
 	"vic_addon.vic.print_formats.sync_print_formats",
 	# Stock Entry Type buat alur peminjaman barang (Loan Memo)
 	"vic_addon.vic.doctype.loan_memo.loan_memo.setup_stock_entry_types",
+	# isian awal master Tax ID Type (TIN, NIK, Passport, Other ID), cuma kalau masih kosong
+	"vic_addon.vic.doctype.tax_id_type.tax_id_type.setup_tax_id_types",
 ]
 after_migrate = after_install
 

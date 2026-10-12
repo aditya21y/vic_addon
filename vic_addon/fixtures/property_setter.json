@@ -878,5 +878,53 @@
   "property_type": "Data",
   "row_name": null,
   "value": "[\"naming_series\", \"opportunity_from\", \"party_name\", \"customer_name\", \"status\", \"column_break0\", \"opportunity_type\", \"opportunity_owner\", \"column_break_10\", \"sales_stage\", \"expected_closing\", \"probability\", \"transaction_date\", \"organization_details_section\", \"no_of_employees\", \"annual_revenue\", \"customer_group\", \"column_break_23\", \"industry\", \"market_segment\", \"website\", \"column_break_31\", \"city\", \"state\", \"country\", \"territory\", \"section_break_14\", \"currency\", \"column_break_36\", \"conversion_rate\", \"column_break_17\", \"opportunity_amount\", \"base_opportunity_amount\", \"utm_analytics_section\", \"utm_source\", \"utm_medium\", \"column_break_emai\", \"utm_campaign\", \"utm_content\", \"more_info\", \"company\", \"column_break1\", \"language\", \"amended_from\", \"title\", \"first_response_time\", \"lost_detail_section\", \"lost_reasons\", \"order_lost_reason\", \"column_break_56\", \"competitors\", \"contact_info\", \"primary_contact_section\", \"contact_person\", \"job_title\", \"column_break_54\", \"contact_email\", \"contact_mobile\", \"column_break_22\", \"whatsapp\", \"phone\", \"phone_ext\", \"address_contact_section\", \"address_html\", \"customer_address\", \"address_display\", \"column_break3\", \"contact_html\", \"contact_display\", \"items_section\", \"items\", \"section_break_32\", \"base_total\", \"column_break_33\", \"total\", \"activities_tab\", \"open_activities_html\", \"all_activities_section\", \"all_activities_html\", \"notes_tab\", \"notes_html\", \"notes\", \"dashboard_tab\"]"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Supplier",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "default_bank_account",
+  "is_system_generated": 1,
+  "modified": "2026-10-12 12:00:00.000000",
+  "module": "VIC",
+  "name": "Supplier-default_bank_account-hidden",
+  "property": "hidden",
+  "property_type": "Check",
+  "row_name": null,
+  "value": "1"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Supplier",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "default_price_list",
+  "is_system_generated": 1,
+  "modified": "2026-10-12 12:00:00.000000",
+  "module": "VIC",
+  "name": "Supplier-default_price_list-hidden",
+  "property": "hidden",
+  "property_type": "Check",
+  "row_name": null,
+  "value": "1"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Supplier",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "alias",
+  "is_system_generated": 1,
+  "modified": "2026-10-12 12:00:00.000000",
+  "module": "VIC",
+  "name": "Supplier-alias-hidden",
+  "property": "hidden",
+  "property_type": "Check",
+  "row_name": null,
+  "value": "1"
  }
 ]

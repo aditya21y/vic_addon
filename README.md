@@ -1231,6 +1231,18 @@ Konsekuensi yang perlu diinget: karena namanya nabrak nama field bawaan, kalau s
 nambahin field `project` sendiri di salah satu doctype itu, custom field kita bakal bentrok dan
 mesti dicabut. Itu risiko yang diambil sadar — imbalannya nol kode tambahan di semua mapper.
 
+#### Form Supplier dirampingin
+
+- **Disembunyiin** (property setter `hidden`): Company Bank Account (`default_bank_account`),
+  Price List (`default_price_list`), dan Alias.
+- **Tax ID Type** (`custom_tax_id_type`, Link) di tab Tax, paling atas section Tax Identification
+  (di atas Tax ID). Pilihannya dari master baru **Tax ID Type** (modul VIC), diisi awal
+  **TIN** (NPWP), **NIK**, **Passport**, **Other ID** — jenis ID pembeli/penjual di Coretax. Isian
+  awal itu cuma dibikin kalau master-nya masih kosong (tiap install/migrate), jadi data yang udah
+  diubah/dihapus user gak muncul lagi.
+
+Implementasi: fixture + `vic_addon/vic/doctype/tax_id_type/`.
+
 #### Form Project dirampingin
 
 Semua lewat property setter di `fixtures/property_setter.json`, gak ada kode:
