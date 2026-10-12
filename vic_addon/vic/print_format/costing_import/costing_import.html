@@ -36,6 +36,8 @@
 	.vic-pf .ci-head .profit { text-align: right; white-space: nowrap; }
 
 	.vic-pf .items .rp { font-weight: 400; }
+	/* cuma Act Price After Disc yang dicetak merah */
+	.vic-pf .items td.price { color: #d00000 !important; }
 	/* baris total di kaki tabel: tanpa garis kolom, biar kebaca sebagai ringkasan */
 	.vic-pf .items tr.sum td { border-top: 1px solid #000; font-weight: 700; }
 	.vic-pf .items tr.tail td { border-top: 0; border-bottom: 0; }
@@ -79,6 +81,15 @@
 						<td>{{ doc.name }}</td>
 						<td class="profit">{{ "%.2f" | format(doc.total_quotation_profit_percentage | float) }}</td>
 					</tr>
+					{%- set rfq = doc.get("request_for_quotation") or (get_request_for_quotations(doc) | join(", ")) %}
+					{%- if rfq %}
+						<tr>
+							<td class="lbl">Our RFQ</td>
+							<td class="sep">:</td>
+							<td>{{ rfq }}</td>
+							<td class="profit"></td>
+						</tr>
+					{%- endif %}
 				</table>
 			</td>
 		</tr>
@@ -95,7 +106,6 @@
 				<th style="width: 13%">Total Buying Price<div class="rp">{{ symbol }}</div></th>
 				<th style="width: 12%">
 					Selling Price
-					{%- if doc.mark_up %}<div class="rp">: {{ doc.mark_up }}</div>{% endif %}
 					<div class="rp">{{ symbol }}</div>
 				</th>
 				<th style="width: 14%">Total Selling Price<div class="rp">{{ symbol }}</div></th>
@@ -120,7 +130,7 @@
 					</td>
 					<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
 					<td class="money">{{ frappe.utils.fmt_money(item.price_list_rate or item.rate) }}</td>
-					<td class="money">{{ frappe.utils.fmt_money(item.rate) }}</td>
+					<td class="money price">{{ frappe.utils.fmt_money(item.rate) }}</td>
 					<td class="money">{{ frappe.utils.fmt_money(item.amount) }}</td>
 					<td class="money">{{ frappe.utils.fmt_money(item.quotation_rate) }}</td>
 					<td class="money">{{ frappe.utils.fmt_money(item.quotation_amount) }}</td>

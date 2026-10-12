@@ -88,8 +88,8 @@ def make_request_for_quotation(source_name, target_doc=None):
 
 
 def set_customer_from_request_for_quotation(doc, method=None):
-	"""Hook `validate` Costing: isi Customer, Project, dan Subject dari Inquiry di balik
-	penawaran suppliernya.
+	"""Hook `validate` Costing: isi Customer, RFQ (nomor Inquiry), Project, dan Subject dari Inquiry
+	di balik penawaran suppliernya.
 
 	Tiap field cuma diisi kalau masih kosong, jadi isian user gak pernah ketiban. Centangan Show
 	... in Print ikut disalin bareng nilainya - kalau Project/Subject-nya udah diisi user, centangan
@@ -97,13 +97,19 @@ def set_customer_from_request_for_quotation(doc, method=None):
 	"""
 	from vic_addon.vic.doctype.costing.costing import get_request_for_quotations
 
-	names = get_request_for_quotations(doc)
-	if not names:
-		return
+	for field, value in get_inquiry_header(get_request_for_quotations(doc), doc).items():
+		doc.set(field, value)
+
+
+def get_inquiry_header(inquiry_names, doc=None):
+	"""Isian header Costing dari Inquiry-nya: `{field Costing: nilai}`, cuma buat field yang
+	masih kosong di `doc` (kalau `doc` dikasih)."""
+	if not inquiry_names:
+		return {}
 
 	inquiries = frappe.get_all(
 		"Request for Quotation",
-		filters={"name": ["in", names]},
+		filters={"name": ["in", inquiry_names]},
 		fields=[
 			"name",
 			"custom_customer",
@@ -113,18 +119,28 @@ def set_customer_from_request_for_quotation(doc, method=None):
 			"custom_show_subject",
 		],
 	)
-	inquiries.sort(key=lambda row: names.index(row.name))
+	inquiries.sort(key=lambda row: inquiry_names.index(row.name))
 
 	def first(field):
 		return next((row for row in inquiries if row.get(field)), None)
 
-	if not doc.get("customer") and (row := first("custom_customer")):
-		doc.customer = row.custom_customer
+	def is_empty(field):
+		return not (doc and doc.get(field))
 
-	if not doc.get("project") and (row := first("project")):
-		doc.project = row.project
-		doc.show_project_in_print = row.custom_show_project
+	values = {}
+	if is_empty("customer") and (row := first("custom_customer")):
+		values["customer"] = row.custom_customer
 
-	if not doc.get("subject") and (row := first("custom_subject")):
-		doc.subject = row.custom_subject
-		doc.show_subject_in_print = row.custom_show_subject
+	# field RFQ di Costing = nomor Inquiry-nya sendiri (PUR-RFQ-...), yang pertama kalau lebih dari satu
+	if is_empty("request_for_quotation") and inquiries:
+		values["request_for_quotation"] = inquiries[0].name
+
+	if is_empty("project") and (row := first("project")):
+		values["project"] = row.project
+		values["show_project_in_print"] = row.custom_show_project
+
+	if is_empty("subject") and (row := first("custom_subject")):
+		values["subject"] = row.custom_subject
+		values["show_subject_in_print"] = row.custom_show_subject
+
+	return values

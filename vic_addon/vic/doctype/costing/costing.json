@@ -12,6 +12,7 @@
   "column_break_header",
   "company",
   "customer",
+  "request_for_quotation",
   "project",
   "show_project_in_print",
   "currency",
@@ -38,7 +39,6 @@
   "total_quotation_profit_amount",
   "total_quotation_profit_percentage",
   "terms_section",
-  "mark_up",
   "delivery_time",
   "delivery_point",
   "column_break_terms",
@@ -95,6 +95,13 @@
    "fieldtype": "Link",
    "label": "Customer",
    "options": "Customer"
+  },
+  {
+   "description": "Inquiry asal penawaran supplier di costing ini (nomor PUR-RFQ-...). Terisi otomatis dari baris item, dicetak sebagai Our RFQ di print format Costing.",
+   "fieldname": "request_for_quotation",
+   "fieldtype": "Link",
+   "label": "RFQ",
+   "options": "Request for Quotation"
   },
   {
    "fieldname": "project",
@@ -265,11 +272,6 @@
    "label": "Terms & Conditions"
   },
   {
-   "fieldname": "mark_up",
-   "fieldtype": "Data",
-   "label": "Mark Up"
-  },
-  {
    "fieldname": "delivery_time",
    "fieldtype": "Data",
    "label": "Delivery Time"
@@ -297,7 +299,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-06 16:00:00.000000",
+ "modified": "2026-10-12 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "VIC",
  "name": "Costing",

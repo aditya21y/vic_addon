@@ -33,6 +33,8 @@ frappe.ui.form.on("Costing", {
 		);
 
 		if (!frm.doc.__islocal) {
+			frm.add_custom_button(__("Send Email"), () => send_costing_email(frm));
+
 			frm.add_custom_button(
 				__("Quotation"),
 				() =>
@@ -441,10 +443,47 @@ function get_items_from_supplier_quotation(frm) {
 			frm.refresh_field("items");
 			calculate(frm);
 			dialog.hide();
+			fill_header_from_inquiry(frm, selected);
 		},
 	});
 
 	dialog.show();
+}
+
+// Customer, RFQ, Project, dan Subject diambil dari Inquiry asal baris yang baru ditarik - cuma
+// yang masih kosong. Server ngisi lagi waktu disimpan; ini biar udah kelihatan sebelum disimpan.
+function fill_header_from_inquiry(frm, rows) {
+	const names = rows.map((row) => row.supplier_quotation_item).filter(Boolean);
+	if (!names.length) return;
+
+	frappe.call({
+		method: "vic_addon.vic.doctype.costing.costing.get_header_from_supplier_quotation_items",
+		args: { supplier_quotation_items: names },
+		callback({ message }) {
+			const values = message || {};
+			// centangan Show ... in Print cuma ikut kalau nilainya ikut keisi
+			const pairs = { project: "show_project_in_print", subject: "show_subject_in_print" };
+			Object.entries(values).forEach(([field, value]) => {
+				if (Object.values(pairs).includes(field)) return;
+				if (frm.doc[field]) return;
+				frm.set_value(field, value);
+				if (pairs[field]) frm.set_value(pairs[field], values[pairs[field]] || 0);
+			});
+		},
+	});
+}
+
+// Kirim Costing (Import) lewat email ke internal (review harga): composer email bawaan Frappe,
+// PDF Costing (Import) langsung kelampir.
+function send_costing_email(frm) {
+	const composer = new frappe.views.CommunicationComposer({
+		doc: frm.doc,
+		frm: frm,
+		subject: __("Costing {0}", [frm.doc.name]) + (frm.doc.subject ? ` - ${frm.doc.subject}` : ""),
+		attach_document_print: true,
+		recipients: "",
+	});
+	$(composer.dialog.fields_dict.select_print_format.input).val("Costing (Import)");
 }
 
 // Isi tabelnya ditarik ulang tiap pilihan di atas berubah.

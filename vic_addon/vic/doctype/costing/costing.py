@@ -216,6 +216,21 @@ def get_request_for_quotations(costing):
 	return sorted({name for name in names if name})
 
 
+@frappe.whitelist()
+def get_header_from_supplier_quotation_items(supplier_quotation_items):
+	"""Tombol Get Items: Customer/RFQ/Project/Subject dari Inquiry asal baris yang baru ditarik,
+	biar udah keisi sebelum disimpan (hook validate ngisi lagi kalau masih ada yang kosong)."""
+	from vic_addon.vic.customer_chain import get_inquiry_header
+
+	rows = frappe.parse_json(supplier_quotation_items) or []
+	names = frappe.get_all(
+		"Supplier Quotation Item",
+		filters={"name": ["in", rows]},
+		pluck="request_for_quotation",
+	)
+	return get_inquiry_header(sorted({name for name in names if name}))
+
+
 def get_status(costing):
 	"""`Quoted` kalau costing ini udah punya Quotation yang belum dibatalin."""
 	quoted = frappe.db.exists("Quotation", {"custom_costing": costing, "docstatus": ["<", 2]})

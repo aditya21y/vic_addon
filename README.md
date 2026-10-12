@@ -97,11 +97,19 @@ Doctype: **Costing** (`CST-.YYMM.-`), dengan child table **Costing Item** dan
 **Costing Additional Cost**. Ada field **Project** juga, yang ikut kebawa ke Quotation waktu
 costing-nya dijadiin penawaran.
 
-**Customer, Project, dan Subject diambil dari Inquiry** asal penawarannya (nomor Inquiry kebaca
-lewat baris Supplier Quotation di tabel item), masing-masing cuma kalau masih kosong — isian user
-gak pernah ketiban. Centangan **Show Project in Print** / **Show Subject in Print** ikut disalin
-bareng nilainya. Lewat tombol *Create > Costing* di Supplier Quotation semuanya udah keisi sebelum
-disimpan; lewat dialog *Get Items* keisinya waktu disimpan.
+**Customer, RFQ, Project, dan Subject diambil dari Inquiry** asal penawarannya (nomor Inquiry
+kebaca lewat baris Supplier Quotation di tabel item; field RFQ = nomor Inquiry-nya sendiri,
+`PUR-RFQ-...`, yang pertama kalau lebih dari satu),
+masing-masing cuma kalau masih kosong — isian user gak pernah ketiban. Centangan **Show Project in
+Print** / **Show Subject in Print** ikut disalin bareng nilainya. Lewat tombol *Create > Costing* di
+Supplier Quotation maupun dialog *Get Items* semuanya udah keisi sebelum disimpan, dan diisi lagi
+waktu disimpan kalau masih ada yang kosong.
+
+**Send Email** (tombol di form Costing): composer email bawaan Frappe dengan PDF **Costing
+(Import)** langsung kelampir — buat dikirim ke internal (review harga). Emailnya kecatat di
+timeline Costing.
+
+Di **Costing (Import)**, kolom **Act Price After Disc** dicetak **merah**; kolom lain tetap hitam.
 
 Ringkasan di bawah tabel **Costing (Import)**:
 
@@ -1523,7 +1531,8 @@ Field yang ditambah buat nutupin isian di kertas:
 | Request for Quotation | Person in Charge | Nama penanggung jawab, dicetak di bawah **Best regards** di Inquiry (kosong → nama user pembuat) |
 | Request for Quotation Item | Weight, Remarks | Kolom tambahan di tabel inquiry |
 | Costing | Subject, Show Project in Print, Show Subject in Print | Project/Subject di kepala Costing (Import) & (Sales), cuma yang dicentang |
-| Costing | Mark Up, Delivery Time, Delivery Point, Payment, Validity | Blok Terms & Conditions di Costing (Sales) |
+| Costing | Delivery Time, Delivery Point, Payment, Validity | Blok Terms & Conditions di Costing (Sales). Field Mark Up udah dibuang |
+| Costing | RFQ (link ke Inquiry, nomor `PUR-RFQ-...`) | Dicetak sebagai **Our RFQ** di Costing (Import) & (Sales) |
 
 **Nomor PO customer ikut turun ke Purchase Request.** Material Request yang lahir dari Sales
 Order (Create > Material Request) narik `po_no` dari Sales Order-nya lewat field `sales_order` di
