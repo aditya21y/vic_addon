@@ -40,7 +40,7 @@ vic.notifications = {
 
 				if (is_new && !silent) this.show_popup(latest);
 			})
-			.catch(() => {});
+			.catch(() => { });
 	},
 
 	render_badge() {

@@ -291,9 +291,9 @@ Belum termasuk (nunggu prioritas):
 
 #### DP Invoice pakai Item DP (skema sekarang)
 
-Sumber: `new dp schemaa.xlsx`, **Opsi 2**. Gantiin alur DP lama lewat Advance Invoice (lihat
-bagian berikutnya) — tombol *Create > Payment Request* di Sales Order & Purchase Order
-disembunyiin, dokumen lama tetap kebaca.
+Sumber: `new dp schemaa.xlsx`, **Opsi 2**. Jalan **berdampingan** dengan alur DP lewat Advance
+Invoice (bagian berikutnya) — dua-duanya masih dipakai, tombol *Create > Payment Request* di Sales
+Order & Purchase Order tetap ada.
 
 Contoh order DPP 1.000 + PPN 10%, payment schedule DP 20% + 80%, ditagih progress 50% dua kali:
 
@@ -350,11 +350,10 @@ tabel deskripsi penagihan khusus buat print (Opsi A di Excel).
 Implementasi: `vic_addon/vic/dp_item_invoice.py`, `vic_addon/public/js/dp_item_invoice.js`,
 child table **DP Allocation**.
 
-#### DP Invoice (Payment Request) + sisa PPN/PPh di invoice final — alur lama
+#### DP Invoice (Payment Request) + sisa PPN/PPh di invoice final
 
-> **Gak dipakai lagi buat dokumen baru** — diganti skema Item DP di atas. Tombol *Create >
-> Payment Request* di SO/PO disembunyiin; kodenya dibiarin supaya Advance Invoice & Payment Entry
-> DP lama tetap kebaca dan bisa diselesaikan.
+> Masih dipakai, berdampingan dengan skema Item DP di atas. Sempat disembunyiin waktu skema Item DP
+> masuk, lalu dibalikin karena alur ini ternyata masih kepakai.
 
 Alur: **PO/SO → Payment Request (DP Invoice) → Payment Entry (DP) → Invoice final**
 
