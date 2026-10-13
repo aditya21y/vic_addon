@@ -9,14 +9,15 @@
 	/* kotak Customer & Delivered To, judulnya nempel di garis atas */
 	.vic-pf .parties { width: 100%; margin-top: 14px; }
 	.vic-pf .parties .left { width: 62%; padding-right: 18px !important; }
-	.vic-pf .box {
+	/* dibatesin ke .parties: blok alamat company di kop juga pakai class `box`, jangan ikut digaris */
+	.vic-pf .parties .box {
 		border: 1px solid #000;
 		border-radius: 3px;
 		padding: 7px 10px 8px;
 		margin-bottom: 10px;
 		position: relative;
 	}
-	.vic-pf .box .cap {
+	.vic-pf .parties .box .cap {
 		position: absolute;
 		top: -7px;
 		left: 9px;
@@ -24,14 +25,22 @@
 		padding: 0 4px;
 		font-size: 9px;
 	}
-	.vic-pf .box .name { font-weight: 700; }
-	.vic-pf .box .addr { font-size: 10px; }
+	.vic-pf .parties .box .name { font-weight: 700; }
+	.vic-pf .parties .box .addr { font-size: 10px; }
 	.vic-pf .ship .lbl { width: 80px; }
 	.vic-pf .ship .sep { width: 12px; }
 	.vic-pf .items td { padding-bottom: 14px !important; }
 	.vic-pf .serials { margin-top: 8px; font-weight: 400; }
 	.vic-pf .serials div { word-break: break-all; }
-	.vic-pf .sign td { width: 20%; }
+	/* lima blok tanda tangan sama lebar, dikotakin; garisnya dipaksa !important (CSS print Frappe
+	   ngenolin border sel), jabatan di atas dengan garis bawah, ruang tanda tangan di bawahnya */
+	.vic-pf .sign { table-layout: fixed; }
+	.vic-pf .sign td { width: 20%; border: 1px solid #000 !important; padding: 6px 6px 8px !important; }
+	.vic-pf .sign td .role { border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 58px; font-weight: 700; }
+	/* judul & isi Description rata kiri (judul lain tetap tengah dari letterhead) - selektornya
+	   lebih spesifik dari aturan letterhead yang juga pakai !important */
+	.vic-pf .items th.left { text-align: left !important; }
+	.vic-pf .items td.text { text-align: left !important; }
 </style>
 
 <div class="vic-pf">
@@ -90,7 +99,7 @@
 		<thead>
 			<tr>
 				<th style="width: 8%">Item</th>
-				<th style="width: 52%">Description</th>
+				<th class="left" style="width: 52%">Description</th>
 				<th style="width: 15%">Qty</th>
 				<th style="width: 25%">Remarks</th>
 			</tr>
@@ -109,8 +118,8 @@
 					{%- set qty = item.qty | float %}
 					<tr>
 						<td class="num">{{ ns.no }}</td>
-						<td class="{{ indent }}">
-							<div class="desc">{{ item.item_name or item.item_code }}</div>
+						<td class="text {{ indent }}">
+							<div class="desc">{{ get_item_description(item) }}</div>
 							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
 							{%- if serials %}
 								<div class="serials">
@@ -130,18 +139,16 @@
 	{#- nama di kolom tanda tangan sengaja dikosongin, diisi tanda tangan basah -#}
 	<table class="sign">
 		<tr>
-			<td class="role">Issued By</td>
-			<td class="role">Approved by</td>
-			<td class="role">Warehouse</td>
-			<td class="role">Delivered by</td>
-			<td class="role">Received by</td>
-		</tr>
-		<tr>
-			<td>{{ frappe.db.get_value("User", doc.owner, "full_name") or "" }}</td>
-			<td></td>
-			<td></td>
-			<td></td>
-			<td></td>
+			<td>
+				<div class="role">Issued By</div>
+				<div>{{ frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
+			</td>
+			{%- for role in ["Approved by", "Warehouse", "Delivered by", "Received by"] %}
+				<td>
+					<div class="role">{{ role }}</div>
+					<div>&nbsp;</div>
+				</td>
+			{%- endfor %}
 		</tr>
 	</table>
 	{%- include "vic_addon/templates/print_formats/vic_footer.html" -%}

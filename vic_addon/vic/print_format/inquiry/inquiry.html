@@ -85,7 +85,7 @@
 					<tr>
 						<td class="num">{{ ns.no }}</td>
 						<td class="{{ indent }}">
-							<div class="desc">{{ item.item_name or item.item_code }}</div>
+							<div class="desc">{{ get_item_description(item) }}</div>
 							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
 						</td>
 						<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>

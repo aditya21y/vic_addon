@@ -90,7 +90,7 @@
 					<tr>
 						<td class="num">{{ ns.no }}</td>
 						<td class="text {{ indent }}">
-							<div class="desc">{{ item.item_name or item.item_code }}</div>
+							<div class="desc">{{ get_item_description(item) }}</div>
 							{%- if brand %}<div>{{ brand }}</div>{% endif %}
 							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
 						</td>

@@ -141,6 +141,8 @@ doctype_js["Purchase Order"].append("public/js/purchase_order.js")
 jinja = {
 	"methods": [
 		"vic_addon.vic.item_header.group_items_by_header",
+		# kolom Description di tabel item: description dulu, kosong -> item name
+		"vic_addon.vic.print_utils.get_item_description",
 		"vic_addon.vic.doctype.costing.costing.get_request_for_quotations",
 		"vic_addon.vic.serial_no.get_row_serial_nos",
 		"vic_addon.vic.serial_no.get_label_rows",

@@ -1533,7 +1533,14 @@ belum dipakai di mana-mana.
 
 Lima form kertas VIC yang lain ikut dibikin, semuanya pakai kop surat + gaya yang sama dari
 `vic_addon/templates/print_formats/vic_letterhead.html` (satu file, dipakai bareng lewat
-`{% include %}`).
+`{% include %}`). Blok nama + alamat company di kop **gak pernah bergaris** — dikunci `!important`
+di letterhead, karena class `box`-nya juga dipakai print lain buat kotak bergaris (sempat kena di
+Delivery Order).
+
+**Kolom Description di tabel item** semua print VIC ngambil **description** baris itu dulu; kalau
+kosong (termasuk editor yang isinya cuma tag kosong kayak `<p></p>`) baru **item name**. Satu
+helper Jinja dipakai bareng: `get_item_description` di `vic_addon/vic/print_utils.py`. Costing Item
+gak punya field description, jadi Costing tetap nyetak item name.
 
 | Print Format | Doctype | Judul di kertas |
 | --- | --- | --- |
@@ -1610,8 +1617,6 @@ kotak tiga kolom.
 - Inquiry lama yang udah punya Subject dicentangin otomatis lewat patch
   `show_inquiry_subject_in_print`, biar Subject-nya gak mendadak ilang dari kertas — dulu Subject
   di Inquiry selalu dicetak kalau diisi.
-- Kolom Description ngambil **deskripsi item duluan**; kalau kosong (termasuk editor yang isinya
-  cuma tag kosong kayak `<p></p>`) baru **nama item**.
 - Tanda tangan **SALES** di pojok kiri bawah dalam **kotak** bergaris (label SALES di atas, ruang
   tanda tangan, nama di bawah), lebarnya sepertiga halaman. Namanya ngambil field **Sales Name**; kalau kosong, nama user yang bikin.
 
@@ -1636,6 +1641,10 @@ Catatan: Supplier Quotation **belum** punya field Header, jadi kelompok dari Inq
 nampilin Header.
 
 #### Print Format: Delivery Order (Delivery Note)
+
+Judul & isi kolom **Description** rata kiri. Lima blok tanda tangan (Issued By — diisi nama user
+pembuat —, Approved by, Warehouse, Delivered by, Received by) dikotakin, nyambung jadi satu baris
+kotak.
 
 Ngikutin form DO yang selama ini dipakai VIC: kop surat + logo, kotak judul **DELIVERY ORDER**
 dengan DO No. & Date di bawahnya, blok bergaris **Customer** (nama + alamat) dan **Delivered To**,

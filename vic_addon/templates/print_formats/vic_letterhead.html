@@ -43,6 +43,15 @@
 	   Pakai `width`, bukan `max-width`: mesin render PDF-nya nyusutin kotak inline-block ke
 	   ukuran isinya duluan, jadi batas atas doang gak pernah kepakai. */
 	.vic-pf .company .box { display: inline-block; text-align: left; width: 330px; }
+	/* Blok alamat company gak pernah bergaris. Class `box` juga dipakai print format lain buat
+	   kotak bergaris (mis. Customer / Delivered To di Delivery Order) - aturan di sini dikunci
+	   !important biar blok alamat di kop gak ikut kegaris di print mana pun. */
+	.vic-pf .head .company .box {
+		border: 0 !important;
+		border-radius: 0 !important;
+		padding: 0 !important;
+		margin: 0 !important;
+	}
 	.vic-pf .company .name { font-size: 14px; font-weight: 700; }
 	.vic-pf .company .line { font-size: 9.5px; }
 	/* kotak judul, nomor & tanggal nempel persis di bawahnya */
@@ -86,6 +95,8 @@
 	.vic-pf .items .qty { text-align: center; white-space: nowrap; }
 	.vic-pf .items .money { text-align: right; white-space: nowrap; }
 	.vic-pf .items .desc { font-weight: 700; }
+	/* description item itu HTML dari editor - paragrafnya jangan nambah jarak */
+	.vic-pf .items .desc p { margin: 0; }
 	/* Baris judul kelompok item: tebal, ngambil selebar tabel, dan gak dikasih border kanan-kiri
 	   biar kebaca sebagai pemisah, bukan sebagai baris item. Item di bawahnya menjorok ke dalam
 	   lewat .indent - padding <td> di atas dikunci !important, jadi aturannya dibikin lebih
