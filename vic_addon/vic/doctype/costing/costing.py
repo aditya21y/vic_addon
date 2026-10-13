@@ -302,6 +302,10 @@ def make_quotation(source_name, target_doc=None):
 
 		target.custom_costing = source.name
 		target.project = source.project
+		# syarat penawaran ikut dari Costing (field Quotation juga fetch dari Costing kalau kosong)
+		target.custom_delivery_time = source.delivery_time
+		target.custom_validity = source.validity
+		target.custom_subject = source.subject
 		target.run_method("set_missing_values")
 		target.run_method("calculate_taxes_and_totals")
 

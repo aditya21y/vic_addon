@@ -6,7 +6,7 @@
 	- dicetak dari Quotation   -> field-nya dibaca dari dokumen itu sendiri
 	- dicetak dari Sales Order -> dibaca dari Quotation asalnya (nomornya nempel di baris item)
 -#}
-{%- set terms = ["valid_till", "custom_payment_terms", "custom_delivery_point", "custom_delivery_time", "custom_validity", "custom_subject"] -%}
+{%- set terms = ["valid_till", "custom_payment_terms", "custom_delivery_point", "custom_delivery_time", "custom_validity", "custom_subject", "custom_your_ref"] -%}
 {%- set quotation = doc.name if doc.doctype == "Quotation" else (doc.items[0].prevdoc_docname if doc.items and doc.items[0].prevdoc_docname else None) -%}
 {%- set source = frappe.db.get_value("Quotation", quotation, terms, as_dict=True) if quotation else None -%}
 {%- set valid_till = source.valid_till if source else None -%}
@@ -60,7 +60,8 @@
 		<tr>
 			<td class="lbl">Your Ref</td>
 			<td class="sep">:</td>
-			<td>{{ doc.contact_display or doc.get("po_no") or "" }}</td>
+			{#- field Your Ref di Quotation duluan; kosong -> contact person / PO customer kayak sebelumnya -#}
+			<td>{{ (source.custom_your_ref if source else None) or doc.contact_display or doc.get("po_no") or "" }}</td>
 		</tr>
 		<tr>
 			<td class="lbl">Subject</td>

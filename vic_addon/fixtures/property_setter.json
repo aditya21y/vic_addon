@@ -926,5 +926,21 @@
   "property_type": "Check",
   "row_name": null,
   "value": "1"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Quotation",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "crm_deal",
+  "is_system_generated": 1,
+  "modified": "2026-10-13 10:00:00.000000",
+  "module": "VIC",
+  "name": "Quotation-crm_deal-hidden",
+  "property": "hidden",
+  "property_type": "Check",
+  "row_name": null,
+  "value": "1"
  }
 ]

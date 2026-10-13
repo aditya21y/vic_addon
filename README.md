@@ -1568,7 +1568,20 @@ jadi satu file bisa dipasang di dua doctype:
 
 Kalau field-nya kosong (atau SO-nya gak lahir dari Quotation), tiga baris jatuh ke cadangan:
 `payment_terms_template`, alamat pengiriman, dan tanggal `valid_till`; Delivery Time jatuh ke teks
-"Reconfrom stock before PO". Your Ref dari contact person.
+"Reconfrom stock before PO".
+
+**Delivery Time, Validity, dan Subject diambil dari Costing**: diisi langsung waktu *Create >
+Quotation* dari Costing, dan field-nya juga `fetch_from` ke Costing (`fetch_if_empty`) — jadi kalau
+Costing-nya dipilih belakangan, nilainya ikut keisi waktu disimpan; isian user gak ketiban. Subject
+di Quotation tipenya **Small Text** (dulu Data, maks 140 karakter — Subject Costing bisa lebih
+panjang).
+
+**Your Ref** punya field sendiri (`custom_your_ref`); kalau kosong, yang dicetak contact person /
+PO customer kayak sebelumnya. Nama field-nya sama dengan Your Ref di Request For Quotation
+(Opportunity), jadi Quotation yang dibikin dari RFQ ikut kebawa.
+
+Field **Frappe CRM Deal** (`crm_deal`, custom field dari integrasi Frappe CRM bawaan ERPNext)
+disembunyiin di Quotation.
 
 **Request For Quotation (Customer)** (Opportunity):
 
