@@ -1596,6 +1596,11 @@ PO customer kayak sebelumnya. Nama field-nya sama dengan Your Ref di Request For
 Field **Frappe CRM Deal** (`crm_deal`, custom field dari integrasi Frappe CRM bawaan ERPNext)
 disembunyiin di Quotation.
 
+**Purchase Request (Sales Order)**: judul kolom **Description** rata kiri (judul lain tetap
+tengah), nomor **Item** rata tengah, isi Description rata kiri — aturannya cuma di print ini.
+Tiga blok tanda tangan (SALES, ACKNOWLEDGMENT, APPROVED BY) dikotakin, nyambung jadi satu baris
+kotak tiga kolom.
+
 **Request For Quotation (Customer)** (Opportunity):
 
 - Baris **Customer** (nama customer; dulu labelnya *From*), di bawahnya **Project** (nama project-nya) dan **Subject**. Dua-duanya bisa diisi,

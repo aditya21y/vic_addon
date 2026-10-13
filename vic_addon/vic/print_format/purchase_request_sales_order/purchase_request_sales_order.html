@@ -26,6 +26,15 @@
 	   kolom "SALES" kedempet. */
 	.vic-pf .sign { table-layout: fixed; }
 	.vic-pf .sign td { width: 33.33%; }
+	/* tiap blok tanda tangan dikotakin; garisnya dipaksa !important (CSS print Frappe ngenolin
+	   border sel), jabatan di atas dengan garis bawah, ruang tanda tangan di bawahnya */
+	.vic-pf .sign td { border: 1px solid #000 !important; padding: 6px 6px 8px !important; }
+	.vic-pf .sign td .role { border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 58px; font-weight: 700; }
+	/* Judul Description rata kiri (judul lain tetap tengah dari letterhead), isi Description rata
+	   kiri; nomor Item tetap rata tengah dari letterhead. Selektornya dibikin lebih spesifik dari
+	   aturan letterhead (`.vic-pf .items th`) yang juga pakai !important, biar menang. */
+	.vic-pf .items th.left { text-align: left !important; }
+	.vic-pf .items td.text { text-align: left !important; }
 </style>
 
 <div class="vic-pf">
@@ -63,7 +72,7 @@
 		<thead>
 			<tr>
 				<th style="width: 8%">Item</th>
-				<th style="width: 62%">Description</th>
+				<th class="left" style="width: 62%">Description</th>
 				<th style="width: 30%">Qty</th>
 			</tr>
 		</thead>
@@ -80,7 +89,7 @@
 					{%- set qty = item.qty | float %}
 					<tr>
 						<td class="num">{{ ns.no }}</td>
-						<td class="{{ indent }}">
+						<td class="text {{ indent }}">
 							<div class="desc">{{ item.item_name or item.item_code }}</div>
 							{%- if brand %}<div>{{ brand }}</div>{% endif %}
 							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
