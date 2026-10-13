@@ -1250,6 +1250,12 @@ Konsekuensi yang perlu diinget: karena namanya nabrak nama field bawaan, kalau s
 nambahin field `project` sendiri di salah satu doctype itu, custom field kita bakal bentrok dan
 mesti dicabut. Itu risiko yang diambil sadar — imbalannya nol kode tambahan di semua mapper.
 
+#### Delivery Note: Vehicle No di tab Details
+
+**Vehicle No** (`vehicle_no`) dipindah dari tab More Info (section Transporter Info) ke header tab
+**Details**, kolom kanan di bawah Company — lewat property setter `field_order`. Isinya dicetak di
+print format Delivery Order.
+
 #### Form Supplier dirampingin
 
 - **Disembunyiin** (property setter `hidden`): Company Bank Account (`default_bank_account`),
@@ -1592,6 +1598,21 @@ field `in_words` bawaan ERPNext, blok tanda
 tangan Supplier Approved + Director, dan baris warna salinan (Putih = Supplier, Merah =
 Purchasing, Kuning = Accounting, Hijau = Finance). Delivery Time-nya ngambil **Required By**
 (`schedule_date`), bukan teks hardcode.
+
+**Quotation (VIC)** ngikut template `Quotation.pdf`: kotak bergaris **Customer** (nama tebal + kontak
+dengan sapaan dari Contact), di kanannya Delivery Point, Delivery Time, Validity, Payment Terms; Your Ref
+& Subject di bawah kotak. Ringkasan di bawah tabel:
+
+| Baris | Isi |
+| --- | --- |
+| TOTAL PRICE | Total |
+| DISCOUNT x % | Total − Net Total (cuma muncul kalau ada diskon tambahan; persennya dari *Additional Discount Percentage*) |
+| TOTAL PRICE AFTER DISC | Net Total |
+| VAT 11 % | pajak setelah diskon; selalu muncul (0 kalau gak ada PPN), persennya dari rate baris PPN |
+| GRAND TOTAL PRICE | Grand Total |
+
+Diskon dihitung Total − Net Total biar angkanya nyambung baik diskon tambahannya *Apply On* Net Total
+maupun Grand Total. Tanda tangan *Best regards,* + nama user pembuat (huruf besar) di kiri.
 
 Isian syarat di **Quotation (VIC)** diketik di lima field doctype Quotation: **Payment Terms**,
 **Delivery Point**, **Delivery Time**, **Validity**, dan **Subject**. Template-nya sadar dokumen,

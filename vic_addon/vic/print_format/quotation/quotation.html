@@ -11,6 +11,36 @@
 {%- set source = frappe.db.get_value("Quotation", quotation, terms, as_dict=True) if quotation else None -%}
 {%- set valid_till = source.valid_till if source else None -%}
 {%- set currency = doc.currency -%}
+{%- set salutation = frappe.db.get_value("Contact", doc.contact_person, "salutation") if doc.get("contact_person") else None -%}
+
+<style>
+	/* kotak Customer, judulnya nempel di garis atas (sama kayak PO / Delivery Order). Dibatesin ke
+	   .parties: blok alamat company di kop juga pakai class `box`. */
+	.vic-pf .parties { width: 100%; margin-top: 14px; table-layout: fixed; }
+	.vic-pf .parties > tbody > tr > td { vertical-align: top; }
+	.vic-pf .parties .left { width: 52%; padding-right: 30px !important; }
+	.vic-pf .parties .box {
+		border: 1px solid #000;
+		border-radius: 3px;
+		padding: 9px 10px 8px;
+		min-height: 70px;
+		position: relative;
+	}
+	.vic-pf .parties .box .cap {
+		position: absolute;
+		top: -7px;
+		left: 9px;
+		background: #fff;
+		padding: 0 4px;
+		font-size: 9px;
+	}
+	.vic-pf .parties .box .name { font-weight: 700; }
+	.vic-pf .qtn-terms { width: 100%; }
+	.vic-pf .qtn-terms .lbl { width: 95px; }
+	.vic-pf .qtn-terms .sep { width: 12px; }
+	/* Your Ref & Subject selebar halaman - kalau lebarnya otomatis, Subject kepotong ke baris baru */
+	.vic-pf .terms.ref { margin-top: 8px; width: 100%; }
+</style>
 
 <div class="vic-pf">
 	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
@@ -33,35 +63,49 @@
 		</div>
 	</div>
 
-	<div class="party">{{ doc.customer_name or doc.get("customer") or doc.get("party_name") }}</div>
+	<table class="parties">
+		<tr>
+			<td class="left">
+				<div class="box">
+					<span class="cap">Customer</span>
+					<div class="name">{{ doc.customer_name or doc.get("customer") or doc.get("party_name") }}</div>
+					{%- if doc.contact_display %}<div>{{ [salutation, doc.contact_display] | select | join(" ") }}</div>{% endif %}
+				</div>
+			</td>
+			<td class="right">
+				<table class="qtn-terms">
+					<tr>
+						<td class="lbl">Delivery Point</td>
+						<td class="sep">:</td>
+						<td>{{ (source.custom_delivery_point if source else None) or doc.get("shipping_address_name") or "" }}</td>
+					</tr>
+					<tr>
+						<td class="lbl">Delivery Time</td>
+						<td class="sep">:</td>
+						{#- kalau di Quotation-nya dikosongin, jatuh ke teks yang selama ini dipakai di form kertas -#}
+						<td>{{ (source.custom_delivery_time if source else None) or "Reconfrom stock before PO" }}</td>
+					</tr>
+					<tr>
+						<td class="lbl">Validity</td>
+						<td class="sep">:</td>
+						<td>{{ (source.custom_validity if source else None) or (frappe.utils.formatdate(valid_till, "MMMM d, yyyy") if valid_till else "") }}</td>
+					</tr>
+					<tr>
+						<td class="lbl">Payment Terms</td>
+						<td class="sep">:</td>
+						<td>{{ (source.custom_payment_terms if source else None) or doc.get("payment_terms_template") or doc.get("tc_name") or "" }}</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+	</table>
 
-	<table class="terms">
-		<tr>
-			<td class="lbl">Payment Terms</td>
-			<td class="sep">:</td>
-			<td>{{ (source.custom_payment_terms if source else None) or doc.get("payment_terms_template") or doc.get("tc_name") or "" }}</td>
-		</tr>
-		<tr>
-			<td class="lbl">Delivery Point</td>
-			<td class="sep">:</td>
-			<td>{{ (source.custom_delivery_point if source else None) or doc.get("shipping_address_name") or "" }}</td>
-		</tr>
-		<tr>
-			<td class="lbl">Validity</td>
-			<td class="sep">:</td>
-			<td>{{ (source.custom_validity if source else None) or (frappe.utils.formatdate(valid_till, "MMMM d, yyyy") if valid_till else "") }}</td>
-		</tr>
-		<tr>
-			<td class="lbl">Delivery Time</td>
-			{#- kalau di Quotation-nya dikosongin, jatuh ke teks yang selama ini dipakai di form kertas -#}
-			<td class="sep">:</td>
-			<td>{{ (source.custom_delivery_time if source else None) or "Reconfrom stock before PO" }}</td>
-		</tr>
+	<table class="terms ref">
 		<tr>
 			<td class="lbl">Your Ref</td>
 			<td class="sep">:</td>
-			{#- field Your Ref di Quotation duluan; kosong -> contact person / PO customer kayak sebelumnya -#}
-			<td>{{ (source.custom_your_ref if source else None) or doc.contact_display or doc.get("po_no") or "" }}</td>
+			{#- field Your Ref di Quotation duluan; kosong -> PO customer (kalau dicetak dari Sales Order) -#}
+			<td>{{ (source.custom_your_ref if source else None) or doc.get("po_no") or "" }}</td>
 		</tr>
 		<tr>
 			<td class="lbl">Subject</td>
@@ -106,15 +150,45 @@
 		</tbody>
 	</table>
 
+	{#- Ringkasan ngikut formulir: TOTAL PRICE -> DISCOUNT x% -> TOTAL PRICE AFTER DISC -> VAT -> GRAND.
+	    Diskon = Total - Net Total, VAT = pajak setelah diskon: angkanya nyambung baik diskon tambahannya
+	    dihitung dari Net Total maupun dari Grand Total (di mode Grand Total, pajaknya ikut kepotong). -#}
+	{%- set discount = (doc.total | float) - (doc.net_total | float) %}
+	{%- set percent = doc.get("additional_discount_percentage") | float %}
+	{%- set vat_rows = doc.taxes | rejectattr("is_tax_withholding_account") | selectattr("add_deduct_tax", "ne", "Deduct") | list %}
+	{%- set other_rows = doc.taxes | reject("in", vat_rows) | list %}
 	<table class="totals">
 		<tr>
 			<td class="lbl">TOTAL PRICE</td>
 			<td class="money">{{ frappe.utils.fmt_money(doc.total) }}</td>
 		</tr>
-		{%- for tax in doc.taxes %}
+		{%- if discount > 0.005 %}
+			<tr>
+				<td class="lbl">DISCOUNT{% if percent %} {{ "%g" | format(percent) }} %{% endif %}</td>
+				<td class="money">{{ frappe.utils.fmt_money(discount) }}</td>
+			</tr>
+			<tr>
+				<td class="lbl">TOTAL PRICE AFTER DISC</td>
+				<td class="money">{{ frappe.utils.fmt_money(doc.net_total) }}</td>
+			</tr>
+		{%- endif %}
+		{%- if vat_rows %}
+			{%- for tax in vat_rows %}
+				<tr>
+					<td class="lbl">VAT {{ "%g" | format(tax.rate | float) if tax.rate else 11 }} %</td>
+					<td class="money">{{ frappe.utils.fmt_money(tax.tax_amount_after_discount_amount or tax.tax_amount) }}</td>
+				</tr>
+			{%- endfor %}
+		{%- else %}
+			<tr>
+				<td class="lbl">VAT 11 %</td>
+				<td class="money">{{ frappe.utils.fmt_money(0) }}</td>
+			</tr>
+		{%- endif %}
+		{%- for tax in other_rows %}
 			<tr>
 				<td class="lbl">{{ tax.description }}</td>
-				<td class="money">{{ frappe.utils.fmt_money(tax.tax_amount) }}</td>
+				<td class="money">{{ frappe.utils.fmt_money(tax.tax_amount_after_discount_amount or tax.tax_amount) }}</td>
 			</tr>
 		{%- endfor %}
 		<tr class="grand">
@@ -125,12 +199,11 @@
 
 	<table class="sign">
 		<tr>
-			<td style="width: 60%"></td>
-			<td>
-				<div>Best regards,</div>
-				<div class="role"></div>
-				<div>{{ frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
+			<td style="width: 30%">
+				<div class="role">Best regards,</div>
+				<div>{{ (frappe.db.get_value("User", doc.owner, "full_name") or "") | upper }}</div>
 			</td>
+			<td style="width: 70%"></td>
 		</tr>
 	</table>
 	{%- include "vic_addon/templates/print_formats/vic_footer.html" -%}
