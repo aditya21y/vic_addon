@@ -76,7 +76,8 @@
 			{%- for header, rows in group_items_by_header(doc.items) %}
 				{%- set indent = "indent" if header else "" %}
 				{%- if header %}
-					<tr class="group"><td colspan="6">{{ header }}</td></tr>
+					{#- judul kelompok mulai di kolom Description, kolom sebelumnya dikosongin -#}
+					<tr class="group"><td></td><td class="text" colspan="5">{{ header }}</td></tr>
 				{%- endif %}
 				{%- for item in rows %}
 					{%- set ns.no = ns.no + 1 %}

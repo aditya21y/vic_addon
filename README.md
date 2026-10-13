@@ -1667,7 +1667,8 @@ pertama gak boleh kosong kalau dokumennya pakai Header.
 
 Karena nama field-nya sama di semua doctype, Header ikut kebawa sendiri lewat mapper bawaan
 (RFQ → Inquiry, Quotation → Sales Order → dst). Di print format tiap Header dicetak jadi baris
-tebal sendiri, item di bawahnya menjorok. Implementasi: `vic_addon/vic/item_header.py`.
+tebal sendiri **mulai di kolom Description** (kolom Item / Heat Number di baris itu dikosongin, jadi
+gak kebaca kayak nomor item), item di bawahnya menjorok. Implementasi: `vic_addon/vic/item_header.py`.
 
 Catatan: Supplier Quotation **belum** punya field Header, jadi kelompok dari Inquiry putus di situ
 — Costing yang dibikin dari Supplier Quotation mulai tanpa Header. Versi Excel Inquiry juga belum
