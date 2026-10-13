@@ -1,0 +1,78 @@
+{#- Kwitansi polos (tanpa kop), dicetak dari Sales Invoice. Isiannya dari tab Kwitansi di invoice,
+    sisanya dari invoice / Company / Bank Account - lihat get_kwitansi di vic/print_utils.py. -#}
+
+{%- set vic_hide_letterhead = True -%}
+{%- set kw = get_kwitansi(doc) -%}
+{#- Untuk Pembayaran: teks dari user, ditambah nomor invoice & DO (kalau belum ditulis sendiri) -#}
+{%- set payment_for = kw.payment_for -%}
+{%- if kw.invoice_no not in payment_for -%}
+	{%- set payment_for = (payment_for ~ " INVOICE NO. " ~ kw.invoice_no) | trim -%}
+{%- endif -%}
+{%- if kw.delivery_notes and (kw.delivery_notes | join(", ")) not in payment_for -%}
+	{%- set payment_for = payment_for ~ " DO NO. " ~ (kw.delivery_notes | join(", ")) -%}
+{%- endif -%}
+
+<style>
+	.vic-pf .kw-title { text-align: center; font-size: 22px; font-weight: 700; margin: 40px 0 34px; letter-spacing: 0.5px; }
+	.vic-pf .kw-fields { width: 100%; font-size: 12px; }
+	.vic-pf .kw-fields td { padding: 6px 0 !important; vertical-align: top; }
+	.vic-pf .kw-fields .lbl { width: 150px; font-weight: 700; }
+	.vic-pf .kw-fields .big { font-weight: 700; font-size: 13px; }
+	.vic-pf .kw-fields .line { text-decoration: underline; text-transform: uppercase; line-height: 1.6; }
+	.vic-pf .kw-bottom { width: 100%; margin-top: 40px; font-size: 12px; }
+	.vic-pf .kw-bottom td { vertical-align: top; }
+	.vic-pf .kw-amount { width: 220px; border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; margin-bottom: 26px; }
+	.vic-pf .kw-amount td { padding: 7px 4px !important; font-size: 15px; font-weight: 700; }
+	.vic-pf .kw-amount .cur { font-style: italic; width: 70px; }
+	.vic-pf .kw-sign { text-align: center; }
+	.vic-pf .kw-sign .space { height: 95px; }
+</style>
+
+<div class="vic-pf">
+	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
+
+	<div class="kw-title">KWITANSI</div>
+
+	<table class="kw-fields">
+		<tr>
+			<td class="lbl">Kwitansi No.</td>
+			<td>{{ kw.no }}</td>
+		</tr>
+		<tr><td colspan="2" style="height: 6px"></td></tr>
+		<tr>
+			<td class="lbl">Telah Terima Dari</td>
+			<td class="big">{{ kw.received_from }}</td>
+		</tr>
+		<tr>
+			<td class="lbl">Uang Sejumlah</td>
+			<td class="line">{{ terbilang(kw.amount, upper=True) }}</td>
+		</tr>
+		<tr>
+			<td class="lbl">Untuk Pembayaran</td>
+			<td class="line">{{ payment_for }}</td>
+		</tr>
+	</table>
+
+	<table class="kw-bottom">
+		<tr>
+			<td style="width: 60%">
+				<table class="kw-amount">
+					<tr>
+						<td class="cur">{{ kw.currency }}</td>
+						<td>{{ "{:,.0f}".format(kw.amount | float).replace(",", ".") }},-</td>
+					</tr>
+				</table>
+				{%- if kw.bank or kw.account_no %}
+					<div>{{ kw.bank }}{% if kw.bank_branch %} - {{ kw.bank_branch }}{% endif %}</div>
+					<div>Acc. Name. {{ kw.account_name }}</div>
+					<div>Acc. No. {{ kw.account_no }} ( {{ kw.currency }} )</div>
+				{%- endif %}
+			</td>
+			<td class="kw-sign">
+				<div>{{ kw.city | upper }}, {{ tanggal(kw.date, upper=True) }}</div>
+				<div class="space"></div>
+				<div>{{ kw.signer | upper }}</div>
+			</td>
+		</tr>
+	</table>
+</div>

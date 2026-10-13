@@ -1674,6 +1674,28 @@ Catatan: Supplier Quotation **belum** punya field Header, jadi kelompok dari Inq
 — Costing yang dibikin dari Supplier Quotation mulai tanpa Header. Versi Excel Inquiry juga belum
 nampilin Header.
 
+#### Print Format: Kwitansi (Sales Invoice)
+
+Dua print format kwitansi buat tagihan progress/pelunasan, sama-sama dari Sales Invoice:
+
+| Print Format | Bentuk |
+| --- | --- |
+| **Kwitansi** | polos tanpa kop: Kwitansi No., Telah Terima Dari, Uang Sejumlah (terbilang huruf besar), Untuk Pembayaran, kotak nilai `IDR 36.594.480,-`, rekening, kota + tanggal, nama penandatangan |
+| **Kwitansi (Progress)** | berbingkai + logo: No. & Faktur No., Sudah Terima dari (+ nama project), Sejumlah Uang (terbilang), Untuk Pembayaran + SPP No./Tanggal + Periode Tanggal, rekening, `Rp. 17,760,000,000`, penandatangan + jabatan |
+
+Isian yang diketik user ada di tab baru **Kwitansi** di Sales Invoice — **semuanya bisa diisi setelah
+submit**: No. Kwitansi, Tanggal Kwitansi (kosong → tanggal invoice), Nilai Kwitansi (kosong → total
+tagihan dikurangi DP yang dibalik & uang muka yang dialokasiin), Rekening Tujuan (Bank Account; default
+dari Company), Untuk Pembayaran, dan section *Detail Progress* (SPP/SPK No. & tanggal, periode dari–s/d).
+
+Sisanya diambil otomatis: nama customer, nama project, Faktur No. (*Nomor Faktur Pajak*), nomor invoice
+& DO (ditambahin di belakang Untuk Pembayaran di Kwitansi biasa, kalau belum ditulis sendiri),
+terbilang & tanggal bahasa Indonesia, dan dari **Company** (section *Kwitansi*): kota, rekening default,
+nama & jabatan penandatangan. *Atas Nama* rekening = nama company.
+
+Implementasi: `get_kwitansi`, `terbilang`, `tanggal` di `vic_addon/vic/print_utils.py` (helper Jinja),
+template di `vic_addon/vic/print_format/kwitansi*/`.
+
 #### Print Format: Delivery Order (Delivery Note)
 
 Lima blok tanda tangan (Issued By — diisi nama user

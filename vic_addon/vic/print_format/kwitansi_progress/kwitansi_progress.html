@@ -1,0 +1,163 @@
+{#- Kwitansi progress (berbingkai, logo di atas), dicetak dari Sales Invoice. Isiannya dari tab
+    Kwitansi di invoice, sisanya dari invoice / Company / Bank Account - lihat get_kwitansi di
+    vic/print_utils.py. -#}
+
+{%- set vic_hide_letterhead = True -%}
+{%- set kw = get_kwitansi(doc) -%}
+
+<style>
+	.vic-pf .kp { border: 1.5px solid #000; font-size: 11px; }
+	.vic-pf .kp-head { text-align: center; padding: 14px 0 10px; border-bottom: 2px solid #000; }
+	.vic-pf .kp-head img { width: 165px; height: auto; }
+	.vic-pf .kp-head .co { font-size: 8px; letter-spacing: 0.5px; margin-top: 2px; }
+	.vic-pf .kp-body { padding: 34px 14px 18px; }
+	.vic-pf .kp-top { width: 100%; }
+	.vic-pf .kp-top > tbody > tr > td { vertical-align: bottom; }
+	.vic-pf .kp-title { font-size: 34px; font-weight: 700; letter-spacing: 1px; font-family: Arial Black, Arial, Helvetica, sans-serif; }
+	.vic-pf .kp-no { width: 100%; }
+	.vic-pf .kp-no td { padding: 3px 0 !important; }
+	.vic-pf .kp-no .lbl { width: 85px; }
+	.vic-pf .kp-no .sep { width: 12px; }
+	.vic-pf .kp-no .val { border-bottom: 1px dotted #000 !important; font-weight: 700; font-size: 9.5px; }
+	.vic-pf .kp-rows { width: 100%; margin-top: 18px; }
+	.vic-pf .kp-rows td { padding: 3px 4px !important; vertical-align: top; }
+	.vic-pf .kp-rows .lbl { width: 130px; font-weight: 700; white-space: nowrap; }
+	.vic-pf .kp-rows .sep { width: 12px; }
+	.vic-pf .kp-rows .val { border-bottom: 1px solid #bbb !important; }
+	.vic-pf .kp-rows .gap td { height: 14px; padding: 0 !important; }
+	.vic-pf .kp-rows .words { font-size: 13px; font-weight: 700; font-style: italic; text-decoration: underline; padding-top: 8px !important; }
+	.vic-pf .kp-rows .inner { width: 100%; }
+	.vic-pf .kp-rows .inner td { padding: 0 !important; border: 0 !important; }
+	.vic-pf .kp-bottom { width: 100%; margin-top: 18px; }
+	.vic-pf .kp-bottom td { vertical-align: top; }
+	.vic-pf .kp-amount { font-size: 16px; font-weight: 700; padding-top: 22px !important; }
+	.vic-pf .kp-sign { text-align: center; font-size: 12px; }
+	.vic-pf .kp-sign .space { height: 80px; }
+	.vic-pf .kp-sign .name { font-weight: 700; text-decoration: underline; }
+</style>
+
+<div class="vic-pf">
+	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
+
+	<div class="kp">
+		<div class="kp-head">
+			<img src="/assets/vic_addon/img/vic%20logo.png" alt="{{ doc.company }}" />
+			<div class="co">{{ frappe.db.get_value("Company", doc.company, "company_name") | upper }}</div>
+		</div>
+
+		<div class="kp-body">
+			<table class="kp-top">
+				<tr>
+					<td class="kp-title">KWITANSI</td>
+					<td style="width: 48%">
+						<table class="kp-no">
+							<tr>
+								<td class="lbl">No.</td>
+								<td class="sep">:</td>
+								<td class="val">{{ kw.no }}</td>
+							</tr>
+							<tr>
+								<td class="lbl">Faktur No.</td>
+								<td class="sep">:</td>
+								<td class="val">{{ kw.faktur_no }}</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+
+			<table class="kp-rows">
+				<tr>
+					<td class="lbl">Sudah Terima dari</td>
+					<td class="sep">:</td>
+					<td class="val"><b>{{ kw.received_from }}</b></td>
+				</tr>
+				<tr>
+					<td></td><td></td>
+					<td class="val">{{ kw.project or "&nbsp;" }}</td>
+				</tr>
+				<tr class="gap"><td colspan="3"></td></tr>
+				<tr>
+					<td class="lbl">Sejumlah Uang</td>
+					<td class="sep">:</td>
+					<td class="val words">{{ terbilang(kw.amount) }}</td>
+				</tr>
+				<tr class="gap"><td colspan="3"></td></tr>
+				<tr>
+					<td class="lbl">Untuk Pembayaran</td>
+					<td class="sep">:</td>
+					<td class="val"><b>{{ kw.payment_for }}</b></td>
+				</tr>
+				<tr>
+					<td></td><td></td>
+					<td class="val">Sesuai Dengan :</td>
+				</tr>
+				<tr>
+					<td></td><td></td>
+					<td class="val">
+						<table class="inner">
+							<tr>
+								<td style="width: 12%">SPP No :</td>
+								<td style="width: 55%"><b>{{ kw.spp_no }}</b></td>
+								<td style="width: 11%">Tanggal :</td>
+								<td style="text-align: center">{{ tanggal(kw.spp_date) }}</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr><td></td><td></td><td class="val">&nbsp;</td></tr>
+				<tr><td></td><td></td><td class="val">&nbsp;</td></tr>
+				<tr>
+					<td></td><td></td>
+					<td class="val">
+						<table class="inner">
+							<tr>
+								<td style="width: 30%">Periode Tanggal :</td>
+								<td style="width: 25%; text-align: center"><b>{{ tanggal(kw.period_from) }}</b></td>
+								<td style="width: 15%; text-align: center">s/d</td>
+								<td style="text-align: center"><b>{{ tanggal(kw.period_to) }}</b></td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr class="gap"><td colspan="3"></td></tr>
+				<tr>
+					<td></td><td></td>
+					<td class="val">
+						<table class="inner">
+							<tr><td style="width: 18%">No. Rekening</td><td style="width: 4%">:</td><td>{{ kw.account_no }}</td></tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td></td><td></td>
+					<td class="val">
+						<table class="inner">
+							<tr><td style="width: 18%">Bank</td><td style="width: 4%">:</td><td>{{ kw.bank }}{% if kw.bank_branch %} - {{ kw.bank_branch }}{% endif %}</td></tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td></td><td></td>
+					<td class="val">
+						<table class="inner">
+							<tr><td style="width: 18%">Atas Nama</td><td style="width: 4%">:</td><td>{{ kw.account_name }}</td></tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+
+			<table class="kp-bottom">
+				<tr>
+					<td class="kp-amount" style="width: 55%">Rp.&nbsp;&nbsp;&nbsp;{{ "{:,.0f}".format(kw.amount | float) }}</td>
+					<td class="kp-sign">
+						<div>{{ kw.city }}, {{ tanggal(kw.date) }}</div>
+						<div class="space"></div>
+						<div class="name">{{ kw.signer | upper }}</div>
+						{%- if kw.signer_title %}<div>{{ kw.signer_title }}</div>{% endif %}
+					</td>
+				</tr>
+			</table>
+		</div>
+	</div>
+</div>

@@ -23,6 +23,8 @@ PRINT_FORMATS = {
 	"Request For Quotation (Customer)": "opportunity_rfq",
 	"Costing (Sales)": "costing_sales",
 	"Costing (Import)": "costing_import",
+	"Kwitansi": "kwitansi",
+	"Kwitansi (Progress)": "kwitansi_progress",
 }
 
 
