@@ -10,3 +10,4 @@ vic_addon.patches.drop_customer_wapu_status
 vic_addon.patches.show_inquiry_subject_in_print
 vic_addon.patches.show_costing_project_in_print
 vic_addon.patches.revert_custom_tax_withholding
+vic_addon.patches.drop_wapu_fields

@@ -1,6 +1,12 @@
 {#- Permintaan penawaran yang masuk dari customer, dicetak dari Opportunity -#}
 
 <style>
+	/* kotak tanda tangan: garisnya dipaksa !important, CSS print Frappe ngenolin border sel */
+	.vic-pf .sign td.sign-box { border: 1px solid #000 !important; padding: 6px 6px 8px !important; }
+	.vic-pf .sign td.sign-box .role { border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 58px; font-weight: 700; }
+	/* tabel Customer/Project/Subject selebar halaman - kalau lebarnya otomatis, dia ngecil ngikutin
+	   isi terpendek dan nama project kepotong ke baris baru */
+	.vic-pf .terms { width: 100%; }
 	/* deskripsi item bisa berupa HTML dari editor - paragrafnya jangan nambah jarak */
 	.vic-pf .items .desc p { margin: 0; }
 </style>
@@ -35,7 +41,7 @@
 
 	<table class="terms">
 		<tr>
-			<td class="lbl">From</td>
+			<td class="lbl">Customer</td>
 			<td class="sep">:</td>
 			<td>{{ doc.customer_name or doc.party_name or "" }}</td>
 		</tr>
@@ -103,14 +109,15 @@
 		</tbody>
 	</table>
 
-	<table class="sign">
+	{#- tanda tangan SALES di pojok kiri bawah, dikotakin, lebarnya sepertiga halaman -#}
+	<table class="sign" style="table-layout: fixed">
 		<tr>
-			<td style="width: 60%"></td>
-			<td>
+			<td class="sign-box" style="width: 33.33%">
 				<div class="role">SALES</div>
 				{#- Sales Name di form duluan; kosong -> nama user yang bikin -#}
 				<div>{{ doc.get("custom_sales_name") or frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
 			</td>
+			<td style="width: 66.67%"></td>
 		</tr>
 	</table>
 	{%- include "vic_addon/templates/print_formats/vic_footer.html" -%}

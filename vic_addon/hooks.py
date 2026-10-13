@@ -95,6 +95,8 @@ doctype_js["Request for Quotation"] = ["public/js/request_for_quotation.js"]
 doctype_js["Payment Request"] = ["public/js/payment_request.js"]
 # tarik biaya yang nambah nilai barang dari Journal Entry
 doctype_js["Landed Cost Voucher"] = ["public/js/landed_cost_voucher.js"]
+# isi Deductions or Loss -> Paid/Received Amount dihitung ulang, Allocated tetap sebesar Outstanding
+doctype_js.setdefault("Payment Entry", []).append("public/js/payment_entry_deduction.js")
 # skema DP pakai Item DP: pilihan term DP + tombol Get DP Invoices
 for doctype in ("Sales Invoice", "Purchase Invoice"):
 	doctype_js.setdefault(doctype, []).append("public/js/dp_item_invoice.js")

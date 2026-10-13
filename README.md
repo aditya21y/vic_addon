@@ -1132,6 +1132,25 @@ diutak-atik, data mulai baris 8. Maksimal 5000 baris sekali upload.
 
 Dinyalain lewat property setter `Opportunity-items-allow_bulk_edit`.
 
+#### Payment Entry: Paid Amount ngikut tabel Deductions or Loss
+
+Isi/ubah/hapus baris di tabel **Deductions or Loss** → **Paid/Received Amount** dihitung ulang
+otomatis biar Difference Amount nol, dan **Allocated Amount tetap sebesar Outstanding**.
+
+Bawaannya user ngitung sendiri, dan begitu Paid Amount diubah ERPNext ngalokasiin ulang
+(`allocate_amount_to_references`) — dengan setelan default semua Allocated Amount malah di-nol-in.
+Di sini angkanya dipasang langsung ke dokumen tanpa nyalain trigger Paid/Received Amount.
+
+Rumusnya ngikut validasi server (`set_difference_amount`). Baris potongan selalu **didebit**:
+
+| Tipe | Paid/Received Amount | Contoh (outstanding 1.000, potongan 10) |
+| --- | --- | --- |
+| Receive | Allocated + pajak termasuk − Total Deduction | terima 990 (biaya bank / PPh dipotong customer) |
+| Pay | Allocated + pajak termasuk + Total Deduction | bayar 1.010 (biaya bank ditanggung kita); potongan dari supplier diisi **minus** |
+
+Cuma jalan di PE draft yang punya baris referensi dan akun asal-tujuannya satu mata uang;
+multi-currency dibiarin kayak bawaan. Implementasi: `vic_addon/public/js/payment_entry_deduction.js`.
+
 #### Badge & pop-up notifikasi
 
 Lonceng **Notification** di sidebar dapet angka notifikasi belum dibaca (badge merah), dan tiap
@@ -1259,21 +1278,15 @@ Kalau ERPNext nambah field baru di Project, field itu gak ada di daftar `field_o
 Frappe naruh field yang gak kedaftar sesuai urutan bawaan, jadi aman, cuma posisinya mungkin perlu
 dicek.
 
-#### Customer WAPU
+#### Customer WAPU (udah dibuang)
 
-WAPU (Wajib Pungut): PPN-nya dipungut dan disetor sendiri sama customer — biasanya instansi
-pemerintah atau BUMN — bukan sama kita.
+Penanda WAPU (Wajib Pungut) gak dipakai lagi. Dua field-nya udah dihapus:
 
-Sales Invoice punya checkbox **Customer WAPU**, **diisi manual per invoice**, dan bisa dipakai
-filter di list view.
+- **WAPU Status** di master Customer — patch `drop_customer_wapu_status`
+- **Customer WAPU** (checkbox) di Sales Invoice — patch `drop_wapu_fields`
 
-Dulu statusnya disimpan di master Customer (field **WAPU Status**) terus diturunin otomatis ke
-tiap invoice. Itu udah dibuang — field di Customer-nya dihapus lewat patch
-`vic_addon/patches/drop_customer_wapu_status.py`, begitu juga pengisian otomatisnya
-(`vic_addon/vic/sales_invoice.py` + `public/js/sales_invoice.js`, dua-duanya udah gak ada).
-
-Kolom `custom_wapu_status` di tabel Customer sengaja dibiarin — Frappe gak pernah ngedrop
-kolom, jadi status lama masih kesimpan kalau sewaktu-waktu dibutuhin.
+Gak ada kode yang make penanda ini. Kolomnya di database dibiarin (Frappe gak pernah ngedrop
+kolom), jadi data lama masih kebaca kalau suatu saat dibutuhin.
 
 #### Harga dikunci ke dokumen sumbernya
 
@@ -1585,7 +1598,7 @@ disembunyiin di Quotation.
 
 **Request For Quotation (Customer)** (Opportunity):
 
-- Di bawah **From** ada **Project** (nama project-nya) dan **Subject**. Dua-duanya bisa diisi,
+- Baris **Customer** (nama customer; dulu labelnya *From*), di bawahnya **Project** (nama project-nya) dan **Subject**. Dua-duanya bisa diisi,
   jadi yang dicetak ditentuin centangan di sampingnya: **Show Project in Print** dan **Show
   Subject in Print** (default mati). Centangannya ikut kebawa ke Inquiry (nama field-nya sama),
   dan print format **Inquiry** pakai aturan yang sama. **Your Ref** di bawah Date.
@@ -1594,7 +1607,8 @@ disembunyiin di Quotation.
   di Inquiry selalu dicetak kalau diisi.
 - Kolom Description ngambil **deskripsi item duluan**; kalau kosong (termasuk editor yang isinya
   cuma tag kosong kayak `<p></p>`) baru **nama item**.
-- Nama di bawah **SALES** ngambil field **Sales Name**; kalau kosong, nama user yang bikin.
+- Tanda tangan **SALES** di pojok kiri bawah dalam **kotak** bergaris (label SALES di atas, ruang
+  tanda tangan, nama di bawah), lebarnya sepertiga halaman. Namanya ngambil field **Sales Name**; kalau kosong, nama user yang bikin.
 
 Form Opportunity-nya juga dirapiin lewat property setter: section **Organization** dibikin
 collapsible, dan **Opportunity Date** (`transaction_date`) dipindah dari More Information ke
