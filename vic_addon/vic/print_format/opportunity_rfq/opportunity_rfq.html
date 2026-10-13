@@ -77,7 +77,7 @@
 		<thead>
 			<tr>
 				<th style="width: 8%">Item</th>
-				<th style="width: 62%">Description</th>
+				<th class="left" style="width: 62%">Description</th>
 				<th style="width: 30%">Qty</th>
 			</tr>
 		</thead>
@@ -94,7 +94,7 @@
 					{%- set qty = item.qty | float %}
 					<tr>
 						<td class="num">{{ ns.no }}</td>
-						<td class="{{ indent }}">
+						<td class="text {{ indent }}">
 							<div class="desc">{{ get_item_description(item) }}</div>
 							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
 						</td>

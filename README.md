@@ -1542,6 +1542,9 @@ kosong (termasuk editor yang isinya cuma tag kosong kayak `<p></p>`) baru **item
 helper Jinja dipakai bareng: `get_item_description` di `vic_addon/vic/print_utils.py`. Costing Item
 gak punya field description, jadi Costing tetap nyetak item name.
 
+Judul & isi kolom **Description** rata kiri di semua print (judul kolom lain tetap tengah): `<th>`-nya
+dikasih class `left`, `<td>`-nya class `text`, aturannya di letterhead.
+
 | Print Format | Doctype | Judul di kertas |
 | --- | --- | --- |
 | Quotation (VIC) | **Quotation** (bisa juga dipasang di Sales Order) | QUOTATION |
@@ -1574,7 +1577,18 @@ yang udah diketik user gak pernah ketiban. Implementasi: `vic_addon/vic/material
 **Customer's Purchase Order di Sales Order dipindah ke tab Details** (bawaannya nyempil di tab
 More Info), lewat property setter `field_order` — cara yang sama dipakai Customize Form.
 
-**Purchase Order (VIC)** nampilin terbilang dari field `in_words` bawaan ERPNext, blok tanda
+**Purchase Order (VIC)** ngikut template `Purchase Order.pdf`: kotak bergaris **Order To** (nama
+supplier tebal, nomor telepon kontak, nama kontak + sapaan dari Contact), di kanannya Payment Terms &
+Delivery Time (*Required By*) plus kotak bergaris **Delivered To**. Isinya dari field **Delivered To**
+(`custom_delivered_to`, tab Address & Contact → Shipping Address, **bisa diubah setelah submit** —
+buat dropship yang dikirim ke lokasi customer); kosong → alamat pengiriman PO (Shipping Address),
+lalu nama alamatnya, lalu nama project. Terbilang di kiri, sejajar blok total di kanan. Tanda tangan: kiri
+*Best regards,* → nama user pembuat → *Director*; kanan *Supplier Approved* → nama kontak supplier.
+
+Di bawah Total Price selalu ada baris **PPN 11%** (persennya dari rate baris
+PPN; PO tanpa PPN tetap kecetak senilai 0, ngikut formulir) — bukan deskripsi akun kayak "PPN
+Masukan @ 11.0". Baris pajak lain (PPh, potongan) tetap dicetak pakai deskripsinya. Terbilang dari
+field `in_words` bawaan ERPNext, blok tanda
 tangan Supplier Approved + Director, dan baris warna salinan (Putih = Supplier, Merah =
 Purchasing, Kuning = Accounting, Hijau = Finance). Delivery Time-nya ngambil **Required By**
 (`schedule_date`), bukan teks hardcode.
@@ -1603,9 +1617,7 @@ PO customer kayak sebelumnya. Nama field-nya sama dengan Your Ref di Request For
 Field **Frappe CRM Deal** (`crm_deal`, custom field dari integrasi Frappe CRM bawaan ERPNext)
 disembunyiin di Quotation.
 
-**Purchase Request (Sales Order)**: judul kolom **Description** rata kiri (judul lain tetap
-tengah), nomor **Item** rata tengah, isi Description rata kiri — aturannya cuma di print ini.
-Tiga blok tanda tangan (SALES, ACKNOWLEDGMENT, APPROVED BY) dikotakin, nyambung jadi satu baris
+**Purchase Request (Sales Order)**: tiga blok tanda tangan (SALES, ACKNOWLEDGMENT, APPROVED BY) dikotakin, nyambung jadi satu baris
 kotak tiga kolom.
 
 **Request For Quotation (Customer)** (Opportunity):
@@ -1642,7 +1654,7 @@ nampilin Header.
 
 #### Print Format: Delivery Order (Delivery Note)
 
-Judul & isi kolom **Description** rata kiri. Lima blok tanda tangan (Issued By — diisi nama user
+Lima blok tanda tangan (Issued By — diisi nama user
 pembuat —, Approved by, Warehouse, Delivered by, Received by) dikotakin, nyambung jadi satu baris
 kotak.
 

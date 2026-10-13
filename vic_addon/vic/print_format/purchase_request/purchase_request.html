@@ -49,7 +49,7 @@
 		<thead>
 			<tr>
 				<th style="width: 8%">Item</th>
-				<th style="width: 62%">Description</th>
+				<th class="left" style="width: 62%">Description</th>
 				<th style="width: 30%">Qty</th>
 			</tr>
 		</thead>
@@ -59,7 +59,7 @@
 				{%- set qty = item.qty | float %}
 				<tr>
 					<td class="num">{{ loop.index }}</td>
-					<td>
+					<td class="text">
 						<div class="desc">{{ get_item_description(item) }}</div>
 						{%- if size %}<div>Size : {{ size }}</div>{% endif %}
 					</td>

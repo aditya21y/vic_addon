@@ -2,9 +2,46 @@
 
 {%- set currency = doc.currency -%}
 {%- set contact_numbers = [doc.contact_mobile, doc.contact_phone] | select | unique | list -%}
+{%- set salutation = frappe.db.get_value("Contact", doc.contact_person, "salutation") if doc.contact_person else None -%}
+{%- set project_name = (frappe.db.get_value("Project", doc.project, "project_name") or doc.project) if doc.get("project") else "" -%}
 
 <style>
-	.vic-pf .in-words { margin-top: 8px; font-size: 10px; }
+	/* kotak Order To & Delivered To, judulnya nempel di garis atas (sama kayak Delivery Order).
+	   Dibatesin ke .parties: blok alamat company di kop juga pakai class `box`. */
+	.vic-pf .parties { width: 100%; margin-top: 14px; table-layout: fixed; }
+	.vic-pf .parties > tbody > tr > td { vertical-align: top; }
+	.vic-pf .parties .left { width: 52%; padding-right: 30px !important; }
+	.vic-pf .parties .box {
+		border: 1px solid #000;
+		border-radius: 3px;
+		padding: 9px 10px 8px;
+		min-height: 62px;
+		position: relative;
+	}
+	.vic-pf .parties .right .box { min-height: 0; margin-top: 12px; }
+	.vic-pf .parties .box .cap {
+		position: absolute;
+		top: -7px;
+		left: 9px;
+		background: #fff;
+		padding: 0 4px;
+		font-size: 9px;
+	}
+	.vic-pf .parties .box .name { font-weight: 700; }
+	.vic-pf .parties .box .addr { font-size: 10px; }
+	/* isian field Delivered To diketik bebas, baris barunya ikut kecetak */
+	.vic-pf .parties .box .delivered-to { white-space: pre-line; }
+	/* selebar kolom kanan - kalau otomatis, tanggal Delivery Time kepotong ke baris baru */
+	.vic-pf .po-terms { width: 100%; }
+	.vic-pf .po-terms .lbl { width: 85px; }
+	.vic-pf .po-terms .sep { width: 12px; }
+	/* terbilang di kiri, total di kanan - satu baris */
+	.vic-pf .summary { width: 100%; margin-top: 6px; table-layout: fixed; }
+	.vic-pf .summary > tbody > tr > td { vertical-align: top; }
+	.vic-pf .summary .words { width: 55%; padding-right: 20px !important; font-size: 10px; }
+	.vic-pf .summary .totals { margin-top: 0; }
+	/* blok total cuma selebar kolom kanan, jadi kolom angkanya dilebarin dari bawaan (18%) */
+	.vic-pf .summary .totals .money { width: 42%; }
 </style>
 
 <div class="vic-pf">
@@ -28,31 +65,40 @@
 		</div>
 	</div>
 
-	<div class="party">{{ doc.supplier_name or doc.supplier }}</div>
-	{%- if contact_numbers %}<div>{{ contact_numbers | join(" / ") }}</div>{% endif %}
-
-	<table class="terms">
-		{%- if doc.contact_display %}
-			<tr>
-				<td class="lbl">Attn</td>
-				<td class="sep">:</td>
-				<td>{{ doc.contact_display }}</td>
-			</tr>
-		{%- endif %}
+	<table class="parties">
 		<tr>
-			<td class="lbl">Delivery Point</td>
-			<td class="sep">:</td>
-			<td>{{ doc.shipping_address_name or "" }}</td>
-		</tr>
-		<tr>
-			<td class="lbl">Delivery Time</td>
-			<td class="sep">:</td>
-			<td>{{ frappe.utils.formatdate(doc.schedule_date, "MMMM d, yyyy") if doc.schedule_date else "" }}</td>
-		</tr>
-		<tr>
-			<td class="lbl">Payment Terms</td>
-			<td class="sep">:</td>
-			<td>{{ doc.payment_terms_template or doc.tc_name or "" }}</td>
+			<td class="left">
+				<div class="box">
+					<span class="cap">Order To</span>
+					<div class="name">{{ doc.supplier_name or doc.supplier }}</div>
+					{%- if contact_numbers %}<div>{{ contact_numbers | join(" / ") }}</div>{% endif %}
+					{%- if doc.contact_display %}<div>{{ [salutation, doc.contact_display] | select | join(" ") }}</div>{% endif %}
+				</div>
+			</td>
+			<td class="right">
+				<table class="po-terms">
+					<tr>
+						<td class="lbl">Payment Terms</td>
+						<td class="sep">:</td>
+						<td>{{ doc.payment_terms_template or doc.tc_name or "" }}</td>
+					</tr>
+					<tr>
+						<td class="lbl">Delivery Time</td>
+						<td class="sep">:</td>
+						<td>{{ frappe.utils.formatdate(doc.schedule_date, "MMMM d, yyyy") if doc.schedule_date else "" }}</td>
+					</tr>
+				</table>
+				<div class="box">
+					<span class="cap">Delivered To</span>
+					{#- field Delivered To duluan (bisa diubah setelah submit, buat dropship); kosong -> alamat
+					    pengiriman PO, nama alamatnya, lalu nama project -#}
+					{%- if doc.get("custom_delivered_to") %}
+						<div class="addr delivered-to">{{ doc.custom_delivered_to }}</div>
+					{%- else %}
+						<div class="addr">{{ doc.shipping_address_display or doc.shipping_address or project_name or "" }}</div>
+					{%- endif %}
+				</div>
+			</td>
 		</tr>
 	</table>
 
@@ -60,7 +106,7 @@
 		<thead>
 			<tr>
 				<th style="width: 7%">Item</th>
-				<th style="width: 43%">Description</th>
+				<th class="left" style="width: 43%">Description</th>
 				<th style="width: 14%">Qty</th>
 				<th style="width: 18%">Unit Price<div>{{ currency }}</div></th>
 				<th style="width: 18%">Total Price<div>{{ currency }}</div></th>
@@ -79,7 +125,7 @@
 					{%- set qty = item.qty | float %}
 					<tr>
 						<td class="num">{{ ns.no }}</td>
-						<td class="{{ indent }}">
+						<td class="text {{ indent }}">
 							<div class="desc">{{ get_item_description(item) }}</div>
 							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
 						</td>
@@ -92,37 +138,63 @@
 		</tbody>
 	</table>
 
-	<table class="totals">
+	<table class="summary">
 		<tr>
-			<td class="lbl">Total Price</td>
-			<td class="money">{{ frappe.utils.fmt_money(doc.total) }}</td>
-		</tr>
-		{%- for tax in doc.taxes %}
-			<tr>
-				<td class="lbl">{{ tax.description }}</td>
-				<td class="money">{{ frappe.utils.fmt_money(tax.tax_amount) }}</td>
-			</tr>
-		{%- endfor %}
-		<tr class="grand">
-			<td class="lbl">Grand Total</td>
-			<td class="money">{{ frappe.utils.fmt_money(doc.grand_total) }}</td>
+			<td class="words">
+				{%- if doc.in_words %}
+					<div>in Words :</div>
+					<div>{{ doc.in_words | upper }}</div>
+				{%- endif %}
+			</td>
+			<td>
+			<table class="totals">
+					<tr>
+						<td class="lbl">Total Price</td>
+						<td class="money">{{ frappe.utils.fmt_money(doc.total) }}</td>
+					</tr>
+					{#- PPN selalu dicetak di bawah Total Price, labelnya "PPN <rate>%" (bukan deskripsi akunnya);
+					    PO tanpa PPN tetap kecetak "PPN 11%" senilai 0, ngikut formulir. Baris pajak lain (PPh,
+					    potongan) dicetak pakai deskripsinya. -#}
+					{%- set vat_rows = doc.taxes | rejectattr("is_tax_withholding_account") | selectattr("add_deduct_tax", "ne", "Deduct") | list %}
+					{%- set other_rows = doc.taxes | reject("in", vat_rows) | list %}
+					{%- if vat_rows %}
+						{%- for tax in vat_rows %}
+							<tr>
+								<td class="lbl">PPN {{ "%g" | format(tax.rate | float) if tax.rate else 11 }}%</td>
+								<td class="money">{{ frappe.utils.fmt_money(tax.tax_amount) }}</td>
+							</tr>
+						{%- endfor %}
+					{%- else %}
+						<tr>
+							<td class="lbl">PPN 11%</td>
+							<td class="money">{{ frappe.utils.fmt_money(0) }}</td>
+						</tr>
+					{%- endif %}
+					{%- for tax in other_rows %}
+						<tr>
+							<td class="lbl">{{ tax.description }}</td>
+							<td class="money">{{ frappe.utils.fmt_money(tax.tax_amount) }}</td>
+						</tr>
+					{%- endfor %}
+					<tr class="grand">
+						<td class="lbl">Grand Total</td>
+						<td class="money">{{ frappe.utils.fmt_money(doc.grand_total) }}</td>
+					</tr>
+				</table>
+			</td>
 		</tr>
 	</table>
-
-	{%- if doc.in_words %}
-		<div class="in-words"><b>in Words :</b> {{ doc.in_words | upper }}</div>
-	{%- endif %}
 
 	<table class="sign">
 		<tr>
 			<td style="width: 50%">
-				<div class="role">Supplier Approved</div>
-				<div>{{ doc.contact_display or doc.supplier_name or doc.supplier }}</div>
+				<div class="role">Best regards,</div>
+				<div>{{ frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
+				<div>Director</div>
 			</td>
 			<td style="width: 50%">
-				<div>Best regards,</div>
-				<div class="role">Director</div>
-				<div>{{ frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
+				<div class="role">Supplier Approved</div>
+				<div>{{ doc.contact_display or doc.supplier_name or doc.supplier }}</div>
 			</td>
 		</tr>
 	</table>

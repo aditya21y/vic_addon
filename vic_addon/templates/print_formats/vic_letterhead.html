@@ -87,6 +87,10 @@
 		text-align: center !important;
 	}
 	.vic-pf .items td { padding: 8px 4px !important; }
+	/* Kolom Description: judul & isinya rata kiri (judul kolom lain tetap tengah). Selektornya
+	   lebih spesifik dari `.vic-pf .items th` di atas yang juga pakai !important, biar menang. */
+	.vic-pf .items th.left { text-align: left !important; }
+	.vic-pf .items td.text { text-align: left !important; }
 	.vic-pf .items tbody tr:last-child td { border-bottom: 1px solid #000; }
 	.vic-pf .items .num { text-align: center; }
 	/* Qty rata tengah, bukan rata kanan. Ada formulir yang kolomnya berhenti di Qty (Purchase
