@@ -358,6 +358,58 @@ tabel deskripsi penagihan khusus buat print (Opsi A di Excel).
 Implementasi: `vic_addon/vic/dp_item_invoice.py`, `vic_addon/public/js/dp_item_invoice.js`,
 child table **DP Allocation**.
 
+#### Retensi (invoice progress & invoice retensi)
+
+Retensi = sisa bayar yang ditahan customer padahal barang udah dikirim penuh (mis. termin SO
+"dp 20%, 75% progress, 5% retensi"). Ditagih terpisah di akhir, pakai invoice + faktur sendiri.
+Jalan bareng skema DP Item.
+
+| # | Invoice | Yang dilakuin user | Yang otomatis |
+| --- | --- | --- | --- |
+| 1 | DP | centang **Is DP Invoice** + DP Term | item diganti Item DP (lihat DP Invoice pakai Item DP) |
+| 2 | Progress | centang **Is Progress Invoice** + **Progress Term** (mis. "2. 75 (75%)") | baris **RETENSI minus** = % termin retensi × DPP barang; DP ditarik ke tabel DP Invoices (bisa diedit) — waktu dicentang, dan lagi waktu disimpan pertama kalau tabelnya masih kosong |
+| 3 | Retensi | di Sales Order: **Create → Retention Invoice** (muncul kalau masih ada retensi yang belum ditagih) | form kebuka udah berisi satu baris **RETENSI plus** senilai retensi yang ditahan & belum ditagih; pajak ikut SO; sisa DP dibalik (maks. senilai retensi) |
+
+Contoh SO DPP 51.000 + PPN 11% (udah dites): DP 11.322 → progress DPP 48.450 (retensi −2.550), DP
+dibalik 11.322, sisa tagih 42.458 → retensi DPP 2.550 + PPN = 2.830 → total dari customer **56.610 =
+grand total SO**, saldo Piutang Retensi balik 0.
+
+Invoice retensi dibikin dari tombol di SO, bukan *Create → Sales Invoice* bawaan: SO yang barangnya
+udah ketagih semua (% Billed 100) gak bisa bikin invoice lewat mapper bawaan, dan SI baru yang Items-nya
+kosong ditolak form.
+
+**Jurnalnya:** baris RETENSI pakai akun neraca **Piutang Retensi** (bukan Penjualan) — penjualan diakui
+penuh waktu barang dikirim, PPN & faktur ngikut tagihan, sisa retensi = saldo akun itu.
+
+**Termin retensi** di Payment Schedule SO dikenali dari centangan **Is Retention** di master Payment
+Term; kalau gak dicentang, dari nama/deskripsinya yang mengandung "retensi"/"retention".
+
+**Penjaga:**
+
+- Satu invoice cuma boleh satu dari Is DP / Is Progress / Is Retention; invoice progress cuma boleh
+  narik item dari satu Sales Order.
+- *Allow Negative rates for Items* (setelan global ERPNext) harus nyala, tapi yang boleh rate minus
+  **cuma baris RETENSI di invoice progress** — item lain ditolak.
+- Invoice retensi ditolak kalau retensi order itu udah habis ditagih.
+- Invoice progress yang retensinya udah ditagih gak bisa dicancel sebelum invoice retensinya dicancel.
+- Invoice retensi yang narik DP: pembulatan grand total dimatiin, biar DP yang dibalik pas dengan
+  tagihannya (sisa tagih 0, gak lebih 0,50).
+- Kalau setelah invoice retensi masih ada DP yang belum dibalik, muncul peringatan oranye — DP itu
+  masih nyangkut di akun uang muka dan customer bakal kelebihan bayar.
+
+**Setup sekali per site/company:**
+
+1. Akun **Piutang Retensi** (Asset; tipe akun **jangan** *Receivable* — akun tipe itu wajib party di
+   tiap jurnal). Local: `1132.002 - Piutang Retensi - N`.
+2. Item **RETENSI** (non-stock, sales item).
+3. Company → section *DP Invoice (Item DP)*: **Retention Item** = RETENSI, **Piutang Retensi** = akun di
+   atas.
+4. Master **Payment Term** termin retensi: centang **Is Retention** (opsional kalau namanya udah
+   mengandung "retensi").
+5. **Selling Settings → Allow Negative rates for Items** dinyalain.
+
+Implementasi: `vic_addon/vic/retention.py`, form di `vic_addon/public/js/dp_item_invoice.js`.
+
 #### DP Invoice (Payment Request) + sisa PPN/PPh di invoice final
 
 > Masih dipakai, berdampingan dengan skema Item DP di atas. Sempat disembunyiin waktu skema Item DP

@@ -377,6 +377,11 @@ for doctype in ("Sales Invoice", "Purchase Invoice"):
 		"vic_addon.vic.dp_item_invoice.cancel_reverse_journal",
 	]
 
+# retensi: baris RETENSI minus di invoice progress, plus di invoice retensi (lihat vic/retention.py)
+doc_events["Sales Invoice"]["before_validate"].insert(1, "vic_addon.vic.retention.set_retention")
+doc_events["Sales Invoice"]["validate"].append("vic_addon.vic.retention.validate_negative_rates")
+doc_events["Sales Invoice"]["before_cancel"].insert(0, "vic_addon.vic.retention.block_cancel_of_billed_retention")
+
 # alamat kirim dropship itu alamat customer, yang ditolak validasi alamat bawaan ERPNext -
 # disingkirin sebelum validasi inti, dipasang lagi sesudahnya
 for doctype in ("Purchase Order", "Purchase Receipt", "Purchase Invoice"):

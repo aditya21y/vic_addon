@@ -313,6 +313,9 @@ def get_default_allocations(doc):
 		order = item.get(side.order_field)
 		if order and order not in orders:
 			orders.append(order)
+	# invoice retensi gak punya baris yang nempel ke SO - order-nya di header
+	if doc.get("custom_is_retention") and doc.get("custom_dp_order") and doc.custom_dp_order not in orders:
+		orders.append(doc.custom_dp_order)
 
 	rows = []
 	for order in orders:
@@ -325,9 +328,7 @@ def get_default_allocations(doc):
 			continue
 
 		order_net = flt(frappe.db.get_value(side.order_doctype, order, "base_net_total"))
-		this_net = sum(
-			flt(item.base_net_amount) for item in doc.items if item.get(side.order_field) == order
-		)
+		this_net = sum(get_row_base_net(doc, item) for item in doc.items if item.get(side.order_field) == order)
 		billed_before = get_billed_before(doc, order, side)
 		total_dp = sum(flt(dp.base_net_total) for dp in dp_invoices)
 
@@ -362,6 +363,15 @@ def get_default_allocations(doc):
 		row.update(compute_row_totals(row["dp_invoice"], doc.doctype, row["allocated_amount"]))
 
 	return rows
+
+
+def get_row_base_net(doc, item):
+	"""DPP baris (mata uang perusahaan). Dokumen baru di form bisa belum ngitung `base_net_amount`
+	(masih 0) - kalau gitu dihitung dari qty x rate, biar porsi DP-nya gak kebaca nol."""
+	if flt(item.get("base_net_amount")):
+		return flt(item.base_net_amount)
+	rate = flt(item.get("net_rate")) or flt(item.get("rate"))
+	return flt(item.get("qty")) * rate * (flt(doc.get("conversion_rate")) or 1)
 
 
 def is_same_party(doc, dp_invoice, side):

@@ -254,3 +254,29 @@ function submit_purchase_orders(frm, selected_items) {
 		},
 	});
 }
+
+// Invoice retensi: SO yang barangnya udah ketagih semua gak bisa bikin Sales Invoice lewat tombol
+// bawaan, jadi dibikin dari tombol ini - muncul kalau masih ada retensi yang ditahan di invoice
+// progress tapi belum ditagih. Lihat vic_addon/vic/retention.py.
+frappe.ui.form.on("Sales Order", {
+	refresh(frm) {
+		if (frm.doc.docstatus !== 1) return;
+
+		frappe.call({
+			method: "vic_addon.vic.retention.get_unbilled_retention",
+			args: { sales_order: frm.doc.name },
+			callback({ message }) {
+				if (!flt(message)) return;
+				frm.add_custom_button(
+					__("Retention Invoice"),
+					() =>
+						frappe.model.open_mapped_doc({
+							method: "vic_addon.vic.retention.make_retention_invoice",
+							frm: frm,
+						}),
+					__("Create")
+				);
+			},
+		});
+	},
+});

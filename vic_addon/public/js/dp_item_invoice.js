@@ -123,3 +123,51 @@ function get_dp_invoices(frm, notify) {
 		},
 	});
 }
+
+// Retensi (cuma Sales Invoice) - lihat vic_addon/vic/retention.py.
+// Invoice progress: centang "Is Progress Invoice" + pilih Progress Term; baris Retensi (minus)
+// ketambah sendiri waktu disimpan. Invoice retensi: centang "Is Retention Invoice" + pilih Sales
+// Order; item diganti baris Retensi (plus) dan sisa DP-nya langsung ditarik.
+frappe.ui.form.on("Sales Invoice", {
+	refresh(frm) {
+		load_progress_terms(frm);
+	},
+
+	custom_is_progress(frm) {
+		if (frm.doc.custom_is_progress) {
+			const row = (frm.doc.items || []).find((item) => item.sales_order);
+			if (row && frm.doc.custom_dp_order !== row.sales_order) frm.set_value("custom_dp_order", row.sales_order);
+			// DP order ini langsung ditarik kalau tabelnya masih kosong
+			if (frm.doc.docstatus === 0 && !(frm.doc.custom_dp_allocations || []).length) get_dp_invoices(frm, false);
+		}
+		load_progress_terms(frm);
+	},
+
+	custom_dp_order(frm) {
+		frm.set_value("custom_progress_term", "");
+		load_progress_terms(frm);
+		// invoice retensi: sisa DP order ini langsung ditarik ke tabel DP Invoices
+		if (frm.doc.custom_is_retention && frm.doc.custom_dp_order && frm.doc.docstatus === 0) {
+			get_dp_invoices(frm, false);
+		}
+	},
+});
+
+function load_progress_terms(frm) {
+	if (!frm.doc.custom_is_progress || !frm.doc.custom_dp_order) {
+		frm.set_df_property("custom_progress_term", "options", [""]);
+		return;
+	}
+
+	frappe.call({
+		method: "vic_addon.vic.retention.get_progress_terms",
+		args: { order: frm.doc.custom_dp_order },
+		callback({ message }) {
+			const options = [""].concat((message || []).map((row) => row.label));
+			if (frm.doc.custom_progress_term && !options.includes(frm.doc.custom_progress_term)) {
+				options.push(frm.doc.custom_progress_term);
+			}
+			frm.set_df_property("custom_progress_term", "options", options);
+		},
+	});
+}
