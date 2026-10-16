@@ -38,6 +38,8 @@
   "total_profit_percentage",
   "total_quotation_profit_amount",
   "total_quotation_profit_percentage",
+  "realization_section",
+  "realization_html",
   "terms_section",
   "delivery_time",
   "delivery_point",
@@ -266,6 +268,19 @@
    "read_only": 1
   },
   {
+   "collapsible": 1,
+   "depends_on": "eval:!doc.__islocal",
+   "description": "Rencana Costing vs realisasi Sales Order (jual) & Purchase Order (beli), dari dokumen submitted.",
+   "fieldname": "realization_section",
+   "fieldtype": "Section Break",
+   "label": "Realization"
+  },
+  {
+   "fieldname": "realization_html",
+   "fieldtype": "HTML",
+   "label": "Realization"
+  },
+  {
    "description": "Dicetak di print format Costing (Sales)",
    "fieldname": "terms_section",
    "fieldtype": "Section Break",
@@ -299,7 +314,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-12 10:00:00.000000",
+ "modified": "2026-10-16 11:00:00.000000",
  "modified_by": "Administrator",
  "module": "VIC",
  "name": "Costing",

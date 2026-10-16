@@ -517,3 +517,79 @@ function set_dialog_items(dialog, rows) {
 	// semua baris dicentang duluan, tinggal user yang ngurangin
 	dialog.wrapper.find(".grid-heading-row .grid-row-check").prop("checked", false).click();
 }
+
+// Section Realization: rencana Costing vs realisasi SO & PO per item (vic/costing_realization.py).
+// Report lengkapnya: Costing Realization.
+frappe.ui.form.on("Costing", {
+	refresh(frm) {
+		render_realization(frm);
+	},
+});
+
+function render_realization(frm) {
+	const field = frm.get_field("realization_html");
+	if (!field || frm.is_new()) return;
+
+	frappe.call({
+		method: "vic_addon.vic.costing_realization.get_costing_realization",
+		args: { costing: frm.doc.name },
+		callback({ message }) {
+			if (!message) return;
+			field.$wrapper.html(realization_table(message));
+		},
+	});
+}
+
+function realization_table(data) {
+	const money = (value) => format_currency(value, frappe.defaults.get_default("currency"));
+	const pct = (value) => `${flt(value, 1)}%`;
+	const variance = (value, more_is_good = true) => {
+		const color = !flt(value) ? "" : (value > 0) === more_is_good ? "var(--green-600)" : "var(--red-600)";
+		return `<span style="color: ${color}">${money(value)}</span>`;
+	};
+	const status = (value) =>
+		value === "Lengkap" ? value : `<span style="color: var(--orange-600)">${value}</span>`;
+
+	const row = (r, total) => `
+		<tr${total ? ' style="font-weight: 600; background: var(--subtle-fg)"' : ""}>
+			<td>${total ? __("Total") : frappe.utils.escape_html(r.item_code || "")}</td>
+			<td>${status(r.po_status)}</td>
+			<td class="text-right">${flt(r.plan_qty)} / ${flt(r.so_qty)} / ${flt(r.po_qty)}</td>
+			<td class="text-right">${money(r.plan_sell_amount)}<br>${money(r.so_amount)}<br>${variance(r.sell_variance)}</td>
+			<td class="text-right">${money(r.plan_buy_amount)}<br>${money(r.real_buy_amount)}<br>${variance(r.buy_variance, false)}</td>
+			<td class="text-right">${money(r.plan_profit)}<br>${money(r.real_profit)}<br>${variance(r.profit_variance)}</td>
+			<td class="text-right">${pct(r.plan_margin)}<br>${pct(r.real_margin)}</td>
+		</tr>`;
+
+	const links = (doctype, names) =>
+		names.length ? names.map((name) => frappe.utils.get_form_link(doctype, name, true)).join(", ") : "-";
+
+	if (!data.sales_orders.length) {
+		return `<div class="text-muted">${__("No submitted Sales Order from this Costing's Quotation yet.")}</div>`;
+	}
+
+	return `
+		<div class="small text-muted" style="margin-bottom: 6px">
+			${__("Sales Order")}: ${links("Sales Order", data.sales_orders)} &middot;
+			${__("Purchase Order")}: ${links("Purchase Order", data.purchase_orders)} &middot;
+			<a href="/desk/query-report/Costing Realization?costing=${encodeURIComponent(data.costing || "")}">${__("Open report")}</a>
+		</div>
+		<table class="table table-bordered table-sm" style="font-size: 12px">
+			<thead>
+				<tr>
+					<th>${__("Item")}</th>
+					<th>${__("PO Status")}</th>
+					<th class="text-right">${__("Qty")}<br><small>${__("Costing / SO / PO")}</small></th>
+					<th class="text-right">${__("Jual")}<br><small>${__("Rencana / SO / Selisih")}</small></th>
+					<th class="text-right">${__("Beli")}<br><small>${__("Rencana / Realisasi / Selisih")}</small></th>
+					<th class="text-right">${__("Profit")}<br><small>${__("Rencana / Realisasi / Selisih")}</small></th>
+					<th class="text-right">${__("Margin")}<br><small>${__("Rencana / Realisasi")}</small></th>
+				</tr>
+			</thead>
+			<tbody>
+				${data.rows.map((r) => row(r)).join("")}
+				${row(data.total, true)}
+			</tbody>
+		</table>
+		<div class="small text-muted">${__("Qty not yet ordered is costed at the planned buying price (estimate).")}</div>`;
+}

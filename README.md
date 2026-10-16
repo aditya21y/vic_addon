@@ -303,6 +303,29 @@ Belum termasuk (nunggu prioritas):
   (perlu permlevel + role, sengaja belum dipasang biar gak ngunci field ke semua user)
 - Workflow approval (doctype-nya udah non-submittable, tinggal bikin Workflow-nya)
 
+
+**Realisasi (Costing Realization).** Rencana di Costing dibandingin otomatis sama realisasinya, per
+item — lewat **Script Report "Costing Realization"** (pohon: baris Costing berisi total, item di
+bawahnya; filter company, tanggal, customer, project, costing) dan **section Realization** di form
+Costing (tabel ringkas + link SO/PO + tombol ke report).
+
+Rantainya: Costing → Quotation submitted (`custom_costing`) → Sales Order submitted (baris SO nyimpen
+Quotation asal) → Purchase Order submitted (baris PO nyimpen baris SO). Baris SO dicocokin ke baris
+Costing lewat item code + Supplier Quotation di baris Quotation-nya; item yang ditambah di SO jadi baris
+sendiri dengan rencana nol.
+
+| Kolom | Rencana (Costing) | Realisasi |
+| --- | --- | --- |
+| Qty | Qty Costing | Qty SO / Qty PO |
+| Jual | Quotation Amount | net amount SO (setelah diskon, sebelum pajak) |
+| Beli | Amount (harga beli SQ) | net amount PO + qty SO yang **belum di-PO** dinilai harga beli rencana (perkiraan) |
+| Profit & margin | jual − beli | jual SO − biaya beli realisasi |
+
+**PO Status** (Belum PO / PO Sebagian / Lengkap / PO Lebih) nunjukin baris yang profitnya masih ngandung
+perkiraan. Additional cost (ongkir dll) gak ikut profit rencana — realisasinya cuma SO − PO, biar
+sebanding. Selisih jual/profit minus dan selisih beli plus ditandain merah.
+
+Implementasi: `vic_addon/vic/costing_realization.py`, report di `vic_addon/vic/report/costing_realization/`.
 #### DP Invoice pakai Item DP (skema sekarang)
 
 Sumber: `new dp schemaa.xlsx`, **Opsi 2**. Jalan **berdampingan** dengan alur DP lewat Advance
