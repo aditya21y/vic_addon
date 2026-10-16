@@ -151,10 +151,23 @@ tanpa RFQ, yang dibandingin cuma penawaran yang dipilih di dialog.
 
 **Ganti SQTN di baris Costing = harganya ikut ganti.** Kolom Supplier Quotation di tabel item
 pilihannya dibatesin ke penawaran submitted yang beneran ada item baris itu, dan begitu diganti,
-**net rate** penawaran baru langsung ketarik ke kolom Rate bareng nama suppliernya. Dua kasus
-dijaga: kalau mata uang penawarannya beda dari Costing, harganya **gak** disentuh (biar gak
-ketuker kurs) dan user dikasih tau; kalau kolomnya dikosongin, barisnya balik diperlakuin sebagai
-barang stok — harganya ngambil valuation rate gudang.
+**net rate** penawaran baru langsung ketarik ke kolom Rate bareng nama suppliernya. Kalau
+kolomnya dikosongin, barisnya balik diperlakuin sebagai barang stok — harganya ngambil valuation
+rate gudang.
+
+**Costing selalu mata uang perusahaan (IDR).** Field Currency read only dan dipaksa ke default
+currency company tiap disimpan. Harga dari SQTN diambil **versi IDR-nya**: `base_net_rate` (Rate)
+dan `base_price_list_rate` (Price List Rate) — harga valas × kurs yang dipakai di SQTN itu. Contoh
+(udah dites): SQTN USD kurs 16.000, harga $10 diskon 10% → Rate **144.000**, Price List Rate
+**160.000**. Jadi:
+
+- dialog Get Items **gak nyaring mata uang** lagi — penawaran USD, SGD, IDR bisa dicampur di satu
+  Costing, dan centang *termurah* ngebandingin harga yang udah sama-sama IDR;
+- ganti SQTN di baris / Create > Costing dari SQTN valas juga langsung keisi IDR;
+- harga final Quotation yang ditulis balik ke Costing (`update_costing_rates`) ikut pakai
+  `base_net_rate`.
+
+Kursnya beku di kurs SQTN — kalau kurs berubah, SQTN-nya yang mesti diperbarui.
 
 Tiap baris Costing Item punya field **Warehouse** yang keisi otomatis: gudang default item di
 company itu (`Item Default`) dulu, kalau item gak punya baru ikut default warehouse di Stock
@@ -1145,6 +1158,39 @@ cuma dipakai nyatet klaim landed cost ke Purchase Invoice.
 
 Implementasi: `vic_addon/vic/landed_cost.py` + `vic_addon/public/js/landed_cost_voucher.js`.
 
+#### Repack Percentage (Stock Entry Repack)
+
+Repack bawaan ERPNext yang hasilnya lebih dari satu item **maksa** semua baris hasil dicentang *Set
+Basic Rate Manually* — user ngitung rate tiap hasil sendiri. Kalau gak dicentang, nilai bahannya
+dibagi rata per qty, padahal hasil bongkaran/potongan nilainya jarang sebanding sama qty-nya.
+
+Field **Repack Percentage** (`custom_repack_percentage`) di baris item Stock Entry — muncul cuma di
+Repack, di baris yang punya Target Warehouse (item hasil). Isi porsi nilai bahan buat tiap hasil:
+
+```
+basic amount hasil = total nilai bahan keluar × persentase / 100
+basic rate hasil   = basic amount / qty (stock UOM)
+```
+
+Contoh (udah dites): bahan 3 × 1.000 = 3.000 → hasil A 2 pcs 70% = **2.100** (1.050/pcs), hasil B
+7 pcs 30% = **900** (128,57/pcs). Total masuk = total keluar, selisih 0.
+
+| Aturan | |
+| --- | --- |
+| Satu baris hasil diisi | semua baris hasil wajib diisi, totalnya **harus 100%** |
+| Baris hasil terakhir | dapet sisa nilai (bukan dikali persen lagi) — gak ada selisih pembulatan ke akun Stock Adjustment |
+| Set Basic Rate Manually | dicopot otomatis di baris yang pakai persentase |
+| Gak ada yang diisi | Repack jalan persis kayak bawaan (termasuk error wajib Set Basic Rate Manually) |
+| Additional Costs | tetap dibagi bawaan ERPNext, proporsional ke nilai hasil |
+
+Hitungannya nempel di `set_basic_rate`, jadi ikut kepakai waktu **repost valuasi**: kalau harga
+bahannya berubah karena ada transaksi mundur, nilai hasilnya ikut nyesuain dengan persentase yang
+sama (dites: bahan jadi 3.600 → 2.520 / 1.080). Beda sama Set Basic Rate Manually yang rate-nya beku.
+Rate hasil baru kelihatan setelah Save (dihitung server).
+
+Implementasi: `vic_addon/vic/stock_entry.py` (`VICStockEntry`, lewat `override_doctype_class`) +
+`vic_addon/public/js/stock_entry.js`.
+
 #### Tanggal jurnal ikut pindah ke tanggal cair di bank
 
 Bank Clearance bawaan cuma nulis **Clearance Date** ke dokumennya — tanggal posting sama
@@ -1759,6 +1805,22 @@ Yang beneran nyetak baru **Quotation (VIC)** (juga kalau dipasang di Sales Order
 Order (VIC)**. Sales Invoice dan Purchase Receipt belum punya print format VIC yang nyetak total
 harga (Kwitansi nyetak nilai tagihan, Goods Received gak ada harga) — checkbox-nya udah ada, tinggal
 dipakai begitu print format-nya dibikin.
+
+#### Disable Rounded Total default nyala
+
+**Disable Rounded Total** default-nya **1** di semua dokumen transaksi: Quotation, Sales Order, Sales
+Invoice, Delivery Note, Supplier Quotation, Purchase Order, Purchase Invoice, Purchase Receipt.
+Dokumen baru langsung gak dibulatin; user masih bisa nguncheck per dokumen. Dokumen lama gak
+disentuh.
+
+Lewat property setter `<Doctype>-disable_rounded_total-default` — namanya sengaja sama persis
+dengan yang dibikin **Global Defaults → Disable Rounded Total**, jadi fixture kita nimpa record itu,
+bukan nambah yang kedua. Bedanya: centangan di Global Defaults juga nyembunyiin field Rounded Total
+di form & print, fixture kita cuma ngubah default-nya.
+
+Catatan: kalau **Global Defaults** di-save (mis. ganti default company), ERPNext nulis ulang
+property setter ini sesuai centangan di sana (bawaannya 0). `bench migrate` berikutnya ngembaliin
+ke 1 — fixture selalu di-import ulang tiap migrate (udah dites).
 
 Isian syarat di **Quotation (VIC)** diketik di lima field doctype Quotation: **Payment Terms**,
 **Delivery Point**, **Delivery Time**, **Validity**, dan **Subject**. Template-nya sadar dokumen,

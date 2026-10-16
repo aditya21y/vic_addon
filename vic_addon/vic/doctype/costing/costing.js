@@ -88,7 +88,6 @@ frappe.ui.form.on("Costing Item", {
 			args: {
 				supplier_quotation: item.supplier_quotation,
 				item_code: item.item_code,
-				currency: frm.doc.currency,
 			},
 			callback({ message }) {
 				if (!message) return;
@@ -331,7 +330,6 @@ function get_items_from_supplier_quotation(frm) {
 							// pas pertama dibangun dialognya belum ada, filter RFQ-nya nyusul
 							request_for_quotation: dialog && dialog.get_value("request_for_quotation"),
 							company: frm.doc.company,
-							currency: frm.doc.currency,
 							txt: txt,
 						})
 						.then((rows) => rows.filter((row) => !chosen.includes(row.value)));

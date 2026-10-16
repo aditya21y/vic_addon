@@ -16,6 +16,11 @@ tentuin harga jual dari margin. Rumusnya ngikut sheet "5a. COSTING" di source of
 
 Additional cost dibagi proporsional lewat rate tiap item, jadi total distributed cost
 = Total Additional Costs x (1 + Additional Percentage).
+
+Mata uang Costing **selalu mata uang perusahaan** (IDR). Harga dari Supplier Quotation diambil
+versi mata uang perusahaannya (`base_net_rate` / `base_price_list_rate` - harga valas x kurs di
+SQTN itu), jadi penawaran USD, SGD, dst bisa langsung masuk Costing yang sama tanpa nyaring
+mata uang, dan perbandingan harga termurah antar supplier ikut sebanding.
 """
 
 import frappe
@@ -32,11 +37,17 @@ QUOTED = "Quoted"
 
 class Costing(Document):
 	def validate(self):
+		self.set_company_currency()
 		self.validate_margin_percentage()
 		self.set_warehouses()
 		self.set_rates_from_valuation()
 		self.calculate()
 		self.set_status()
+
+	def set_company_currency(self):
+		"""Costing selalu dalam mata uang perusahaan - harga SQTN valas dikonversi waktu ditarik."""
+		if self.company:
+			self.currency = frappe.get_cached_value("Company", self.company, "default_currency")
 
 	def set_warehouses(self):
 		"""Gudang stok tiap baris, dipakai buat narik harga barang yang gak lewat SQTN.
@@ -339,10 +350,7 @@ def make_costing(source_name, target_doc=None):
 	from frappe.model.mapper import get_mapped_doc
 
 	def update_item(source_item, target_item, source_parent):
-		# net_rate = rate setelah diskon bertingkat per item + diskon tambahan atas net total
-		target_item.rate = flt(source_item.net_rate) or flt(source_item.rate)
-		# harga sebelum diskon disimpan terpisah, dicetak di print format Costing
-		target_item.price_list_rate = flt(source_item.price_list_rate) or flt(source_item.rate)
+		target_item.update(get_company_currency_rates(source_item))
 		target_item.supplier_quotation = source_parent.name
 		target_item.supplier = source_parent.supplier
 		target_item.supplier_quotation_item = source_item.name
@@ -353,6 +361,8 @@ def make_costing(source_name, target_doc=None):
 		from vic_addon.vic.customer_chain import set_customer_from_request_for_quotation
 
 		set_customer_from_request_for_quotation(target)
+		# mapper nyalin currency SQTN (bisa USD) - Costing selalu mata uang perusahaan
+		target.set_company_currency()
 
 	return get_mapped_doc(
 		"Supplier Quotation",
@@ -379,11 +389,12 @@ def get_supplier_quotation_items(supplier_quotations):
 
 
 @frappe.whitelist()
-def get_supplier_quotations(request_for_quotation=None, company=None, currency=None, txt=None):
+def get_supplier_quotations(request_for_quotation=None, company=None, txt=None):
 	"""Daftar Supplier Quotation buat dipilih di dialog `Get Items from Supplier Quotation`.
 
 	Kalau nomor Request for Quotation diisi, yang muncul cuma penawaran yang lahir dari RFQ itu -
-	biar gak kecampur penawaran proyek lain.
+	biar gak kecampur penawaran proyek lain. Mata uangnya gak disaring: harganya diambil dalam
+	mata uang perusahaan (lihat `get_company_currency_rates`).
 	"""
 	quotation = frappe.qb.DocType("Supplier Quotation")
 	query = (
@@ -396,9 +407,6 @@ def get_supplier_quotations(request_for_quotation=None, company=None, currency=N
 
 	if company:
 		query = query.where(quotation.company == company)
-
-	if currency:
-		query = query.where(quotation.currency == currency)
 
 	if txt:
 		query = query.where(quotation.name.like(f"%{txt}%") | quotation.supplier.like(f"%{txt}%"))
@@ -467,9 +475,7 @@ def get_costing_items(supplier_quotations=None, request_for_quotation=None, only
 					"item_name": item.item_name,
 					"uom": item.uom,
 					"qty": quantities.get(item.item_code) or flt(item.qty),
-					# net_rate = rate setelah diskon bertingkat per item + diskon tambahan atas net total
-					"rate": flt(item.net_rate) or flt(item.rate),
-					"price_list_rate": flt(item.price_list_rate) or flt(item.rate),
+					**get_company_currency_rates(item),
 					"supplier_quotation": quotation.name,
 					"supplier": quotation.supplier,
 					"supplier_quotation_item": item.name,
@@ -523,15 +529,15 @@ def keep_cheapest(items):
 
 
 @frappe.whitelist()
-def get_quotation_item_details(supplier_quotation, item_code, currency=None):
+def get_quotation_item_details(supplier_quotation, item_code):
 	"""Harga + supplier dari sebuah SQTN buat satu baris Costing.
 
 	Dipanggil form waktu kolom Supplier Quotation di baris item diganti, biar harganya langsung
 	ngikut penawaran yang baru dipilih. Yang diambil **net rate** - harga per unit setelah diskon
-	bertingkat per item maupun diskon atas total.
+	bertingkat per item maupun diskon atas total - dalam mata uang perusahaan.
 	"""
 	quotation = frappe.db.get_value(
-		"Supplier Quotation", supplier_quotation, ["supplier", "currency", "docstatus"], as_dict=True
+		"Supplier Quotation", supplier_quotation, ["supplier", "docstatus"], as_dict=True
 	)
 	if not quotation:
 		return {}
@@ -539,7 +545,7 @@ def get_quotation_item_details(supplier_quotation, item_code, currency=None):
 	item = frappe.db.get_value(
 		"Supplier Quotation Item",
 		{"parent": supplier_quotation, "item_code": item_code},
-		["name", "net_rate", "rate", "price_list_rate", "uom"],
+		["name", "base_net_rate", "base_rate", "base_price_list_rate", "uom"],
 		as_dict=True,
 	)
 	if not item:
@@ -552,27 +558,25 @@ def get_quotation_item_details(supplier_quotation, item_code, currency=None):
 		)
 		return {"supplier": quotation.supplier}
 
-	details = {
+	return {
 		"supplier": quotation.supplier,
 		"supplier_quotation_item": item.name,
 		"uom": item.uom,
+		**get_company_currency_rates(item),
 	}
 
-	# harga cuma diambil kalau mata uangnya sama, biar gak ketuker kurs
-	if currency and quotation.currency != currency:
-		frappe.msgprint(
-			_("Supplier Quotation {0} is in {1}, so the rate is left as it is.").format(
-				supplier_quotation, quotation.currency
-			),
-			title=_("Different Currency"),
-			indicator="orange",
-		)
-		return details
 
-	details["rate"] = flt(item.net_rate) or flt(item.rate)
-	details["price_list_rate"] = flt(item.price_list_rate) or flt(item.rate)
+def get_company_currency_rates(item):
+	"""Harga baris Supplier Quotation dalam mata uang perusahaan, buat Costing.
 
-	return details
+	`base_*` = harga valas x kurs SQTN-nya, jadi penawaran USD langsung jadi IDR. Rate pakai
+	**net rate** (setelah diskon bertingkat per item + diskon tambahan atas net total); harga
+	sebelum diskon disimpan terpisah di Price List Rate, dicetak di print format Costing.
+	"""
+	return {
+		"rate": flt(item.base_net_rate) or flt(item.base_rate),
+		"price_list_rate": flt(item.base_price_list_rate) or flt(item.base_rate),
+	}
 
 
 @frappe.whitelist()
@@ -636,7 +640,8 @@ def update_costing_rates(doc, method=None):
 def get_costing_rate_changes(quotation):
 	"""Baris Costing yang harganya beda sama harga final di Quotation ini.
 
-	Yang dibandingin `net_rate` Quotation - harga per unit setelah semua diskon - lawan
+	Yang dibandingin `base_net_rate` Quotation - harga per unit setelah semua diskon, dalam mata
+	uang perusahaan - lawan
 	Quotation Rate di baris Costing-nya.
 	"""
 	doc = quotation if hasattr(quotation, "items") else frappe.get_doc("Quotation", quotation)
@@ -655,7 +660,8 @@ def get_costing_rate_changes(quotation):
 		if not costing_item:
 			continue
 
-		rate = flt(item.net_rate) or flt(item.rate)
+		# Costing selalu mata uang perusahaan, jadi yang dibandingin versi base-nya
+		rate = flt(item.base_net_rate) or flt(item.base_rate)
 		if flt(rate, costing_item.precision("quotation_rate")) == flt(
 			costing_item.quotation_rate, costing_item.precision("quotation_rate")
 		):

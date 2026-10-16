@@ -132,12 +132,14 @@
    "label": "Show Subject in Print"
   },
   {
+   "description": "Selalu mata uang perusahaan. Harga Supplier Quotation valas dikonversi pakai kurs di SQTN-nya.",
    "fetch_from": "company.default_currency",
    "fetch_if_empty": 1,
    "fieldname": "currency",
    "fieldtype": "Link",
    "label": "Currency",
    "options": "Currency",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -314,7 +316,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-16 11:00:00.000000",
+ "modified": "2026-10-17 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "VIC",
  "name": "Costing",

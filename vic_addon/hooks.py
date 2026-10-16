@@ -106,6 +106,8 @@ doctype_js["Sales Order"].append("public/js/sales_order.js")
 doctype_js["Purchase Order"].append("public/js/purchase_order.js")
 # RFQ: pilihan Project disaring ke Customer-nya
 doctype_js.setdefault("Opportunity", []).append("public/js/opportunity.js")
+# Repack Percentage: isi persen -> Set Basic Rate Manually dicopot
+doctype_js.setdefault("Stock Entry", []).append("public/js/stock_entry.js")
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -443,7 +445,11 @@ for doctype in ("Purchase Order", "Purchase Receipt", "Purchase Invoice"):
 # ------------------------------
 #
 # Bank Clearance: tanggal jurnal ikut digeser ke tanggal cair di bank
-override_doctype_class = {"Bank Clearance": "vic_addon.vic.bank_clearance.VICBankClearance"}
+override_doctype_class = {
+	"Bank Clearance": "vic_addon.vic.bank_clearance.VICBankClearance",
+	# Repack: nilai bahan dibagi ke item hasil pakai Repack Percentage
+	"Stock Entry": "vic_addon.vic.stock_entry.VICStockEntry",
+}
 
 # PO dropship: Delivery Note-nya ikut nongol di tab Connections
 override_doctype_dashboards = {
