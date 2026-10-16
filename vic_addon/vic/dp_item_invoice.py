@@ -4,7 +4,8 @@ Gantiin alur DP lama (Advance Invoice / Payment Request). Contoh order DPP 1.000
 
 	1. Invoice DP     Dr Piutang 220 / Cr Uang Muka Penjualan 200 / Cr PPN 20
 	                  Centang **Is DP Invoice**: semua item diganti Item DP (setting Company), rate =
-	                  porsi term DP yang dipilih x Net Total order (DPP, bukan grand total).
+	                  DP Percentage x Net Total order (DPP, bukan grand total). DP Percentage keisi
+	                  dari porsi term DP yang dipilih, dan boleh diubah user.
 	2. PE DP          Dr Bank 220 / Cr Piutang 220                        (bawaan ERPNext)
 	3. Invoice progress (item asli, mis. 50% = 500)
 	                  Dr Piutang 550 / Cr Penjualan 500 / Cr PPN 50       (bawaan ERPNext)
@@ -88,9 +89,14 @@ def set_dp_invoice(doc, method=None):
 	validate_order(doc, order, side)
 
 	term = get_term_row(order, doc.get("custom_dp_term"))
-	doc.custom_dp_percentage = term.invoice_portion
+	# persen awalnya dari term, tapi boleh diubah user - yang dipakai isian di dokumen
+	if not flt(doc.get("custom_dp_percentage")):
+		doc.custom_dp_percentage = term.invoice_portion
+	percent = flt(doc.custom_dp_percentage)
+	if percent <= 0 or percent > 100:
+		frappe.throw(_("DP Percentage must be more than 0 and at most 100."))
 
-	amount = flt(flt(order.net_total) * flt(term.invoice_portion) / 100, doc.precision("net_total"))
+	amount = flt(flt(order.net_total) * percent / 100, doc.precision("net_total"))
 	settings = get_dp_settings(doc.company, side)
 	item = frappe.get_cached_doc("Item", settings.item)
 
@@ -101,7 +107,7 @@ def set_dp_invoice(doc, method=None):
 			"item_code": item.name,
 			"item_name": item.item_name,
 			"description": _("Down Payment {0}% for {1}").format(
-				frappe.format(term.invoice_portion, {"fieldtype": "Float"}), order.name
+				frappe.format(percent, {"fieldtype": "Float"}), order.name
 			),
 			"qty": 1,
 			"uom": item.stock_uom,
@@ -299,6 +305,13 @@ def get_dp_allocations(doc):
 	if doc.doctype not in SIDES:
 		frappe.throw(_("Invalid invoice type."))
 	doc.check_permission("write" if not doc.is_new() else "create")
+
+	# invoice progress: rate di form belum dikali Progress Percentage (baru dikali waktu disimpan),
+	# jadi dihitung dulu di memori biar porsi DP-nya ngikut nilai yang beneran ditagih
+	if doc.doctype == "Sales Invoice" and doc.get("custom_is_progress") and doc.docstatus == 0:
+		from vic_addon.vic.retention import preview_progress_rates
+
+		preview_progress_rates(doc)
 
 	return get_default_allocations(doc)
 

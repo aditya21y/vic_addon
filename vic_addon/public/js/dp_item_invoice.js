@@ -125,9 +125,10 @@ function get_dp_invoices(frm, notify) {
 }
 
 // Retensi (cuma Sales Invoice) - lihat vic_addon/vic/retention.py.
-// Invoice progress: centang "Is Progress Invoice" + pilih Progress Term; baris Retensi (minus)
-// ketambah sendiri waktu disimpan. Invoice retensi: centang "Is Retention Invoice" + pilih Sales
-// Order; item diganti baris Retensi (plus) dan sisa DP-nya langsung ditarik.
+// Invoice progress: centang "Is Progress Invoice" + pilih Progress Term (ngisi Progress Percentage,
+// boleh diubah); waktu disimpan rate item = rate SO x persen dan baris Retensi (minus) ketambah
+// sendiri. Invoice retensi: centang "Is Retention Invoice" + pilih Sales Order; item diganti baris
+// Retensi (plus) dan sisa DP-nya langsung ditarik.
 frappe.ui.form.on("Sales Invoice", {
 	refresh(frm) {
 		load_progress_terms(frm);
@@ -137,10 +138,21 @@ frappe.ui.form.on("Sales Invoice", {
 		if (frm.doc.custom_is_progress) {
 			const row = (frm.doc.items || []).find((item) => item.sales_order);
 			if (row && frm.doc.custom_dp_order !== row.sales_order) frm.set_value("custom_dp_order", row.sales_order);
-			// DP order ini langsung ditarik kalau tabelnya masih kosong
-			if (frm.doc.docstatus === 0 && !(frm.doc.custom_dp_allocations || []).length) get_dp_invoices(frm, false);
+			// DP order ini ditarik ulang: yang ketarik otomatis waktu form kebuka masih ngitung
+			// tagihan penuh, belum ngikut Progress Percentage
+			if (frm.doc.docstatus === 0) get_dp_invoices(frm, false);
 		}
 		load_progress_terms(frm);
+	},
+
+	custom_progress_term(frm) {
+		const term = (frm.__progress_terms || []).find((row) => row.label === frm.doc.custom_progress_term);
+		if (term) frm.set_value("custom_progress_percentage", term.percentage);
+	},
+
+	// persen berubah = nilai tagihan berubah, jadi porsi DP yang dibalik ikut dihitung ulang
+	custom_progress_percentage(frm) {
+		if (frm.doc.custom_is_progress && frm.doc.docstatus === 0) get_dp_invoices(frm, false);
 	},
 
 	custom_dp_order(frm) {
@@ -163,7 +175,8 @@ function load_progress_terms(frm) {
 		method: "vic_addon.vic.retention.get_progress_terms",
 		args: { order: frm.doc.custom_dp_order },
 		callback({ message }) {
-			const options = [""].concat((message || []).map((row) => row.label));
+			frm.__progress_terms = message || [];
+			const options = [""].concat(frm.__progress_terms.map((row) => row.label));
 			if (frm.doc.custom_progress_term && !options.includes(frm.doc.custom_progress_term)) {
 				options.push(frm.doc.custom_progress_term);
 			}
