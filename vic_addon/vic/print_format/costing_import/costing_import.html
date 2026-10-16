@@ -10,11 +10,11 @@
 {#- Ringkasan di bawah tabel:
       Disc   = Additional Percentage x Total Additional Costs
       Ongkir = Total Additional Costs
-      TSP    = Total Selling Price - Disc + Ongkir   (Total Selling Price after discount)
+      TSP    = Total Selling Price - (Disc + Ongkir)   (Total Selling Price after discount)
       lalu TSP - Total Buying Price -#}
 {%- set shipping = doc.total_additional_costs | float -%}
 {%- set discount = shipping * (doc.additional_percentage | float) / 100 -%}
-{%- set tsp = (doc.total_quotation_amount | float) - discount + shipping -%}
+{%- set tsp = (doc.total_quotation_amount | float) - (discount + shipping) -%}
 
 <style>
 	/* Frappe cuma baca aturan yang nempel persis di .print-format, terus dilempar ke

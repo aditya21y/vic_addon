@@ -124,7 +124,7 @@ Ringkasan di bawah tabel **Costing (Import)**:
 | Total Buying Price / Total Selling Price | Σ harga beli / Σ harga nego (Quotation Rate) |
 | Disc | Additional Percentage × Total Additional Costs |
 | Ongkir | Total Additional Costs |
-| TSP (Total Selling Price after discount) | Total Selling Price − Disc + Ongkir |
+| TSP (Total Selling Price after discount) | Total Selling Price − (Disc + Ongkir) |
 | (tanpa label) | TSP − Total Buying Price |
 
 Di print format **Costing (Import)** dan **Costing (Sales)**, Project dan Subject cuma dicetak
