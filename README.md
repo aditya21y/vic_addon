@@ -1357,6 +1357,8 @@ Semua lewat property setter di `fixtures/property_setter.json`, gak ada kode:
   tab **Progress** (cukup tab break-nya yang di-hide, field di dalamnya ikut ketutup).
 - **Customer Details** (Customer, Sales Order) dan **Notes** dipindah ke tab **Details**, di bawah
   section Timeline — lewat property setter `field_order` di level DocType.
+- **Company** dipindah dari tab Costing ke tab **Details**, paling atas di kolom kanan (sebelah
+  Project Name) — lewat `field_order` yang sama.
 
 Field yang disembunyiin tetap jalan pakai default-nya: % Complete Method tetap `Task Completion`,
 jadi % Completed masih keitung dari Task.
@@ -1772,6 +1774,11 @@ Karena nama field-nya sama di semua doctype, Header ikut kebawa sendiri lewat ma
 (RFQ → Inquiry, Quotation → Sales Order → dst). Di print format tiap Header dicetak jadi baris
 tebal sendiri **mulai di kolom Description** (kolom Item / Heat Number di baris itu dikosongin, jadi
 gak kebaca kayak nomor item), item di bawahnya menjorok. Implementasi: `vic_addon/vic/item_header.py`.
+
+Di tabel item, **yang tebal cuma baris Header**. Baris item (ada Header-nya atau gak) dicetak
+normal, termasuk tebal bawaan editor (`<b>`/`<strong>`) di Description — dinormalin lewat
+`.vic-pf .items .desc` di `templates/print_formats/vic_letterhead.html`, jadi berlaku ke semua
+print format VIC sekaligus. Judul kolom dan baris total tetap tebal.
 
 Catatan: Supplier Quotation **belum** punya field Header, jadi kelompok dari Inquiry putus di situ
 — Costing yang dibikin dari Supplier Quotation mulai tanpa Header. Versi Excel Inquiry juga belum

@@ -98,7 +98,9 @@
 	   kertas. Kolom duit tetap rata kanan lewat `.money`. */
 	.vic-pf .items .qty { text-align: center; white-space: nowrap; }
 	.vic-pf .items .money { text-align: right; white-space: nowrap; }
-	.vic-pf .items .desc { font-weight: 700; }
+	/* baris item gak ditebalin - yang tebal di tabel item cuma judul kelompok (tr.group). Tebal
+	   bawaan editor di description (<b>/<strong>) ikut dinormalin biar aturannya seragam. */
+	.vic-pf .items .desc, .vic-pf .items .desc * { font-weight: 400; }
 	/* description item itu HTML dari editor - paragrafnya jangan nambah jarak */
 	.vic-pf .items .desc p { margin: 0; }
 	/* Baris judul kelompok item: tebal, ngambil selebar tabel, dan gak dikasih border kanan-kiri
