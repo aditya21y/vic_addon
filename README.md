@@ -956,6 +956,12 @@ Dicopotnya waktu `refresh`, bukan `setup` — tombolnya baru dipasang ERPNext pa
 Tombol **Tools** waktu dokumennya masih draft (*Link to Material Requests*, *Get Suppliers*)
 sengaja **dibiarin** — itu buat nyusun dokumennya, bukan buat ngirim, dan gak ada gantinya.
 
+**Kolom Send Email di tabel Suppliers disembunyiin, default 0** (property setter
+`Request for Quotation Supplier-send_email-*`). Centangan ini yang bikin ERPNext otomatis ngirim
+email link portal ke supplier **waktu Inquiry di-submit** (`on_submit` → `send_to_supplier`) — jadi
+sekarang submit gak ngirim apa-apa, ngirimnya lewat Send Inquiry. Draft lama yang masih kecentang
+dinolin patch `disable_inquiry_supplier_email`; yang udah submitted dibiarin.
+
 Implementasi: `vic_addon/vic/request_for_quotation.py` +
 `vic_addon/public/js/request_for_quotation.js`.
 
@@ -1330,6 +1336,17 @@ Opportunity  ─┬─► Request for Quotation ─► Supplier Quotation ─►
 Konsekuensi yang perlu diinget: karena namanya nabrak nama field bawaan, kalau suatu hari ERPNext
 nambahin field `project` sendiri di salah satu doctype itu, custom field kita bakal bentrok dan
 mesti dicabut. Itu risiko yang diambil sadar — imbalannya nol kode tambahan di semua mapper.
+
+Di **Opportunity (RFQ)**, kalau Opportunity From = Customer dan Customer-nya udah keisi, dropdown
+Project cuma nampilin project milik customer itu (`Project.customer`). Ganti Customer → Project
+yang kepilih dikosongin kalau punya customer lain. Opportunity dari Lead/Prospect gak disaring.
+Cuma filter di form (`public/js/opportunity.js`), gak divalidasi di server.
+
+**Rate item RFQ otomatis 0.** Rate di Opportunity Item wajib diisi, tapi ERPNext gak pernah
+ngambilin harga (di tahap RFQ harganya emang belum ada). Property setter
+`Opportunity Item-rate-default` = 0 bikin baris baru langsung 0 — termasuk yang dibikin lewat
+server/import. Di form, ngisi Item Code di baris yang Rate-nya kosong ikut ngisi 0; Rate yang udah
+diketik user gak ditimpa.
 
 #### Delivery Note: Vehicle No di tab Details
 

@@ -104,6 +104,8 @@ for doctype in ("Sales Invoice", "Purchase Invoice"):
 doctype_js["Sales Order"].append("public/js/sales_order.js")
 # PO dropship: tombol bikin Delivery Note, tombol Purchase Receipt disembunyiin
 doctype_js["Purchase Order"].append("public/js/purchase_order.js")
+# RFQ: pilihan Project disaring ke Customer-nya
+doctype_js.setdefault("Opportunity", []).append("public/js/opportunity.js")
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
