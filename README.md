@@ -367,8 +367,10 @@ mati, boleh dijual & dibeli), akun **Uang Muka Penjualan** (income baris DP di S
 Invoice** dan pilih **DP Term** (baris Payment Schedule order). Waktu disimpan semua item diganti
 satu baris Item DP:
 
-- rate = porsi term × **Net Total** order (DPP, bukan grand total — pajaknya ikut tabel pajak
-  invoice). Dihitung ulang tiap draft disimpan.
+- rate = **DP Percentage** × **Net Total** order (DPP, bukan grand total — pajaknya ikut tabel
+  pajak invoice). DP Percentage keisi dari porsi DP Term yang dipilih dan **boleh diubah** (mis.
+  term 20% tapi DP-nya cuma 15%); kalau dikosongin, balik ke porsi term. Dihitung ulang tiap draft
+  disimpan.
 - akun baris = akun Uang Muka dari Company; kategori PPh baris ngikut cara ERPNext (master Item,
   lalu master party), jadi PPh bawaan tetap jalan di invoice DP.
 - payment terms invoice dikosongin (satu tagihan), Update Stock dimatiin.
@@ -409,12 +411,48 @@ Jalan bareng skema DP Item.
 | # | Invoice | Yang dilakuin user | Yang otomatis |
 | --- | --- | --- | --- |
 | 1 | DP | centang **Is DP Invoice** + DP Term | item diganti Item DP (lihat DP Invoice pakai Item DP) |
-| 2 | Progress | centang **Is Progress Invoice** + **Progress Term** (mis. "2. 75 (75%)") | baris **RETENSI minus** = % termin retensi × DPP barang; DP ditarik ke tabel DP Invoices (bisa diedit) — waktu dicentang, dan lagi waktu disimpan pertama kalau tabelnya masih kosong |
+| 2 | Progress | centang **Is Progress Invoice**, pilih item & qty, isi **Progress Percentage** (atau pilih **Progress Term** buat ngisi persennya, terus boleh diedit) | rate tiap item = rate SO × Progress Percentage; baris **RETENSI minus** = % termin retensi × DPP invoice ini; DP ditarik ke tabel DP Invoices sebanding nilai yang ditagih (bisa diedit) — waktu dicentang, tiap persennya diubah, dan waktu disimpan pertama kalau tabelnya masih kosong |
 | 3 | Retensi | di Sales Order: **Create → Retention Invoice** (muncul kalau masih ada retensi yang belum ditagih) | form kebuka udah berisi satu baris **RETENSI plus** senilai retensi yang ditahan & belum ditagih; pajak ikut SO; sisa DP dibalik (maks. senilai retensi) |
 
 Contoh SO DPP 51.000 + PPN 11% (udah dites): DP 11.322 → progress DPP 48.450 (retensi −2.550), DP
 dibalik 11.322, sisa tagih 42.458 → retensi DPP 2.550 + PPN = 2.830 → total dari customer **56.610 =
 grand total SO**, saldo Piutang Retensi balik 0.
+
+**Progress Percentage** = berapa persen **nilai item** yang ditagih sekarang (progres pekerjaan),
+bukan porsi bayar di termin. Item & qty tetap dipilih user (boleh sebagian); tiap baris yang nempel
+ke SO rate-nya diset `rate SO × persen` tiap draft disimpan — rate yang diketik manual ketimpa.
+Price list, margin & diskon nominal ikut dikali persen yang sama. Kalau qty dari mapper 0 (item
+yang sama udah pernah ditagih sebagian, mis. 1 lot 40% lalu 60%), dibalikin ke qty SO.
+
+**Default dari Progress Term:** porsi term ÷ total porsi termin progress SO (selain termin retensi
+dan termin yang dipakai invoice DP) × 100. Termin SO itu porsi *bayar* (udah kepotong DP & retensi),
+jadi perlu dikonversi:
+
+| Termin SO | Progress Percentage default |
+| --- | --- |
+| DP 20 / Progress 75 / Retensi 5 | Progress 75 → **100%** |
+| DP 20 / Progress 40 / Progress 35 / Retensi 5 | 40 → **53,333%**, 35 → **46,667%** |
+
+Contoh kedua udah dites ujung ke ujung (SO DPP 200.000, tanpa pajak):
+
+| Invoice | Item | Retensi | DP dibalik | Bersih |
+| --- | --- | --- | --- | --- |
+| DP 20% | | | | 40.000 |
+| Progress 1 (53,333%) | 106.666 | −5.333,3 | −21.333,2 | 79.999,5 |
+| Progress 2 (46,667%) | 93.334 | −4.666,7 | −18.666,8 | 70.000,5 |
+| Retensi | | | | 10.000 |
+
+Bersihnya nyocok porsi termin (40/80/70/10 dari 200rb), selisih ±0,5 dari pembulatan persen 3 desimal.
+
+**Retensi dari nilai invoice saat itu, totalnya tetap 5% SO.** Hitungannya linear: 5% × A + 5% × B
+= 5% × (A + B). Begitu semua item ketagih lewat invoice progress, A + B = total SO — walaupun item
+dipilih sebagian-sebagian (dites: retensi total 10.000 = 5% × 200.000 persis). Yang bikin beda: item
+yang ditagih lewat invoice biasa (gak dicentang Is Progress Invoice) gak kepotong retensi, dan
+pembulatan per invoice bisa selisih receh. Dasar retensinya nilai item **sebelum** DP dibalik.
+
+Kelebihan tagih per item dijaga bawaan ERPNext (billed amount vs amount SO): dua invoice progress
+60% atas item yang sama mestinya ditolak kecuali Over Billing Allowance dinaikin (penjaga bawaan,
+belum dites khusus di skema ini).
 
 Invoice retensi dibikin dari tombol di SO, bukan *Create → Sales Invoice* bawaan: SO yang barangnya
 udah ketagih semua (% Billed 100) gak bisa bikin invoice lewat mapper bawaan, dan SI baru yang Items-nya

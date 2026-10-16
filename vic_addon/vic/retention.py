@@ -4,10 +4,22 @@ Retensi = sisa bayar yang ditahan customer padahal barang udah dikirim penuh (mi
 "dp 20%, 75% progress, 5% retensi"). Alurnya, bareng skema DP Item (`dp_item_invoice.py`):
 
 	1. Invoice DP       centang Is DP Invoice                       -> DPP 20%
-	2. Invoice progress centang Is Progress Invoice + pilih termin  -> barang penuh, baris RETENSI
-	                    minus 5% x DPP barang ketambah sendiri, DP ditarik ke tabel DP Invoices
+	2. Invoice progress centang Is Progress Invoice + Progress %    -> rate item = rate SO x Progress
+	                    Percentage, baris RETENSI minus 5% x DPP invoice ini ketambah sendiri, DP
+	                    ditarik ke tabel DP Invoices sebanding nilai yang ditagih
 	3. Invoice retensi  centang Is Retention Invoice + pilih SO     -> satu baris RETENSI plus senilai
 	                    retensi yang ditahan & belum ditagih, sisa DP dibalik semua
+
+**Progress Percentage** = berapa persen nilai item yang ditagih sekarang (progres pekerjaan), bukan
+porsi bayar di termin. Item & qty tetap dipilih user; tiap baris yang nempel ke SO rate-nya diset
+`rate SO x persen` tiap disimpan (rate yang diketik manual ketimpa). Defaultnya dari Progress Term:
+porsi term itu dibagi total porsi termin progress di SO (selain termin DP & retensi). Contoh termin
+"DP 20 / Progress 75 / Retensi 5" -> Progress 75 jadi 100%: nagih item penuh, dipotong DP 20% &
+retensi 5%, bersihnya 75% - sama dengan porsi termin-nya. Termin progress 40 + 35 -> 53,33% + 46,67%.
+
+Retensi dihitung dari nilai invoice saat itu, jadi totalnya sama dengan persen retensi x total SO
+begitu semua item ketagih lewat invoice progress (5% x A + 5% x B = 5% x (A + B)), item dipilih
+sebagian-sebagian pun.
 
 Baris RETENSI pakai akun neraca **Piutang Retensi** (bukan Penjualan): penjualan tetap diakui penuh
 waktu barang dikirim, PPN & faktur ngikut tagihan, dan sisa retensi = saldo akun itu.
@@ -24,7 +36,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
-from vic_addon.vic.dp_item_invoice import TOLERANCE, get_link, get_term_row
+from vic_addon.vic.dp_item_invoice import TOLERANCE, get_link, get_term_index, get_term_row
 
 RETENTION_WORDS = ("retensi", "retention")
 
@@ -103,12 +115,10 @@ def set_progress_invoice(doc):
 	order = frappe.get_doc("Sales Order", orders.pop())
 	doc.custom_dp_order = order.name
 
-	# termin yang ditagih: wajib baris schedule SO yang bukan termin retensi
-	term = get_term_row(order, doc.get("custom_progress_term"))
-	if is_retention_term(term):
-		frappe.throw(_("Pick the progress term, not the retention term, in Progress Term."))
-
+	set_progress_percentage(doc, order)
 	rows = [row for row in doc.items if row.item_code != settings.item]
+	apply_progress_percentage(doc, order.name)
+
 	percent = get_retention_percent(order)
 	# qty x rate, bukan `amount`: di before_validate kolom amount belum dihitung ulang kalau qty diubah
 	base = sum(flt(row.qty) * flt(row.rate) for row in rows if row.get("sales_order") == order.name)
@@ -123,8 +133,113 @@ def set_progress_invoice(doc):
 	if doc.is_new() and not doc.get("custom_dp_allocations"):
 		from vic_addon.vic.dp_item_invoice import get_default_allocations
 
+		# porsi DP dibaca dari base_net_amount - masih nilai penuh dari mapper, belum ngikut
+		# Progress Percentage, jadi dihitung ulang dulu
+		doc.calculate_taxes_and_totals()
 		for row in get_default_allocations(doc):
 			doc.append("custom_dp_allocations", row)
+
+
+def set_progress_percentage(doc, order):
+	"""Progress Percentage wajib ada: diketik user, atau defaultnya dari Progress Term."""
+	term = get_term_row(order, doc.custom_progress_term) if doc.get("custom_progress_term") else None
+	if term and is_retention_term(term):
+		frappe.throw(_("Pick the progress term, not the retention term, in Progress Term."))
+
+	if not flt(doc.get("custom_progress_percentage")):
+		if not term:
+			frappe.throw(_("Fill the Progress Percentage, or pick a Progress Term to fill it."))
+		doc.custom_progress_percentage = get_default_progress_percentage(order, term)
+
+	percent = flt(doc.custom_progress_percentage)
+	if percent <= 0 or percent > 100:
+		frappe.throw(_("Progress Percentage must be more than 0 and at most 100."))
+
+
+def apply_progress_percentage(doc, order):
+	"""Rate tiap baris yang nempel ke SO = harga SO x Progress Percentage.
+
+	Selalu dihitung dari baris SO-nya (bukan rate yang ada di invoice), jadi disimpan berkali-kali
+	gak bikin rate-nya kepotong dobel. Price list, margin nominal, dan diskon nominal ikut dikali
+	persen yang sama biar angka-angka di baris tetap nyambung.
+
+	Qty 0 dibalikin ke qty SO: mapper bawaan ngisi qty = qty SO - qty yang udah ditagih, jadi
+	invoice progress kedua atas item yang sama (mis. 1 lot ditagih 40%, terus 60%) dapet qty 0.
+	"""
+	factor = flt(doc.get("custom_progress_percentage")) / 100
+	if not factor:
+		return
+
+	so_rows = {
+		row.name: row
+		for row in frappe.get_all(
+			"Sales Order Item",
+			filters={"parent": order},
+			fields=[
+				"name", "qty", "rate", "price_list_rate", "discount_amount", "discount_percentage",
+				"margin_type", "margin_rate_or_amount",
+			],
+		)
+	}
+
+	for row in doc.items:
+		so = so_rows.get(row.get("so_detail"))
+		if not so:
+			continue
+
+		if not flt(row.qty):
+			row.qty = so.qty
+		row.price_list_rate = flt(so.price_list_rate) * factor
+		row.discount_percentage = so.discount_percentage
+		row.discount_amount = flt(so.discount_amount) * factor
+		row.margin_type = so.margin_type
+		row.margin_rate_or_amount = (
+			flt(so.margin_rate_or_amount) * factor if so.margin_type == "Amount" else so.margin_rate_or_amount
+		)
+		row.rate = flt(flt(so.rate) * factor, row.precision("rate"))
+
+
+def preview_progress_rates(doc):
+	"""Buat tombol Get DP Invoices: rate progress dihitung di memori (gak disimpan)."""
+	order = doc.get("custom_dp_order") or next(
+		(row.sales_order for row in doc.items if row.get("sales_order")), None
+	)
+	if not (order and flt(doc.get("custom_progress_percentage"))):
+		return
+
+	apply_progress_percentage(doc, order)
+	# base_net_amount (yang dibaca get_row_base_net) ikut dihitung ulang dari rate yang baru
+	doc.calculate_taxes_and_totals()
+
+
+def get_progress_term_rows(order):
+	"""Baris schedule SO yang termin progress: bukan termin retensi, bukan termin yang dipakai DP."""
+	dp_terms = {
+		get_term_index(term)
+		for term in frappe.get_all(
+			"Sales Invoice",
+			filters={"custom_is_dp": 1, "custom_dp_order": order.name, "docstatus": ["<", 2]},
+			pluck="custom_dp_term",
+		)
+	}
+	return [
+		row
+		for row in order.get("payment_schedule") or []
+		if not is_retention_term(row) and row.idx not in dp_terms
+	]
+
+
+def get_default_progress_percentage(order, term):
+	"""Porsi termin -> persen nilai item yang ditagih: porsi term / total porsi termin progress.
+
+	Termin SO itu porsi *bayar* (setelah DP & retensi kepotong), sedangkan Progress Percentage itu
+	porsi *nilai item* yang ditagih. "DP 20 / Progress 75 / Retensi 5": nagih 100% item, dipotong DP
+	20% + retensi 5%, bersihnya 75 - jadi Progress 75 = 100%.
+	"""
+	share = sum(flt(row.invoice_portion) for row in get_progress_term_rows(order))
+	if not share:
+		return flt(term.invoice_portion)
+	return flt(flt(term.invoice_portion) / share * 100, 3)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -310,16 +425,19 @@ def get_retention_invoices(order):
 
 @frappe.whitelist()
 def get_progress_terms(order):
-	"""Pilihan Progress Term buat form: baris schedule SO selain termin retensi."""
+	"""Pilihan Progress Term buat form: termin progress SO + Progress Percentage default-nya."""
 	order_doc = frappe.get_doc("Sales Order", order)
 	order_doc.check_permission("read")
 
 	from vic_addon.vic.dp_item_invoice import get_term_label
 
 	return [
-		{"label": get_term_label(row), "portion": flt(row.invoice_portion)}
-		for row in order_doc.get("payment_schedule") or []
-		if not is_retention_term(row)
+		{
+			"label": get_term_label(row),
+			"portion": flt(row.invoice_portion),
+			"percentage": get_default_progress_percentage(order_doc, row),
+		}
+		for row in get_progress_term_rows(order_doc)
 	]
 
 
