@@ -158,6 +158,10 @@
 	{%- set percent = doc.get("additional_discount_percentage") | float %}
 	{%- set vat_rows = doc.taxes | rejectattr("is_tax_withholding_account") | selectattr("add_deduct_tax", "ne", "Deduct") | list %}
 	{%- set other_rows = doc.taxes | reject("in", vat_rows) | list %}
+	{#- WAPU: PPN dipungut pembeli, jadi tabel pajaknya kosong. Kalau Show VAT for WAPU dicentang,
+	    VAT 11% tetap dicetak (dihitung dari Net Total) dan ikut dijumlah ke Grand Total di kertas -
+	    dokumennya sendiri gak berubah. Kalau ada baris PPN di tabel, yang dipakai tetap baris itu. -#}
+	{%- set wapu_vat = frappe.utils.flt((doc.net_total | float) * 0.11, 2) if (doc.get("custom_show_vat_for_wapu") and not vat_rows) else 0 %}
 	<table class="totals">
 		<tr>
 			<td class="lbl">TOTAL PRICE</td>
@@ -183,7 +187,7 @@
 		{%- else %}
 			<tr>
 				<td class="lbl">VAT 11 %</td>
-				<td class="money">{{ frappe.utils.fmt_money(0) }}</td>
+				<td class="money">{{ frappe.utils.fmt_money(wapu_vat) }}</td>
 			</tr>
 		{%- endif %}
 		{%- for tax in other_rows %}
@@ -194,7 +198,7 @@
 		{%- endfor %}
 		<tr class="grand">
 			<td class="lbl">GRAND TOTAL PRICE</td>
-			<td class="money">{{ frappe.utils.fmt_money(doc.grand_total) }}</td>
+			<td class="money">{{ frappe.utils.fmt_money((doc.grand_total | float) + wapu_vat) }}</td>
 		</tr>
 	</table>
 

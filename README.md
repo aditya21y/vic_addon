@@ -1714,7 +1714,7 @@ lalu nama alamatnya, lalu nama project. Terbilang di kiri, sejajar blok total di
 *Best regards,* → nama user pembuat → *Director*; kanan *Supplier Approved* → nama kontak supplier.
 
 Di bawah Total Price selalu ada baris **PPN 11%** (persennya dari rate baris
-PPN; PO tanpa PPN tetap kecetak senilai 0, ngikut formulir) — bukan deskripsi akun kayak "PPN
+PPN; PO tanpa PPN tetap kecetak senilai 0, ngikut formulir — kecuali **Show VAT for WAPU** dicentang, lihat di bawah) — bukan deskripsi akun kayak "PPN
 Masukan @ 11.0". Baris pajak lain (PPh, potongan) tetap dicetak pakai deskripsinya. Terbilang dari
 field `in_words` bawaan ERPNext, blok tanda
 tangan Supplier Approved + Director, dan baris warna salinan (Putih = Supplier, Merah =
@@ -1730,11 +1730,35 @@ dengan sapaan dari Contact), di kanannya Delivery Point, Delivery Time, Validity
 | TOTAL PRICE | Total |
 | DISCOUNT x % | Total − Net Total (cuma muncul kalau ada diskon tambahan; persennya dari *Additional Discount Percentage*) |
 | TOTAL PRICE AFTER DISC | Net Total |
-| VAT 11 % | pajak setelah diskon; selalu muncul (0 kalau gak ada PPN), persennya dari rate baris PPN |
+| VAT 11 % | pajak setelah diskon; selalu muncul (0 kalau gak ada PPN, atau Net Total × 11% kalau **Show VAT for WAPU** dicentang), persennya dari rate baris PPN |
 | GRAND TOTAL PRICE | Grand Total |
 
 Diskon dihitung Total − Net Total biar angkanya nyambung baik diskon tambahannya *Apply On* Net Total
 maupun Grand Total. Tanda tangan *Best regards,* + nama user pembuat (huruf besar) di kiri.
+
+#### Show VAT for WAPU
+
+Checkbox **Show VAT for WAPU** (`custom_show_vat_for_wapu`, tab Taxes di sebelah Sales/Purchase
+Taxes and Charges Template, **bisa diubah setelah submit**) di **Quotation, Sales Order, Sales
+Invoice, Purchase Order, Purchase Receipt**. Buat transaksi WAPU: PPN-nya dipungut pembeli, jadi
+tabel Taxes and Charges dikosongin — tapi di kertas PPN tetap harus kelihatan.
+
+Kalau dicentang **dan** dokumennya gak punya baris PPN, print format nyetak:
+
+| Baris | Isi |
+| --- | --- |
+| VAT 11 % / PPN 11% | Net Total × 11% |
+| GRAND TOTAL | Grand Total dokumen + VAT di atas |
+| in Words (PO) | terbilang dari Grand Total yang baru |
+
+Cuma di kertas — nilai dokumen, GL, dan outstanding gak berubah. Kalau tabel pajaknya **ada** baris
+PPN, centangan ini diabaikan dan baris PPN itu yang dicetak (biar gak dobel). Nama field-nya sama di
+lima doctype, jadi ikut kebawa lewat mapper bawaan (Quotation → SO → SI, PO → PR).
+
+Yang beneran nyetak baru **Quotation (VIC)** (juga kalau dipasang di Sales Order) dan **Purchase
+Order (VIC)**. Sales Invoice dan Purchase Receipt belum punya print format VIC yang nyetak total
+harga (Kwitansi nyetak nilai tagihan, Goods Received gak ada harga) — checkbox-nya udah ada, tinggal
+dipakai begitu print format-nya dibikin.
 
 Isian syarat di **Quotation (VIC)** diketik di lima field doctype Quotation: **Payment Terms**,
 **Delivery Point**, **Delivery Time**, **Validity**, dan **Subject**. Template-nya sadar dokumen,

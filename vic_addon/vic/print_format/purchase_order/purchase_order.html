@@ -139,12 +139,19 @@
 		</tbody>
 	</table>
 
+	{#- WAPU: PPN dipungut pembeli, jadi tabel pajaknya kosong. Kalau Show VAT for WAPU dicentang,
+	    PPN 11% tetap dicetak (dihitung dari Net Total) dan ikut dijumlah ke Grand Total + terbilangnya
+	    di kertas - dokumennya sendiri gak berubah. Kalau ada baris PPN di tabel, yang dipakai baris itu. -#}
+	{%- set vat_rows = doc.taxes | rejectattr("is_tax_withholding_account") | selectattr("add_deduct_tax", "ne", "Deduct") | list %}
+	{%- set wapu_vat = frappe.utils.flt((doc.net_total | float) * 0.11, 2) if (doc.get("custom_show_vat_for_wapu") and not vat_rows) else 0 %}
+	{%- set grand_total = (doc.grand_total | float) + wapu_vat %}
+	{%- set in_words = frappe.utils.money_in_words(grand_total, doc.currency) if wapu_vat else doc.in_words %}
 	<table class="summary">
 		<tr>
 			<td class="words">
-				{%- if doc.in_words %}
+				{%- if in_words %}
 					<div>in Words :</div>
-					<div>{{ doc.in_words | upper }}</div>
+					<div>{{ in_words | upper }}</div>
 				{%- endif %}
 			</td>
 			<td>
@@ -156,7 +163,6 @@
 					{#- PPN selalu dicetak di bawah Total Price, labelnya "PPN <rate>%" (bukan deskripsi akunnya);
 					    PO tanpa PPN tetap kecetak "PPN 11%" senilai 0, ngikut formulir. Baris pajak lain (PPh,
 					    potongan) dicetak pakai deskripsinya. -#}
-					{%- set vat_rows = doc.taxes | rejectattr("is_tax_withholding_account") | selectattr("add_deduct_tax", "ne", "Deduct") | list %}
 					{%- set other_rows = doc.taxes | reject("in", vat_rows) | list %}
 					{%- if vat_rows %}
 						{%- for tax in vat_rows %}
@@ -168,7 +174,7 @@
 					{%- else %}
 						<tr>
 							<td class="lbl">PPN 11%</td>
-							<td class="money">{{ frappe.utils.fmt_money(0) }}</td>
+							<td class="money">{{ frappe.utils.fmt_money(wapu_vat) }}</td>
 						</tr>
 					{%- endif %}
 					{%- for tax in other_rows %}
@@ -179,7 +185,7 @@
 					{%- endfor %}
 					<tr class="grand">
 						<td class="lbl">Grand Total</td>
-						<td class="money">{{ frappe.utils.fmt_money(doc.grand_total) }}</td>
+						<td class="money">{{ frappe.utils.fmt_money(grand_total) }}</td>
 					</tr>
 				</table>
 			</td>
