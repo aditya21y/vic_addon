@@ -13,11 +13,17 @@ bench install-app vic_addon
 
 ### fix issue errpnext 16 
 bench --site nic_vic.localhost execute erpnext.setup.install.create_address_and_contact_custom_fields
-### staging setting to accessable
-C:\Windows\System32\drivers\etc\hosts
-[IP_ADDRESS] vic-app nic-app
-http://nic-app:8000
-http://vic-app:8000
+### Akses staging
+
+Buka lewat domain, **tanpa port**:
+
+- http://vic.thenextflow.cloud
+- http://nic.thenextflow.cloud
+
+Jangan lewat `http://vic-app:8000` (setelan file hosts lama) atau `IP:8000`: halamannya kebuka, tapi
+realtime (socket.io — notifikasi, update tanpa refresh) ditolak **"Invalid origin"**, karena nama host
+halaman beda sama yang diterima server socket lewat nginx. Entri `vic-app` / `nic-app` di
+`C:\Windows\System32\drivers\etc\hosts` boleh dihapus.
 
 
 ### Multitenant Setting
@@ -1505,6 +1511,28 @@ ERPNext bakal nolak PO-nya (`Required By cannot be before Date`), jadi tanggal y
 dimajuin otomatis ke tanggal PO — cuma buat PO yang lahir dari tombol Create, PO manual tetap
 divalidasi apa adanya.
 
+
+**Qty lebih/kurang dari SO atau PO.** Modal PO per Supplier (di SO) dan Create DN (di PO) nerima qty
+berapa pun; yang ngebatesin validasi bawaan ERPNext waktu **submit**. Yang ngontrol PO > SO, DN > SO,
+**dan** PR > PO itu satu setelan yang sama: **Stock Settings → Over Delivery/Receipt Allowance (%)**
+(bisa juga per item di master Item). *Buying Settings → Over Order Allowance* **gak** ngaruh di sini.
+Invoice dari DN yang ngelebihin DN/SO dikontrol **Accounts Settings → Over Billing Allowance**.
+
+Skenario yang udah dites (dropship, harga jual 5.000, harga beli 3.000):
+
+| Skenario | Caranya | Setelan |
+| --- | --- | --- |
+| **Rugi**, kelebihan dipakai customer: SO 2 → PO 3 → DN 3 → SI 2 | PO & DN qty 3 di modal; SI dari DN, qty diubah jadi 2 (DN jadi *Partially Billed*, SO *Completed*) | Over Delivery/Receipt Allowance ≥ 50% |
+| **Rugi**, kelebihan masuk gudang VIC: SO 2 → PO 3 → DN 2 + PR 1 | baris SO tipe **Mixed**: DN 2 dari modal DN, sisa 1 lewat *Create Purchase Receipt* di PO ke gudang | Over Delivery/Receipt Allowance ≥ 50% |
+| **Untung**: SO 2 → PO 1 → DN 1 → SI 2 | SI dibikin **dari SO** (bukan dari DN — DN cuma 1, ditolak *overbill*), lalu SO di-**Close** | — |
+| Terima kurang: PO 2 → PR 1 | PR qty 1, sisanya PO di-Close kalau gak bakal dikirim | — |
+| Terima lebih: PO 2 → PR 3 | baris PO tetap 2 + **baris tambahan qty 1, rate 0** (Price List Rate juga 0 — kalau enggak, rate-nya diisi ulang ERPNext dari price list), centang *Allow Zero Valuation Rate* | — (naikin qty baris PO ditolak di toleransi 0%) |
+
+Purchase Receipt otomatis dropship nerima **persis qty DN**: dibagi berurutan ke PO-PO baris SO itu
+sebatas sisa masing-masing (PO yang dipecah gak kelebihan nerima), dan kalau DN lebih dari total sisa
+PO, kelebihannya masuk ke PO terakhir (ikut Over Delivery/Receipt Allowance). Dulu dibatasi sisa PO,
+jadi DN yang lebih gagal karena stok gudang dropship kurang (`allocate_receipt_qty` di
+`vic/dropship.py`).
 #### Serial Number: penomoran sendiri + alirannya di dropship
 
 **Penomorannya diatur di master `Serial Number Settings`** (Single doctype), bukan lewat field

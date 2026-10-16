@@ -463,8 +463,9 @@ def make_dropship_purchase_receipt(doc, method=None):
 	serial_nos = get_serial_nos_by_sales_order_item(doc)
 
 	purchase_receipts = []
-	for purchase_order in get_purchase_orders_to_receive(quantity_by_sales_order_item):
-		receipt = create_purchase_receipt(doc, purchase_order, quantity_by_sales_order_item, serial_nos)
+	allocation = allocate_receipt_qty(quantity_by_sales_order_item)
+	for purchase_order in get_purchase_orders_to_receive(allocation):
+		receipt = create_purchase_receipt(doc, purchase_order, allocation, serial_nos)
 		if receipt:
 			purchase_receipts.append(receipt.name)
 			set_serial_nos_on_delivery_note(doc, receipt)
@@ -519,23 +520,57 @@ def validate_purchase_order_exists(delivery_note, quantity_by_sales_order_item):
 	)
 
 
-def get_purchase_orders_to_receive(quantity_by_sales_order_item):
-	"""Purchase Order submitted yang barangnya belum diterima, buat baris DN ini."""
+def allocate_receipt_qty(quantity_by_sales_order_item):
+	"""Qty yang diterima per baris PO: `{nama baris PO: qty}`.
+
+	Qty DN dibagi berurutan ke baris PO (yang lebih dulu dibikin duluan) sebatas sisa yang belum
+	diterima - satu baris SO bisa punya beberapa PO kalau pesannya dipecah. Kalau DN lebih banyak
+	dari total sisa PO (supplier ngirim lebih), kelebihannya ditaruh di baris PO terakhir yang masih
+	bisa diterima; ERPNext yang nentuin boleh atau enggak lewat *Over Delivery/Receipt Allowance*
+	di Stock Settings.
+	"""
 	rows = frappe.get_all(
 		"Purchase Order Item",
-		filters={
-			"sales_order_item": ["in", list(quantity_by_sales_order_item)],
-			"docstatus": 1,
-		},
-		fields=["parent", "qty", "received_qty"],
+		filters={"sales_order_item": ["in", list(quantity_by_sales_order_item)], "docstatus": 1},
+		fields=["name", "parent", "sales_order_item", "qty", "received_qty"],
+		order_by="creation asc, idx asc",
 	)
 
-	return sorted({row.parent for row in rows if flt(row.qty) > flt(row.received_qty)})
+	remaining = dict(quantity_by_sales_order_item)
+	allocation = {}
+	last_open_row = {}
+
+	for row in rows:
+		pending = max(flt(row.qty) - flt(row.received_qty), 0)
+		if pending <= 0:
+			continue
+		last_open_row[row.sales_order_item] = row.name
+
+		need = remaining.get(row.sales_order_item, 0)
+		if need <= 0:
+			continue
+		take = min(pending, need)
+		allocation[row.name] = take
+		remaining[row.sales_order_item] = need - take
+
+	for sales_order_item, left in remaining.items():
+		if left > 0.0001 and sales_order_item in last_open_row:
+			row_name = last_open_row[sales_order_item]
+			allocation[row_name] = allocation.get(row_name, 0) + left
+
+	return allocation
 
 
-def create_purchase_receipt(
-	delivery_note, purchase_order, quantity_by_sales_order_item, serial_nos_by_sales_order_item=None
-):
+def get_purchase_orders_to_receive(allocation):
+	"""Purchase Order yang kebagian qty buat DN ini."""
+	if not allocation:
+		return []
+	return sorted(
+		set(frappe.get_all("Purchase Order Item", filters={"name": ["in", list(allocation)]}, pluck="parent"))
+	)
+
+
+def create_purchase_receipt(delivery_note, purchase_order, allocation, serial_nos_by_sales_order_item=None):
 	from erpnext.buying.doctype.purchase_order.purchase_order import make_purchase_receipt
 
 	receipt = make_purchase_receipt(purchase_order)
@@ -547,12 +582,12 @@ def create_purchase_receipt(
 	items = []
 
 	for item in receipt.items:
-		delivered_qty = quantity_by_sales_order_item.get(item.sales_order_item)
-		if not delivered_qty:
+		received_qty = allocation.get(item.purchase_order_item)
+		if not received_qty:
 			continue
 
-		# terima sebanyak yang dikirim, gak lebih dari sisa PO
-		item.qty = min(flt(item.qty), delivered_qty)
+		# terima sebanyak bagian DN yang jatuh ke baris PO ini (lihat allocate_receipt_qty)
+		item.qty = flt(received_qty, item.precision("qty"))
 		item.received_qty = item.qty
 		item.warehouse = warehouse
 		item.custom_transaction_type = DROPSHIP
