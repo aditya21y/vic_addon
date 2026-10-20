@@ -1524,6 +1524,8 @@ Sales Order (tipe per item)
 **Tipe transaksi ada di baris item** (`Transaction Type`: Reguler / Dropship), karena satu SO
 bisa campur — sebagian dikirim dari gudang sendiri, sebagian dropship dari supplier lain.
 Field di header cuma ringkasan read-only: `Reguler`, `Dropship`, atau `Mixed`.
+Baris item baru di Sales Order default-nya **Mixed** (sebelumnya Reguler) — tinggal diganti kalau
+barisnya murni Reguler atau Dropship. Baris lama gak berubah.
 
 Barang dropship lewat **gudang transit** (default dibikin otomatis `Dropship - {abbr}`, bisa
 diganti lewat field *Dropship Warehouse* di Company): masuk lewat Purchase Receipt, keluar
