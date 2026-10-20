@@ -1795,7 +1795,7 @@ dengan sapaan dari Contact), di kanannya Delivery Point, Delivery Time, Validity
 | GRAND TOTAL PRICE | Grand Total |
 
 Diskon dihitung Total − Net Total biar angkanya nyambung baik diskon tambahannya *Apply On* Net Total
-maupun Grand Total. Tanda tangan *Best regards,* + nama user pembuat (huruf besar) di kiri.
+maupun Grand Total. Tanda tangan *Best regards,* + **Sales Name** (kosong → nama user pembuat), huruf besar, di kiri.
 
 #### Show VAT for WAPU
 
@@ -1853,6 +1853,10 @@ Quotation* dari Costing, dan field-nya juga `fetch_from` ke Costing (`fetch_if_e
 Costing-nya dipilih belakangan, nilainya ikut keisi waktu disimpan; isian user gak ketiban. Subject
 di Quotation tipenya **Small Text** (dulu Data, maks 140 karakter — Subject Costing bisa lebih
 panjang).
+
+**Sales Name** (`custom_sales_name`) dicetak di bawah **Best regards,** (huruf besar). Kalau
+dicetak dari Sales Order, yang dipakai Sales Name di Quotation asalnya. Kosong → nama user pembuat
+Quotation. Bisa diubah setelah submit.
 
 **Your Ref** punya field sendiri (`custom_your_ref`); kalau kosong, yang dicetak contact person /
 PO customer kayak sebelumnya. Nama field-nya sama dengan Your Ref di Request For Quotation

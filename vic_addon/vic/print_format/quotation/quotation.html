@@ -6,7 +6,7 @@
 	- dicetak dari Quotation   -> field-nya dibaca dari dokumen itu sendiri
 	- dicetak dari Sales Order -> dibaca dari Quotation asalnya (nomornya nempel di baris item)
 -#}
-{%- set terms = ["valid_till", "custom_payment_terms", "custom_delivery_point", "custom_delivery_time", "custom_validity", "custom_subject", "custom_your_ref"] -%}
+{%- set terms = ["valid_till", "custom_payment_terms", "custom_delivery_point", "custom_delivery_time", "custom_validity", "custom_subject", "custom_your_ref", "custom_sales_name", "owner"] -%}
 {%- set quotation = doc.name if doc.doctype == "Quotation" else (doc.items[0].prevdoc_docname if doc.items and doc.items[0].prevdoc_docname else None) -%}
 {%- set source = frappe.db.get_value("Quotation", quotation, terms, as_dict=True) if quotation else None -%}
 {%- set valid_till = source.valid_till if source else None -%}
@@ -206,7 +206,9 @@
 		<tr>
 			<td style="width: 30%">
 				<div class="role">Best regards,</div>
-				<div>{{ (frappe.db.get_value("User", doc.owner, "full_name") or "") | upper }}</div>
+				{#- Sales Name di Quotation (dari SO: Quotation asalnya); kosong -> nama user yang bikin -#}
+				{%- set sales_name = (source.custom_sales_name if source else None) or frappe.db.get_value("User", source.owner if source else doc.owner, "full_name") or "" %}
+				<div>{{ sales_name | upper }}</div>
 			</td>
 			<td style="width: 70%"></td>
 		</tr>
