@@ -668,6 +668,9 @@ berisi baris SO yang sisa qty-nya masih ada, lengkap dengan Pending Qty, tipe tr
 Supplier, dan SQTN-nya. Semua baris kecentang duluan; user tinggal ngurangin, baru klik Create.
 Item yang belum punya SQTN kolom suppliernya kosong dan wajib diisi sebelum lanjut.
 
+Tombol bawaan ERPNext **Create > Purchase Order** di Sales Order disembunyiin — udah gak dipakai,
+diganti tombol ini.
+
 Tiga kolom bisa diedit langsung di modal:
 
 | Kolom | Kelakuannya |

@@ -13,6 +13,14 @@ frappe.ui.form.on("Sales Order", {
 	},
 });
 
+// Tombol bawaan Create > Purchase Order udah gak dipakai - diganti Purchase Order (per Supplier).
+// Dicopot lewat `custom_refresh`, bukan handler `refresh` di atas: tombolnya dipasang controller
+// ERPNext (`cscript.refresh`) yang jalannya setelah handler `frappe.ui.form.on`, sedangkan
+// `custom_refresh` dipanggil Frappe sesudah controller itu.
+cur_frm.cscript.custom_refresh = function () {
+	this.frm.remove_custom_button(__("Purchase Order"), __("Create"));
+};
+
 // Modal: user ngecek dulu baris mana yang mau di-PO, dari penawaran siapa, dan berapa banyak.
 // Satu PO per supplier. Supplier ngikut Supplier Quotation yang dipilih; mau ganti supplier
 // sendiri, kosongin dulu SQTN-nya - barang habis di supplier pertama itu kasus normal.
