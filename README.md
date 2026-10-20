@@ -1779,6 +1779,11 @@ buat dropship yang dikirim ke lokasi customer); kosong → alamat pengiriman PO 
 lalu nama alamatnya, lalu nama project. Terbilang di kiri, sejajar blok total di kanan. Tanda tangan: kiri
 *Best regards,* → nama user pembuat → *Director*; kanan *Supplier Approved* → nama kontak supplier.
 
+**Note** dicetak sebagai baris terakhir tabel item, di kolom Description: isi **Terms and
+Conditions** PO (`terms`, dari template Terms), lalu di bawahnya **Penalty Clause**
+(`custom_penalty_clause`, Long Text di section Terms & Conditions) kalau diisi. Kalau dua-duanya
+kosong, baris Note gak dicetak.
+
 Di bawah Total Price selalu ada baris **PPN 11%** (persennya dari rate baris
 PPN; PO tanpa PPN tetap kecetak senilai 0, ngikut formulir — kecuali **Show VAT for WAPU** dicentang, lihat di bawah) — bukan deskripsi akun kayak "PPN
 Masukan @ 11.0". Baris pajak lain (PPh, potongan) tetap dicetak pakai deskripsinya. Terbilang dari

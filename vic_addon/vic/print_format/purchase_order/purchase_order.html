@@ -42,6 +42,10 @@
 	.vic-pf .summary .totals { margin-top: 0; }
 	/* blok total cuma selebar kolom kanan, jadi kolom angkanya dilebarin dari bawaan (18%) */
 	.vic-pf .summary .totals .money { width: 42%; }
+	/* Note di bawah item terakhir: Terms and Conditions itu HTML dari editor - paragrafnya jangan
+	   nambah jarak; Penalty Clause teks biasa, baris barunya ikut kecetak */
+	.vic-pf .items tr.note .note-item p { margin: 0; }
+	.vic-pf .items tr.note .penalty { white-space: pre-line; }
 </style>
 
 <div class="vic-pf">
@@ -136,6 +140,23 @@
 					</tr>
 				{%- endfor %}
 			{%- endfor %}
+
+			{#- Note jadi baris terakhir tabel, nempel di kolom Description: Terms and Conditions PO,
+			    terus Penalty Clause di bawahnya. Editor sering nyimpen tag kosong (`<p></p>`) waktu
+			    isinya dihapus - yang kayak gitu dianggap kosong. -#}
+			{%- set terms = doc.terms if frappe.utils.strip_html(doc.terms or "").replace("&nbsp;", " ").strip() else "" %}
+			{%- set penalty = (doc.get("custom_penalty_clause") or "").strip() %}
+			{%- if terms or penalty %}
+				<tr class="note">
+					<td></td>
+					<td class="text">
+						<div>Note:</div>
+						{%- if terms %}<div class="note-item">{{ terms }}</div>{% endif %}
+						{%- if penalty %}<div class="note-item penalty">{{ penalty | e }}</div>{% endif %}
+					</td>
+					<td colspan="3"></td>
+				</tr>
+			{%- endif %}
 		</tbody>
 	</table>
 
