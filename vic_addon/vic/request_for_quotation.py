@@ -213,6 +213,7 @@ def build_workbook(doc):
 
 	from openpyxl import Workbook
 
+	from vic_addon.vic.print_utils import get_inquiry_signatory
 	from vic_addon.vic.excel import (
 		BASE,
 		CENTER,
@@ -323,6 +324,10 @@ def build_workbook(doc):
 
 	row += 1
 	row = add_line(sheet, row, _("Best regards,"), last_column)
+
+	# ruang tanda tangan, terus namanya - sama kayak print format
+	row += 3
+	row = add_line(sheet, row, get_inquiry_signatory(doc), last_column)
 
 	set_widths(sheet, (5, 9, 8.5, 8.5, 8.5, 9, 8.5, 9, 8.5, 8.5, 8.5, 9, 9))
 

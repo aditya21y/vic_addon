@@ -5,6 +5,8 @@
 <style>
 	/* tiga kolom terakhir diisi tangan sama supplier, jadi dikasih kotak dan ruang nulis */
 	.vic-pf .items .fill { border-left: 1px solid #999; }
+	/* garis pemisah antara Description dan Qty */
+	.vic-pf .items .qty-col { border-left: 1px solid #999; }
 	.vic-pf .items tbody td { height: 30px; }
 </style>
 
@@ -65,7 +67,7 @@
 			<tr>
 				<th style="width: 6%">Item</th>
 				<th class="left" style="width: 34%">Description</th>
-				<th style="width: 12%">Qty</th>
+				<th class="qty-col" style="width: 12%">Qty</th>
 				<th class="fill" style="width: 18%">Unit Price</th>
 				<th class="fill" style="width: 12%">Weight</th>
 				<th class="fill" style="width: 18%">Remarks</th>
@@ -89,7 +91,7 @@
 							<div class="desc">{{ get_item_description(item) }}</div>
 							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
 						</td>
-						<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
+						<td class="qty qty-col">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
 						{#- Unit Price sengaja kosong, itu jatah supplier yang ngisi -#}
 						<td class="fill money"></td>
 						<td class="fill qty">{{ item.get("custom_weight") or "" }}</td>
@@ -108,8 +110,8 @@
 			<td>
 				<div>Best regards,</div>
 				<div class="role"></div>
-				{#- Person in Charge di form duluan; kosong -> nama user yang bikin -#}
-				<div>{{ doc.get("custom_person_in_charge") or frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
+				{#- Best Regards -> Person in Charge -> nama user yang bikin -#}
+				<div>{{ get_inquiry_signatory(doc) }}</div>
 			</td>
 		</tr>
 	</table>

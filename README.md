@@ -993,7 +993,7 @@ di Request for Quotation ngeluarin isi yang sama dalam bentuk Excel, **tata leta
 | Subject, kalimat pengantar | `B15`, `B16` |
 | Judul kolom | Baris 17-18, diapit garis melintang, tanpa garis tegak |
 | Item | Mulai baris 19, ditutup garis di bawah baris terakhir |
-| Penutup | `Wait for your reply immediately`, lalu `Best regards,` |
+| Penutup | `Wait for your reply immediately`, lalu `Best regards,` + nama penanda tangan (sama kayak print format, lihat field **Best Regards**) |
 
 Kolom A dipakai jadi margin kiri (lebar 1,1) kayak template, fontnya **Aptos Narrow**, dan tiga
 kolom **Unit Price, Weight, Remarks** dibiarin kosong buat diisi supplier. Supplier ngisi di
@@ -1737,7 +1737,8 @@ Field yang ditambah buat nutupin isian di kertas:
 | Request for Quotation | Subject | Judul inquiry |
 | Opportunity | Subject, Your Ref | Dicetak di RFQ (Subject di bawah From, Your Ref di bawah Date). Subject-nya ikut kebawa ke Inquiry — nama field-nya sama (`custom_subject`) |
 | Opportunity, Request for Quotation | Show Project in Print, Show Subject in Print | Centangan di samping Project / Subject — yang dicetak cuma yang dicentang |
-| Request for Quotation | Person in Charge | Nama penanggung jawab, dicetak di bawah **Best regards** di Inquiry (kosong → nama user pembuat) |
+| Request for Quotation | Person in Charge | Nama penanggung jawab inquiry |
+| Request for Quotation | Best Regards | Nama di bawah **Best regards** di Inquiry — print format, PDF, dan Excel dari Send Inquiry. Kosong → Person in Charge → nama user pembuat. Bisa diubah setelah submit |
 | Request for Quotation Item | Weight, Remarks | Kolom tambahan di tabel inquiry |
 | Costing | Subject, Show Project in Print, Show Subject in Print | Project/Subject di kepala Costing (Import) & (Sales), cuma yang dicentang |
 | Costing | Delivery Time, Delivery Point, Payment, Validity | Blok Terms & Conditions di Costing (Sales). Field Mark Up udah dibuang |

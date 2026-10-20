@@ -18,6 +18,22 @@ def get_item_description(item):
 	return item.get("item_name") or item.get("item_code") or ""
 
 
+def get_inquiry_signatory(doc):
+	"""Nama di bawah "Best regards," pada Inquiry (print format, PDF, dan Excel).
+
+	Field Best Regards dulu; kosong -> Person in Charge (Inquiry lama yang udah keisi tetap
+	nyetak nama yang sama); kosong juga -> nama user pembuat dokumen.
+	"""
+	import frappe
+
+	return (
+		doc.get("custom_best_regards")
+		or doc.get("custom_person_in_charge")
+		or frappe.db.get_value("User", doc.owner, "full_name")
+		or ""
+	)
+
+
 # ---------------------------------------------------------------------------------------------
 # Kwitansi (Sales Invoice)
 # ---------------------------------------------------------------------------------------------
