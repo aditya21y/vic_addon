@@ -1777,7 +1777,9 @@ Delivery Time (*Required By*) plus kotak bergaris **Delivered To**. Isinya dari 
 (`custom_delivered_to`, tab Address & Contact → Shipping Address, **bisa diubah setelah submit** —
 buat dropship yang dikirim ke lokasi customer); kosong → alamat pengiriman PO (Shipping Address),
 lalu nama alamatnya, lalu nama project. Terbilang di kiri, sejajar blok total di kanan. Tanda tangan: kiri
-*Best regards,* → nama user pembuat → *Director*; kanan *Supplier Approved* → nama kontak supplier.
+*Best regards,* → field **Best Regards** (`custom_best_regards`, section Terms & Conditions, bisa
+diubah setelah submit; kosong → nama user pembuat) → *Director*; kanan *Supplier Approved* → nama
+kontak supplier.
 
 **Note** dicetak sebagai baris terakhir tabel item, di kolom Description: isi **Terms and
 Conditions** PO (`terms`, dari template Terms), lalu di bawahnya **Penalty Clause**

@@ -217,7 +217,8 @@
 		<tr>
 			<td style="width: 50%">
 				<div class="role">Best regards,</div>
-				<div>{{ frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
+				{#- field Best Regards duluan; kosong -> nama user yang bikin -#}
+				<div>{{ doc.get("custom_best_regards") or frappe.db.get_value("User", doc.owner, "full_name") or "" }}</div>
 				<div>Director</div>
 			</td>
 			<td style="width: 50%">
