@@ -38,6 +38,14 @@
   "total_profit_percentage",
   "total_quotation_profit_amount",
   "total_quotation_profit_percentage",
+  "discount_section",
+  "discount_percentage",
+  "discount_amount",
+  "discount_amount_manually_set",
+  "column_break_discount",
+  "total_after_discount_amount",
+  "total_profit_after_discount_amount",
+  "total_profit_after_discount_percentage",
   "realization_section",
   "realization_html",
   "terms_section",
@@ -270,6 +278,63 @@
    "read_only": 1
   },
   {
+   "collapsible": 0,
+   "description": "Simulasi diskon ke customer atas Total Quotation Amount, buat ngira profit kalau harga jual diturunin. Gak ikut kebawa ke Quotation.",
+   "fieldname": "discount_section",
+   "fieldtype": "Section Break",
+   "label": "Discount"
+  },
+  {
+   "description": "Isi salah satu: persen atau nominal. Yang satunya dihitung otomatis.",
+   "fieldname": "discount_percentage",
+   "fieldtype": "Percent",
+   "label": "Discount %"
+  },
+  {
+   "fieldname": "discount_amount",
+   "fieldtype": "Currency",
+   "label": "Discount Amount",
+   "options": "currency"
+  },
+  {
+   "default": "0",
+   "fieldname": "discount_amount_manually_set",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Discount Amount Manually Set",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_discount",
+   "fieldtype": "Column Break"
+  },
+  {
+   "bold": 1,
+   "description": "Total Quotation Amount - Discount Amount",
+   "fieldname": "total_after_discount_amount",
+   "fieldtype": "Currency",
+   "label": "Total Quotation After Discount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "description": "Total Quotation After Discount - Total HPP Amount",
+   "fieldname": "total_profit_after_discount_amount",
+   "fieldtype": "Currency",
+   "label": "Total Profit After Discount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "description": "Total Profit After Discount / Total HPP Amount x 100",
+   "fieldname": "total_profit_after_discount_percentage",
+   "fieldtype": "Percent",
+   "label": "Total Profit % After Discount",
+   "read_only": 1
+  },
+  {
    "collapsible": 1,
    "depends_on": "eval:!doc.__islocal",
    "description": "Rencana Costing vs realisasi Sales Order (jual) & Purchase Order (beli), dari dokumen submitted.",
@@ -316,7 +381,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-17 12:00:00.000000",
+ "modified": "2026-10-20 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "VIC",
  "name": "Costing",

@@ -115,6 +115,20 @@ waktu disimpan kalau masih ada yang kosong.
 (Import)** langsung kelampir — buat dikirim ke internal (review harga). Emailnya kecatat di
 timeline Costing.
 
+**Discount** (section di bawah Totals): simulasi diskon ke customer, buat ngira profit kalau
+harga jual diturunin. User isi **Discount %** atau **Discount Amount** — yang satunya dihitung
+otomatis. Yang terakhir diketik yang dipegang: kalau nominal yang diketik, nominalnya tetap waktu
+Total Quotation Amount berubah dan persennya yang ngikut (dan sebaliknya).
+
+| Field | Rumus |
+| --- | --- |
+| Total Quotation After Discount | Total Quotation Amount − Discount Amount |
+| Total Profit After Discount | Total Quotation After Discount − Total HPP Amount |
+| Total Profit % After Discount | Total Profit After Discount / Total HPP Amount × 100 |
+
+Diskon ini cuma simulasi di Costing — **gak ikut kebawa ke Quotation** (diskon di Quotation tetap
+diisi di Quotation-nya). Diskon gak boleh minus dan gak boleh lebih dari Total Quotation Amount.
+
 Di **Costing (Import)**, kolom **Act Price After Disc** dicetak **merah**; kolom lain tetap hitam.
 
 Ringkasan di bawah tabel **Costing (Import)**:
@@ -122,8 +136,8 @@ Ringkasan di bawah tabel **Costing (Import)**:
 | Baris | Rumus |
 | --- | --- |
 | Total Buying Price / Total Selling Price | Σ harga beli / Σ harga nego (Quotation Rate) |
-| Disc | Additional Percentage × Total Additional Costs |
-| Ongkir | Total Additional Costs |
+| Disc | Discount Amount (section **Discount** di Costing) |
+| Ongkir | Total Distributed Cost Amount (Total Additional Costs × (1 + Additional Percentage)) |
 | TSP (Total Selling Price after discount) | Total Selling Price − (Disc + Ongkir) |
 | (tanpa label) | TSP − Total Buying Price |
 

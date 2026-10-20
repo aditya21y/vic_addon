@@ -8,12 +8,12 @@
 {%- set symbol = frappe.db.get_value("Currency", doc.currency, "symbol") or doc.currency -%}
 {%- set project = (frappe.db.get_value("Project", doc.project, "project_name") or doc.project) if doc.project else "" -%}
 {#- Ringkasan di bawah tabel:
-      Disc   = Additional Percentage x Total Additional Costs
-      Ongkir = Total Additional Costs
+      Disc   = Discount Amount (field Discount, diisi persen atau nominal)
+      Ongkir = Total Distributed Cost Amount (additional cost + Additional Percentage)
       TSP    = Total Selling Price - (Disc + Ongkir)   (Total Selling Price after discount)
       lalu TSP - Total Buying Price -#}
-{%- set shipping = doc.total_additional_costs | float -%}
-{%- set discount = shipping * (doc.additional_percentage | float) / 100 -%}
+{%- set shipping = doc.total_distributed_cost_amount | float -%}
+{%- set discount = doc.get("discount_amount") | float -%}
 {%- set tsp = (doc.total_quotation_amount | float) - (discount + shipping) -%}
 
 <style>

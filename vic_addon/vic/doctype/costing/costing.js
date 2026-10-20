@@ -13,6 +13,9 @@ const BOLD_FIELDS = [
 	"total_profit_percentage",
 	"total_quotation_profit_amount",
 	"total_quotation_profit_percentage",
+	"total_after_discount_amount",
+	"total_profit_after_discount_amount",
+	"total_profit_after_discount_percentage",
 ];
 
 frappe.ui.form.on("Costing", {
@@ -50,6 +53,17 @@ frappe.ui.form.on("Costing", {
 	},
 
 	additional_percentage: calculate,
+
+	// Diskon diisi persen atau nominal - yang terakhir diketik yang dipegang, satunya ngikut
+	discount_percentage(frm) {
+		frm.doc.discount_amount_manually_set = 0;
+		calculate(frm);
+	},
+	discount_amount(frm) {
+		frm.doc.discount_amount_manually_set = 1;
+		calculate(frm);
+	},
+
 	items_remove: calculate,
 	additional_costs_remove: calculate,
 });
@@ -277,7 +291,42 @@ function calculate(frm) {
 		)
 		: 0;
 
+	calculate_discount(frm);
+
 	frm.refresh_fields();
+}
+
+// Simulasi diskon atas Total Quotation Amount - rumusnya sama kayak `calculate_discount` di server
+function calculate_discount(frm) {
+	const doc = frm.doc;
+	const base = flt(doc.total_quotation_amount);
+
+	if (doc.discount_amount_manually_set) {
+		doc.discount_amount = flt(doc.discount_amount, precision("discount_amount"));
+		doc.discount_percentage = base
+			? flt((doc.discount_amount / base) * 100, precision("discount_percentage"))
+			: 0;
+	} else {
+		doc.discount_amount = flt(
+			(base * flt(doc.discount_percentage)) / 100,
+			precision("discount_amount")
+		);
+	}
+
+	doc.total_after_discount_amount = flt(
+		base - flt(doc.discount_amount),
+		precision("total_after_discount_amount")
+	);
+	doc.total_profit_after_discount_amount = flt(
+		doc.total_after_discount_amount - flt(doc.total_hpp_amount),
+		precision("total_profit_after_discount_amount")
+	);
+	doc.total_profit_after_discount_percentage = doc.total_hpp_amount
+		? flt(
+			(doc.total_profit_after_discount_amount / doc.total_hpp_amount) * 100,
+			precision("total_profit_after_discount_percentage")
+		)
+		: 0;
 }
 
 // Ngambil item dari penawaran supplier. Satu dialog buat tiga hal: nyaring penawaran ke satu

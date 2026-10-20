@@ -17,6 +17,11 @@ tentuin harga jual dari margin. Rumusnya ngikut sheet "5a. COSTING" di source of
 Additional cost dibagi proporsional lewat rate tiap item, jadi total distributed cost
 = Total Additional Costs x (1 + Additional Percentage).
 
+Discount (% atau nominal) itu simulasi diskon ke customer atas Total Quotation Amount:
+
+	Total Quotation After Discount = Total Quotation Amount - Discount Amount
+	Total Profit After Discount    = Total Quotation After Discount - Total HPP Amount
+
 Mata uang Costing **selalu mata uang perusahaan** (IDR). Harga dari Supplier Quotation diambil
 versi mata uang perusahaannya (`base_net_rate` / `base_price_list_rate` - harga valas x kurs di
 SQTN itu), jadi penawaran USD, SGD, dst bisa langsung masuk Costing yang sama tanpa nyaring
@@ -42,6 +47,7 @@ class Costing(Document):
 		self.set_warehouses()
 		self.set_rates_from_valuation()
 		self.calculate()
+		self.validate_discount()
 		self.set_status()
 
 	def set_company_currency(self):
@@ -84,11 +90,22 @@ class Costing(Document):
 					title=_("Invalid Margin"),
 				)
 
+	def validate_discount(self):
+		if flt(self.discount_percentage) < 0 or flt(self.discount_amount) < 0:
+			frappe.throw(_("Discount cannot be negative"), title=_("Invalid Discount"))
+
+		if flt(self.discount_amount) > flt(self.total_quotation_amount):
+			frappe.throw(
+				_("Discount Amount cannot be more than Total Quotation Amount"),
+				title=_("Invalid Discount"),
+			)
+
 	def calculate(self):
 		self.calculate_buying_amount()
 		self.calculate_additional_cost_percentage()
 		self.calculate_items()
 		self.calculate_totals()
+		self.calculate_discount()
 
 	def calculate_buying_amount(self):
 		for item in self.items:
@@ -202,6 +219,43 @@ class Costing(Document):
 			flt(
 				self.total_quotation_profit_amount / self.total_hpp_amount * 100,
 				self.precision("total_quotation_profit_percentage"),
+			)
+			if self.total_hpp_amount
+			else 0
+		)
+
+	def calculate_discount(self):
+		"""Diskon bisa diisi persen atau nominal - yang terakhir diketik user yang dipegang.
+
+		Polanya sama kayak Quotation Rate: nominal yang diketik user ditandain
+		`discount_amount_manually_set`, jadi waktu Total Quotation Amount berubah nominalnya tetap
+		dan persennya yang dihitung ulang. Kalau yang diketik persen, nominalnya yang ngikut.
+		"""
+		base = flt(self.total_quotation_amount)
+
+		if self.discount_amount_manually_set:
+			self.discount_amount = flt(self.discount_amount, self.precision("discount_amount"))
+			self.discount_percentage = (
+				flt(self.discount_amount / base * 100, self.precision("discount_percentage"))
+				if base
+				else 0
+			)
+		else:
+			self.discount_amount = flt(
+				base * flt(self.discount_percentage) / 100, self.precision("discount_amount")
+			)
+
+		self.total_after_discount_amount = flt(
+			base - flt(self.discount_amount), self.precision("total_after_discount_amount")
+		)
+		self.total_profit_after_discount_amount = flt(
+			self.total_after_discount_amount - flt(self.total_hpp_amount),
+			self.precision("total_profit_after_discount_amount"),
+		)
+		self.total_profit_after_discount_percentage = (
+			flt(
+				self.total_profit_after_discount_amount / self.total_hpp_amount * 100,
+				self.precision("total_profit_after_discount_percentage"),
 			)
 			if self.total_hpp_amount
 			else 0
