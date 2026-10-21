@@ -1776,7 +1776,13 @@ supplier tebal, nomor telepon kontak, nama kontak + sapaan dari Contact), di kan
 Delivery Time (*Required By*) plus kotak bergaris **Delivered To**. Isinya dari field **Delivered To**
 (`custom_delivered_to`, tab Address & Contact → Shipping Address, **bisa diubah setelah submit** —
 buat dropship yang dikirim ke lokasi customer); kosong → alamat pengiriman PO (Shipping Address),
-lalu nama alamatnya, lalu nama project. Terbilang di kiri, sejajar blok total di kanan. Tanda tangan: kiri
+lalu nama alamatnya, lalu nama project. Di kotak **Order To**, di bawah nama supplier, dicetak field
+**Order To** (`custom_order_to`, di bawah Supplier Address Details, bisa diubah setelah submit);
+kosong → alamat supplier (Supplier Address).
+
+Order To dan Delivered To **keisi otomatis** tiap Supplier Address / Shipping Address dipilih (termasuk
+waktu ganti supplier), dalam bentuk teks biasa per baris — habis itu bebas diedit. Ganti alamat lagi =
+isiannya ketimpa alamat yang baru. Terbilang di kiri, sejajar blok total di kanan. Tanda tangan: kiri
 *Best regards,* → field **Best Regards** (`custom_best_regards`, section Terms & Conditions, bisa
 diubah setelah submit; kosong → nama user pembuat) → *Director*; kanan *Supplier Approved* → nama
 kontak supplier.

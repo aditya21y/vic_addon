@@ -8,6 +8,29 @@
 
 const DROPSHIP_TYPES = ["Dropship", "Mixed"];
 
+// Order To & Delivered To (isian kotak di print format) keisi otomatis tiap alamatnya dipilih,
+// terus bebas diedit. Yang didengerin field Details-nya, bukan link alamatnya: ganti supplier
+// ngisi Supplier Address Details langsung tanpa lewat event `supplier_address`.
+frappe.ui.form.on("Purchase Order", {
+	address_display(frm) {
+		frm.set_value("custom_order_to", address_to_text(frm.doc.address_display));
+	},
+	shipping_address_display(frm) {
+		frm.set_value("custom_delivered_to", address_to_text(frm.doc.shipping_address_display));
+	},
+});
+
+// Address Details itu HTML (`Jl. ...<br>Jakarta<br>`) - field-nya Small Text, jadi tiap <br>
+// dijadiin baris baru dan tag lainnya dibuang.
+function address_to_text(html) {
+	const text = frappe.utils.html2text((html || "").replace(/<br\s*\/?>/gi, "\n"));
+	return text
+		.split("\n")
+		.map((line) => line.trim())
+		.filter(Boolean)
+		.join("\n");
+}
+
 frappe.ui.form.on("Purchase Order", {
 	refresh(frm) {
 		if (frm.doc.docstatus !== 1) return;

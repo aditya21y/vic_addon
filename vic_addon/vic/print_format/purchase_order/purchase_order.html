@@ -29,8 +29,8 @@
 	}
 	.vic-pf .parties .box .name { font-weight: 700; }
 	.vic-pf .parties .box .addr { font-size: 10px; }
-	/* isian field Delivered To diketik bebas, baris barunya ikut kecetak */
-	.vic-pf .parties .box .delivered-to { white-space: pre-line; }
+	/* isian field Order To / Delivered To diketik bebas, baris barunya ikut kecetak */
+	.vic-pf .parties .box .free-text { white-space: pre-line; }
 	/* selebar kolom kanan - kalau otomatis, tanggal Delivery Time kepotong ke baris baru */
 	.vic-pf .po-terms { width: 100%; }
 	.vic-pf .po-terms .lbl { width: 85px; }
@@ -75,6 +75,12 @@
 				<div class="box">
 					<span class="cap">Order To</span>
 					<div class="name">{{ doc.supplier_name or doc.supplier }}</div>
+					{#- field Order To duluan (keisi dari Supplier Address, bisa diedit); kosong -> alamat supplier -#}
+					{%- if doc.get("custom_order_to") %}
+						<div class="addr free-text">{{ doc.custom_order_to }}</div>
+					{%- elif doc.address_display %}
+						<div class="addr">{{ doc.address_display }}</div>
+					{%- endif %}
 					{%- if contact_numbers %}<div>{{ contact_numbers | join(" / ") }}</div>{% endif %}
 					{%- if doc.contact_display %}<div>{{ [salutation, doc.contact_display] | select | join(" ") }}</div>{% endif %}
 				</div>
@@ -97,7 +103,7 @@
 					{#- field Delivered To duluan (bisa diubah setelah submit, buat dropship); kosong -> alamat
 					    pengiriman PO, nama alamatnya, lalu nama project -#}
 					{%- if doc.get("custom_delivered_to") %}
-						<div class="addr delivered-to">{{ doc.custom_delivered_to }}</div>
+						<div class="addr free-text">{{ doc.custom_delivered_to }}</div>
 					{%- else %}
 						<div class="addr">{{ doc.shipping_address_display or doc.shipping_address or project_name or "" }}</div>
 					{%- endif %}
