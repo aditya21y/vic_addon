@@ -108,6 +108,8 @@ doctype_js["Purchase Order"].append("public/js/purchase_order.js")
 doctype_js.setdefault("Opportunity", []).append("public/js/opportunity.js")
 # Repack Percentage: isi persen -> Set Basic Rate Manually dicopot
 doctype_js.setdefault("Stock Entry", []).append("public/js/stock_entry.js")
+# Purchase Receipt cuma item + qty: total harga yang dimunculin ERPNext disembunyiin lagi
+doctype_js.setdefault("Purchase Receipt", []).append("public/js/purchase_receipt.js")
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}

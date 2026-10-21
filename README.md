@@ -1429,6 +1429,26 @@ print format Delivery Order.
 
 Implementasi: fixture + `vic_addon/vic/doctype/tax_id_type/`.
 
+#### Form Purchase Receipt dirampingin
+
+Purchase Receipt cuma buat nyatet **barang apa dan berapa qty** yang diterima, jadi semua yang
+nyangkut harga disembunyiin (property setter `hidden` di `fixtures/property_setter.json`):
+
+| Bagian | Yang disembunyiin |
+| --- | --- |
+| Header | Section **Accounting Dimensions** (Cost Center, Project), **Currency and Price List**, **Taxes and Charges** (termasuk Incoterm, Shipping Rule, Show VAT for WAPU), tabel pajak, semua **Totals**, **Additional Discount**, **Tax Breakup**, **Pricing Rules** |
+| Di bawah tabel item | Total, Net Total, dan versi Company Currency-nya — **Total Quantity** tetap kelihatan |
+| Baris item | Section **Rate and Amount**, **Discount and Margin**, Rate/Amount/Net Rate/Valuation dkk, **Accounting Dimensions**; kolom Rate & Amount di grid |
+
+Nilainya tetap keisi dan kehitung kayak biasa (ditarik dari PO), cuma gak ditampilin — stock
+ledger & valuasinya gak berubah. Baris item sisanya: item, deskripsi, qty (received / accepted /
+rejected), UOM, gudang, referensi, serial/batch.
+
+Total, Net Total, dan Total (Company Currency) dimunculin lagi sama ERPNext lewat JS tiap refresh
+atau ganti currency, jadi disembunyiin ulang di `vic_addon/public/js/purchase_receipt.js`.
+
+Print format **Goods Received** gak kena — itu emang udah tanpa harga.
+
 #### Form Project dirampingin
 
 Semua lewat property setter di `fixtures/property_setter.json`, gak ada kode:
