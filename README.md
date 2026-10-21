@@ -654,6 +654,44 @@ akun penampung tetap kepindah.
 
 Implementasi: `vic_addon/vic/dp_ppn.py`.
 
+#### PPN Masukan Tertunda (Purchase Invoice)
+
+Purchase Invoice yang **faktur pajaknya belum diterima**: PPN-nya dicatat dulu di akun PPN
+Masukan Tertunda, baru direklas ke PPN Masukan begitu fakturnya dateng.
+
+Akunnya diset per company, di tab **Accounts** bagian **PPN Masukan Tertunda**:
+
+| Field | Isi |
+| --- | --- |
+| COA PPN Masukan Tertunda | akun yang dipilih di tabel pajak invoice; dikredit waktu reklas |
+| COA PPN Masukan | akun tujuan reklas; didebit waktu reklas |
+
+Jalannya:
+
+1. **Purchase Invoice** — centang **PPN Tertunda** (di bawah *Deduct Taxes Paid on DP*), terus
+   **pilih manual** akun PPN Masukan Tertunda sebagai *Account Head* baris PPN di tabel pajak.
+   Waktu submit dicek: kalau dicentang tapi gak ada baris yang pakai akun itu (atau akunnya belum
+   diset di Company), submit-nya ditolak. Draft bebas disimpan.
+2. **Faktur pajak dateng** — tombol **Create > Reklas PPN Tertunda** di invoice yang udah submit
+   bikin **draft** Journal Entry, terus langsung dibuka:
+
+   ```
+   DR  PPN Masukan                 11.000
+   CR  PPN Masukan Tertunda                11.000
+   ```
+
+   Nilainya persis yang dijurnal invoice ke akun tertunda (`base_tax_amount_after_discount_amount`,
+   baris `Deduct` ngurangin), dipecah per cost center baris pajaknya. Tanggalnya hari ini — masih
+   draft, jadi tanggal (mis. tanggal faktur diterima) dan akunnya bisa dicek dulu sebelum submit.
+   Debit note (nilai minus) arahnya kebalik.
+
+Jurnalnya nyimpen nomor invoice-nya (field **PPN Tertunda Invoice**, `custom_ppn_tertunda_invoice`).
+Satu invoice cuma dapat satu jurnal reklas: tombolnya diklik lagi = jurnal yang udah ada (draft
+atau submitted) yang dibuka. Kalau jurnalnya dibatalin, tombolnya bisa bikin yang baru. Selama
+jurnal reklasnya submitted, invoice-nya gak bisa dibatalin (link-nya ngunci).
+
+Implementasi: `vic_addon/vic/ppn_tertunda.py` + `vic_addon/public/js/purchase_invoice.js`.
+
 #### Sales Order: PO per supplier + dropship
 
 Info supplier ikut turun sepanjang alur lewat field `Supplier Quotation` + `Supplier` di

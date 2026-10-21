@@ -108,6 +108,8 @@ doctype_js["Purchase Order"].append("public/js/purchase_order.js")
 doctype_js.setdefault("Opportunity", []).append("public/js/opportunity.js")
 # Repack Percentage: isi persen -> Set Basic Rate Manually dicopot
 doctype_js.setdefault("Stock Entry", []).append("public/js/stock_entry.js")
+# PPN Tertunda: tombol bikin draft jurnal reklas ke PPN Masukan
+doctype_js["Purchase Invoice"].append("public/js/purchase_invoice.js")
 # Purchase Receipt cuma item + qty: total harga yang dimunculin ERPNext disembunyiin lagi
 doctype_js.setdefault("Purchase Receipt", []).append("public/js/purchase_receipt.js")
 # doctype_js = {"doctype" : "public/js/doctype.js"}
@@ -402,6 +404,11 @@ for doctype in ("Purchase Order", "Purchase Receipt", "Purchase Invoice"):
 
 	events["before_validate"].append("vic_addon.vic.dropship.stash_customer_shipping_address")
 	events["validate"].append("vic_addon.vic.dropship.restore_customer_shipping_address")
+
+# PPN Tertunda: yang dicentang wajib punya baris PPN Masukan Tertunda (lihat vic/ppn_tertunda.py)
+doc_events["Purchase Invoice"].setdefault("before_submit", []).append(
+	"vic_addon.vic.ppn_tertunda.validate_ppn_tertunda"
+)
 
 # doc_events = {
 # 	"*": {
