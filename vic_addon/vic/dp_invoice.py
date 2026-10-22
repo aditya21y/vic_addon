@@ -448,6 +448,13 @@ def set_advance_taxes(doc, method=None):
 		doc.append("taxes", {fieldname: tax.get(fieldname) for fieldname in TAX_FIELDS_TO_COPY})
 
 	if doc.get("taxes"):
+		# PPN-nya udah dialihin ke akun penampung di DP Invoice -> centangan Belum Ditagih ikut
+		# nyala (lihat dp_ppn.py). Masih bisa dimatiin user kalau fakturnya ternyata udah ada.
+		if source.custom_dp_type == "Purchase" and any(
+			tax.get("custom_original_account_head") for tax in doc.taxes
+		):
+			doc.custom_vat_not_invoiced = 1
+
 		template_field = (
 			"custom_sales_taxes_and_charges_template"
 			if source.custom_dp_type == "Sales"

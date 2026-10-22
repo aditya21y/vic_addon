@@ -97,6 +97,8 @@ doctype_js["Payment Request"] = ["public/js/payment_request.js"]
 doctype_js["Landed Cost Voucher"] = ["public/js/landed_cost_voucher.js"]
 # isi Deductions or Loss -> Paid/Received Amount dihitung ulang, Allocated tetap sebesar Outstanding
 doctype_js.setdefault("Payment Entry", []).append("public/js/payment_entry_deduction.js")
+# DP ke supplier: tombol jurnal pemindahan PPN Masukan Belum Ditagih -> PPN Masukan
+doctype_js["Payment Entry"].append("public/js/payment_entry_vat.js")
 # skema DP pakai Item DP: pilihan term DP + tombol Get DP Invoices
 for doctype in ("Sales Invoice", "Purchase Invoice"):
 	doctype_js.setdefault(doctype, []).append("public/js/dp_item_invoice.js")
@@ -316,8 +318,11 @@ doc_events["Landed Cost Voucher"] = {"validate": "vic_addon.vic.landed_cost.vali
 doc_events["Payment Entry"] = {
 	"before_validate": [
 		"vic_addon.vic.dp_invoice.set_advance_taxes",
+		# DP ke supplier: PPN ke akun Belum Ditagih kalau dicentang (habis pajaknya ketarik)
+		"vic_addon.vic.dp_ppn.set_vat_holding_account",
 	],
-	# PPN uang muka pindah dari akun penampung ke akun aslinya begitu DP-nya kebayar
+	# DP penjualan: PPN pindah ke akun aslinya begitu DP-nya kebayar. DP pembelian nunggu faktur
+	# pajak supplier - jurnalnya lewat tombol di Payment Entry
 	"on_submit": "vic_addon.vic.dp_ppn.make_vat_reclass_entry",
 	"on_cancel": "vic_addon.vic.dp_ppn.cancel_vat_reclass_entry",
 }

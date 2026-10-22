@@ -634,47 +634,61 @@ sebagai PPN atau ikut dikurangin dari pajak invoice.
 
 #### PPN uang muka ditampung dulu, baru dipindah waktu DP kebayar
 
-Waktu bayar DP ke supplier, faktur pajaknya belum ada. Jadi PPN-nya belum boleh masuk PPN
-Masukan — ditampung dulu di akun sendiri, baru dipindah setelah pembayarannya jadi.
+Waktu bayar DP ke supplier, faktur pajaknya sering belum terbit — PPN-nya belum bisa dikreditkan.
+Jadi PPN-nya dicatat dulu di akun **PPN Masukan Belum Ditagih**, dan baru dipindah ke PPN Masukan
+**setelah faktur pajak dari supplier diterima**.
 
-Dinyalain per company, di tab **Accounts** bagian **PPN Uang Muka (DP)**:
+Setting per company, di tab **Accounts** bagian **PPN Uang Muka (DP)**:
 
 | Field | Isi |
 | --- | --- |
-| Enable PPN DP Pembelian | centang buat nyalain sisi beli |
-| COA PPN DP Pembelian | akun penampung, mis. `1152.003 - PPN MASUKKAN BELUM DITAGIH` |
+| Enable PPN DP Pembelian | DP Invoice dari PO langsung ngalihin PPN-nya ke akun penampung |
+| COA PPN DP Pembelian | akun penampung, mis. `1152.003 - PPN MASUKKAN BELUM DITAGIH` (dipakai juga sama centangan di Payment Entry) |
 | Enable PPN DP Penjualan | centang buat nyalain sisi jual |
 | COA PPN DP Penjualan | akun penampung sisi jual |
 
 Field akunnya cuma muncul (dan jadi wajib) kalau centangannya nyala, dan daftar akunnya
 kefilter ke akun milik company itu yang bukan akun induk.
 
-Jalannya:
+**Pembelian — manual, nunggu faktur:**
 
-1. **DP Invoice dibikin dari PO/SO** — baris PPN yang ditarik dari dokumen referensi akunnya
-   diganti ke akun penampung. Akun aslinya disimpan di baris yang sama (`Original Account
-   Head`), jadi lawan jurnalnya nanti gak perlu ditebak.
-2. **Payment Entry** — baris pajaknya kebawa apa adanya, jadi jurnal DP-nya kena akun penampung.
-3. **Payment Entry disubmit** — Journal Entry otomatis mindahin saldonya ke akun asli:
+1. **Payment Entry** bayar ke supplier yang referensinya **Purchase Order** punya centangan **PPN
+   Masukan Belum Ditagih** (tab Taxes, di bawah template pajak). Dicentang → baris PPN dialihin ke
+   akun penampung (akun aslinya disimpan di `Original Account Head`); dimatiin → balik ke akun
+   aslinya. Payment Entry dari **DP Invoice** yang PPN-nya udah dialihin langsung kecentang
+   (masih bisa dimatiin kalau fakturnya ternyata udah ada). PE yang gak punya baris PPN, atau
+   referensinya bukan PO, ditolak kalau dicentang.
+2. **Submit** — jurnal DP-nya kena akun penampung, **gak ada Journal Entry otomatis**. Form PE
+   nampilin pengingat oranye selama PPN-nya belum dipindah.
+3. **Faktur pajak datang** — tombol **Create → PPN Reclass Journal** di Payment Entry bikin Journal
+   Entry **draft**:
 
    ```
    DR  PPN Masukan                          12.000
    CR  PPN Masukan Belum Ditagih                    12.000
    ```
 
-   Jurnalnya nyimpen nomor Payment Entry-nya (field `DP PPN Payment Entry`), dan ikut
-   **dibatalin otomatis** kalau Payment Entry-nya dibatalin.
+   Tanggalnya hari ini — ganti ke tanggal faktur kalau perlu, lalu submit sendiri. Jurnalnya
+   nyimpen nomor Payment Entry-nya (`DP PPN Payment Entry`); satu PE cuma boleh satu jurnal, dan
+   kalau udah ada tombolnya jadi **View → PPN Reclass Journal**.
 
-Arah jurnalnya ngikut jenis pembayaran: DP pembelian (`Pay`) nampung di sisi debit, jadi
-pemindahannya ngredit penampung; DP penjualan kebalikannya.
+**Penjualan — masih otomatis:** PPN dari DP Invoice dialihin, terus Journal Entry pemindahannya
+dibikin & disubmit begitu Payment Entry-nya disubmit (fakturnya diterbitin VIC sendiri).
+
+Payment Entry dibatalin → jurnal pemindahan yang udah submit ikut **dibatalin**, yang masih draft
+**dihapus**.
 
 **Yang dianggap baris PPN**: pajak yang *nambah* nilai bayar dan hitungannya persentase
 (`On Paid Amount`). PPh 23 kelewat karena dia motong (`Deduct`), begitu juga baris `Actual`
 kayak ongkos kirim.
 
-Pemindahannya bersandar ke jejak `Original Account Head` di barisnya, **bukan** ke centangan di
-Company. Jadi kalau centangannya dimatiin setelah DP kebayar, saldo yang terlanjur nyangkut di
-akun penampung tetap kepindah.
+Netting PPN DP di invoice final (`advance_tax.py`) tetap pakai **akun asli** (PPN Masukan), jadi
+hasilnya sama walaupun jurnal pemindahannya belum dibikin — asal nanti dibikin, saldo akun
+penampungnya balik 0.
+
+Patch `set_vat_not_invoiced_on_payment_entries` nyentang Payment Entry lama yang PPN-nya udah
+dialihin: yang jurnal otomatisnya udah ada tinggal buka jurnalnya, yang belum (mis. di staging
+`VPAY-10202609`, PPN 297.901.999,59 masih di penampung) tombol Create-nya muncul.
 
 Implementasi: `vic_addon/vic/dp_ppn.py`.
 

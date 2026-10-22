@@ -12,3 +12,4 @@ vic_addon.patches.show_costing_project_in_print
 vic_addon.patches.revert_custom_tax_withholding
 vic_addon.patches.drop_wapu_fields
 vic_addon.patches.disable_inquiry_supplier_email
+vic_addon.patches.set_vat_not_invoiced_on_payment_entries
