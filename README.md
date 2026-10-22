@@ -1800,6 +1800,7 @@ dikasih class `left`, `<td>`-nya class `text`, aturannya di letterhead.
 | --- | --- | --- |
 | Quotation (VIC) | **Quotation** (bisa juga dipasang di Sales Order) | QUOTATION |
 | Purchase Order (VIC) | Purchase Order | PURCHASE ORDER |
+| Receipt Note | Purchase Receipt | "RECEIPT NOTE" (tanda terima tagihan, lihat di bawah) |
 | Purchase Request | Material Request | PURCHASE REQUEST |
 | Inquiry | Request for Quotation | INQUIRY (+ versi Excel, lihat di bawah) |
 | Request For Quotation (Customer) | Opportunity | REQUEST FOR QUOTATION |
@@ -2065,6 +2066,27 @@ Frappe cuma baca file `.json` waktu migrate (HTML-nya kesimpan sebagai satu stri
 situ), jadi file `.html` disalin ke dokumen Print Format tiap install & migrate lewat
 `vic_addon/vic/print_formats.py` — **yang diedit file `.html`-nya**, `.json` cuma buat install
 pertama.
+
+#### Print Format: Receipt Note (Purchase Receipt)
+
+Tanda terima tagihan supplier, niru formulir kertas **"RECEIPT NOTE"**: tanpa kop surat, satu kotak
+bergaris, kertas melintang, blok-bloknya dipisah garis dobel.
+
+| Bagian | Isinya |
+| --- | --- |
+| DATE / NO | Posting Date & nomor Purchase Receipt |
+| RECEIVED FROM | Kotak yang dicentang: PR subkon (*Is Subcontracted*) atau Supplier Group-nya mengandung "subcon/subkon" → **Subcontractor**; Supplier Group "ekspedisi/expedi/forwarder/logistic/cargo" → **Expedite**; sisanya **Supplier**. Di bawahnya nama supplier |
+| AMOUNT / In Words | Jumlah kolom Nominal, terbilang bahasa Inggris (`money_in_words`) |
+| Tabel | Satu baris per **Purchase Invoice** submitted yang nyambung ke PR ini: Invoice No. = Supplier Invoice No (`bill_no`, kosong → nomor PI), Date = Supplier Invoice Date, Nominal = Rounded/Grand Total. DO No. = *Supplier Delivery Note* PR, PO No. = PO dari baris item |
+| RECEIVED BY / DATE / SIGN | Dikosongin buat diisi tangan |
+
+Kalau PR-nya belum punya invoice, tabelnya tetap satu baris dari PR sendiri (Nominal = total PR, DO,
+PO) dan kolom Invoice No./Date dibiarin kosong buat ditulis tangan. **Tax Invoice No.** selalu kosong
+— Purchase Invoice belum punya field nomor faktur pajak. Tinggi tabelnya dijaga mirip formulir: baris
+kosong di bawahnya makin pendek kalau invoice-nya banyak.
+
+Implementasi: `get_receipt_note` di `vic_addon/vic/print_utils.py` (helper Jinja), template di
+`vic_addon/vic/print_format/receipt_note/`.
 
 #### Print Format: Serial No Label (stiker QR)
 

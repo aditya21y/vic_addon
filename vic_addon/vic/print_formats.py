@@ -25,6 +25,7 @@ PRINT_FORMATS = {
 	"Costing (Import)": "costing_import",
 	"Kwitansi": "kwitansi",
 	"Kwitansi (Progress)": "kwitansi_progress",
+	"Receipt Note": "receipt_note",
 }
 
 

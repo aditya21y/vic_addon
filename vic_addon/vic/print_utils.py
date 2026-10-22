@@ -158,3 +158,94 @@ def get_kwitansi(doc):
 		signer_title=company.get("custom_kwitansi_signer_title") or "",
 		currency=doc.currency,
 	)
+
+
+# ---------------------------------------------------------------------------------------------
+# Receipt Note (Purchase Receipt)
+# ---------------------------------------------------------------------------------------------
+
+def get_receipt_note(doc):
+	"""Isian print format Receipt Note dari Purchase Receipt.
+
+	Satu baris tabel = satu Purchase Invoice (submitted) yang nyambung ke PR ini - lewat baris
+	item invoice-nya (`purchase_receipt`) atau baris item PR (`purchase_invoice`, kalau PR-nya
+	dibikin dari invoice). Invoice No. pakai nomor tagihan supplier (Supplier Invoice No) kalau ada.
+
+	Kalau belum ada invoice, satu baris diisi dari PR-nya sendiri (nominal, DO, PO) dan kolom
+	invoice dibiarin kosong buat ditulis tangan.
+	"""
+	import frappe
+	from frappe.utils import flt
+
+	purchase_orders = ", ".join(
+		sorted({row.purchase_order for row in doc.get("items") or [] if row.get("purchase_order")})
+	)
+	do_no = doc.get("supplier_delivery_note") or ""
+
+	invoice_names = set(
+		frappe.get_all(
+			"Purchase Invoice Item",
+			filters={"purchase_receipt": doc.name, "docstatus": 1},
+			pluck="parent",
+		)
+	)
+	invoice_names.update(row.purchase_invoice for row in doc.get("items") or [] if row.get("purchase_invoice"))
+
+	invoices = (
+		frappe.get_all(
+			"Purchase Invoice",
+			filters={"name": ["in", list(invoice_names)], "docstatus": 1},
+			fields=["name", "bill_no", "bill_date", "posting_date", "rounded_total", "grand_total"],
+			order_by="posting_date, name",
+		)
+		if invoice_names
+		else []
+	)
+
+	rows = [
+		frappe._dict(
+			invoice_no=invoice.bill_no or invoice.name,
+			date=invoice.bill_date or invoice.posting_date,
+			nominal=flt(invoice.rounded_total or invoice.grand_total),
+			tax_invoice_no="",
+			do_no=do_no,
+			po_no=purchase_orders,
+		)
+		for invoice in invoices
+	] or [
+		frappe._dict(
+			invoice_no="",
+			date=None,
+			nominal=flt(doc.rounded_total or doc.grand_total),
+			tax_invoice_no="",
+			do_no=do_no,
+			po_no=purchase_orders,
+		)
+	]
+
+	amount = sum(row.nominal for row in rows)
+
+	return frappe._dict(
+		rows=rows,
+		amount=amount,
+		in_words=frappe.utils.money_in_words(amount, doc.currency),
+		received_from=get_received_from(doc),
+		supplier=doc.supplier_name or doc.supplier,
+	)
+
+
+def get_received_from(doc):
+	"""Kotak RECEIVED FROM yang dicentang: PR subkon -> Subcontractor, terus dari nama Supplier
+	Group-nya (ekspedisi/forwarder -> Expedite, subkon -> Subcontractor), sisanya Supplier."""
+	import frappe
+
+	if doc.get("is_subcontracted"):
+		return "Subcontractor"
+
+	group = (frappe.db.get_value("Supplier", doc.supplier, "supplier_group") or "").lower()
+	if any(word in group for word in ("subcon", "subkon")):
+		return "Subcontractor"
+	if any(word in group for word in ("expedi", "ekspedisi", "forward", "logisti", "cargo", "kargo")):
+		return "Expedite"
+
+	return "Supplier"

@@ -1,0 +1,188 @@
+{#- Tanda terima tagihan supplier, dicetak dari Purchase Receipt. Bentuknya niru formulir kertas
+    "RECEIPT NOTE": tanpa kop surat, satu kotak bergaris, kertas melintang. Isinya dari
+    get_receipt_note di vic/print_utils.py. -#}
+
+{%- set vic_hide_letterhead = True -%}
+{%- set rn = get_receipt_note(doc) -%}
+
+<style>
+	/* Frappe cuma baca aturan yang nempel persis di .print-format, terus dilempar ke
+	   wkhtmltopdf sebagai opsi - ini yang bikin kertasnya melintang. */
+	.print-format { orientation: landscape; }
+
+	.vic-pf .rn { width: 100%; border: 1px solid #000; table-layout: fixed; }
+	.vic-pf .rn td, .vic-pf .rn th { font-size: 11px; }
+	/* pemisah antar blok di formulirnya garis dobel */
+	.vic-pf .rn .split > td { border-top: 3px double #000; }
+
+	/* kepala: judul di tengah, DATE / NO di kotak kanan */
+	.vic-pf .rn .title { text-align: center; vertical-align: middle; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; padding: 18px 0 !important; }
+	.vic-pf .rn .meta-cell { border-left: 1px solid #000; padding: 0 !important; vertical-align: top; }
+	/* DATE & NO pakai div, bukan tabel bersarang: garis pemisahnya di tabel bersarang nembus bingkai */
+	.vic-pf .rn .meta { padding: 3px 8px; }
+	.vic-pf .rn .meta + .meta { border-top: 1px solid #000; }
+	.vic-pf .rn .meta .lbl { display: inline-block; width: 42px; }
+	.vic-pf .rn .meta .sep { display: inline-block; width: 16px; }
+
+	/* RECEIVED FROM + AMOUNT */
+	.vic-pf .rn .from-cell { border-right: 1px solid #000; padding: 0 !important; }
+	.vic-pf .rn .from-head { text-align: center; font-weight: 700; font-size: 12px; border-bottom: 1px solid #000; padding: 2px 0; }
+	.vic-pf .rn .boxes { width: 100%; }
+	.vic-pf .rn .boxes td { padding: 4px 10px !important; font-size: 10px; vertical-align: middle; }
+	.vic-pf .rn .check {
+		display: inline-block;
+		width: 16px;
+		height: 12px;
+		border: 1px solid #000;
+		margin-right: 10px;
+		vertical-align: middle;
+		text-align: center;
+		line-height: 12px;
+		font-weight: 700;
+		font-size: 10px;
+	}
+	.vic-pf .rn .supplier { border-top: 1px solid #000; padding: 8px 10px 18px; font-weight: 700; font-size: 12px; }
+	.vic-pf .rn .amount-cell { padding: 10px 10px !important; }
+	.vic-pf .rn .amount-cell table { width: 100%; }
+	.vic-pf .rn .amount-lbl { font-weight: 700; font-size: 12px; width: 40%; vertical-align: middle; }
+	/* kotak nominal miring kayak di formulir; isinya dimiringin balik biar tegak */
+	.vic-pf .rn .amount-box {
+		display: inline-block;
+		min-width: 170px;
+		border: 1px solid #000;
+		padding: 3px 14px;
+		-webkit-transform: skewX(-20deg);
+		transform: skewX(-20deg);
+		text-align: right;
+	}
+	.vic-pf .rn .amount-box span {
+		display: inline-block;
+		-webkit-transform: skewX(20deg);
+		transform: skewX(20deg);
+		font-weight: 700;
+	}
+	.vic-pf .rn .words { font-style: italic; padding-top: 4px !important; }
+
+	/* tabel invoice */
+	.vic-pf .rn .lines { width: 100%; table-layout: fixed; }
+	.vic-pf .rn .lines th { font-weight: 400; font-size: 10px; text-align: center; border-bottom: 1px solid #000; padding: 4px 4px 12px !important; }
+	.vic-pf .rn .lines td { text-align: center; padding: 5px 4px !important; }
+	.vic-pf .rn .lines th + th, .vic-pf .rn .lines td + td { border-left: 1px solid #000; }
+	.vic-pf .rn .lines td.money { text-align: right; }
+	/* baris kosong yang manjangin tabel sampai setinggi formulirnya - tingginya dihitung di bawah */
+
+	/* kaki: RECEIVED BY / DATE diisi tangan, SIGN kotak kanan */
+	.vic-pf .rn .foot-cell { padding: 10px 8px !important; }
+	.vic-pf .rn .foot { width: 100%; }
+	.vic-pf .rn .foot td { padding: 4px 0 !important; vertical-align: bottom; }
+	.vic-pf .rn .foot .lbl { width: 105px; font-size: 12px; }
+	.vic-pf .rn .foot .dots { border-bottom: 1px dotted #000; width: 190px; }
+	.vic-pf .rn .foot .sign-lbl { text-align: center; font-size: 12px; vertical-align: top; }
+	.vic-pf .rn .sign-cell { border-left: 1px solid #000; height: 70px; }
+</style>
+
+<div class="vic-pf">
+	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
+
+	<table class="rn">
+		<colgroup>
+			<col style="width: 43%" />
+			<col style="width: 26%" />
+			<col style="width: 31%" />
+		</colgroup>
+
+		<tr>
+			<td class="title" colspan="2">"RECEIPT NOTE"</td>
+			<td class="meta-cell">
+				<div class="meta"><span class="lbl">DATE</span><span class="sep">:</span>{{ frappe.utils.formatdate(doc.posting_date, "MMMM d, yyyy") }}</div>
+				<div class="meta"><span class="lbl">NO</span><span class="sep">:</span>{{ doc.name }}</div>
+			</td>
+		</tr>
+
+		<tr class="split">
+			<td class="from-cell">
+				<div class="from-head">RECEIVED FROM</div>
+				<table class="boxes">
+					{%- for row in [["Subcontractor", "Supplier"], ["Expedite", "Etc"]] %}
+						<tr>
+							{%- for option in row %}
+								<td><span class="check">{{ "X" if rn.received_from == option else "" }}</span>{{ option }}</td>
+							{%- endfor %}
+						</tr>
+					{%- endfor %}
+				</table>
+				<div class="supplier">{{ rn.supplier }}</div>
+			</td>
+			<td class="amount-cell" colspan="2">
+				<table>
+					<tr>
+						<td class="amount-lbl">AMOUNT</td>
+						<td><div class="amount-box"><span>{{ frappe.utils.fmt_money(rn.amount, currency=doc.currency) }}</span></div></td>
+					</tr>
+					<tr>
+						<td class="words" colspan="2">In Words : {{ rn.in_words }}</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+
+		<tr class="split">
+			<td colspan="3" style="padding: 0 !important;">
+				<table class="lines">
+					<colgroup>
+						<col style="width: 18.5%" />
+						<col style="width: 13%" />
+						<col style="width: 14.5%" />
+						<col style="width: 20%" />
+						<col style="width: 18.5%" />
+						<col style="width: 15.5%" />
+					</colgroup>
+					<thead>
+						<tr>
+							<th>Invoice No.</th>
+							<th>Date</th>
+							<th>Nominal</th>
+							<th>Tax Invoice No.</th>
+							<th>DO No.</th>
+							<th>PO No.</th>
+						</tr>
+					</thead>
+					<tbody>
+						{%- for row in rn.rows %}
+							<tr>
+								<td>{{ row.invoice_no }}</td>
+								<td>{{ frappe.utils.formatdate(row.date, "dd-MM-yyyy") if row.date else "" }}</td>
+								<td class="money">{{ frappe.utils.fmt_money(row.nominal) }}</td>
+								<td>{{ row.tax_invoice_no }}</td>
+								<td>{{ row.do_no }}</td>
+								<td>{{ row.po_no }}</td>
+							</tr>
+						{%- endfor %}
+						{#- makin banyak baris invoice, makin pendek pengisinya; minimal tetap ada sisa buat ditulis -#}
+						{%- set fill_height = [170 - 24 * (rn.rows | length), 30] | max %}
+						<tr class="fill">
+							{%- for _ in range(6) %}<td style="height: {{ fill_height }}px"></td>{% endfor %}
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+
+		<tr class="split">
+			<td class="foot-cell" colspan="2">
+				<table class="foot">
+					<tr>
+						<td class="lbl">RECEIVED BY</td>
+						<td class="dots"></td>
+						<td class="sign-lbl" rowspan="2">SIGN</td>
+					</tr>
+					<tr>
+						<td class="lbl">DATE</td>
+						<td class="dots"></td>
+					</tr>
+				</table>
+			</td>
+			<td class="sign-cell"></td>
+		</tr>
+	</table>
+</div>
