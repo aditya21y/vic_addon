@@ -156,7 +156,7 @@ jinja = {
 		# kwitansi Sales Invoice: isian + terbilang & tanggal bahasa Indonesia
 		"vic_addon.vic.print_utils.get_kwitansi",
 		"vic_addon.vic.print_utils.terbilang",
-		# Receipt Note (Purchase Receipt): baris invoice, nominal, kotak RECEIVED FROM
+		# Receipt Note (Purchase Invoice, tanda terima tukar faktur): baris invoice, kotak RECEIVED FROM
 		"vic_addon.vic.print_utils.get_receipt_note",
 		"vic_addon.vic.print_utils.tanggal",
 		"vic_addon.vic.doctype.costing.costing.get_request_for_quotations",
