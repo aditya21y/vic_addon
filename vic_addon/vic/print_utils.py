@@ -64,6 +64,45 @@ def tanggal(date, upper=False):
 	return text.upper() if upper else text
 
 
+# SPP / SPK: nama field-nya sama di Sales Order & Sales Invoice, jadi Create > Sales Invoice dari SO
+# langsung nyalin isinya (mapper ERPNext nyalin field yang namanya sama)
+SPP_FIELDS = ("custom_kwitansi_spp_no", "custom_kwitansi_spp_date")
+
+
+def get_spp(doc):
+	"""(SPP / SPK No., tanggal) buat kwitansi: punya invoice sendiri, kosong -> dari Sales Order.
+
+	Diambil sepasang: kalau nomornya diisi di invoice, tanggalnya juga dari invoice (walau kosong),
+	biar nomor & tanggal gak kecampur dari dua sumber. Sales Order-nya dari baris item - invoice
+	lewat Delivery Note tetap nyimpen nomor SO di barisnya.
+	"""
+	import frappe
+
+	if doc.get("custom_kwitansi_spp_no"):
+		return doc.custom_kwitansi_spp_no, doc.get("custom_kwitansi_spp_date")
+
+	sales_order = next((row.sales_order for row in doc.get("items") or [] if row.get("sales_order")), None)
+	if not sales_order:
+		return None, None
+
+	return frappe.db.get_value("Sales Order", sales_order, SPP_FIELDS) or (None, None)
+
+
+def set_spp_from_sales_order(doc, method=None):
+	"""Hook `before_validate` Sales Invoice: SPP / SPK yang masih kosong diisi dari Sales Order.
+
+	Nutup invoice yang gak dibikin langsung dari SO (mis. lewat Delivery Note), jadi isiannya
+	kelihatan di tab Kwitansi. Isian user gak pernah ketiban.
+	"""
+	if doc.get("custom_kwitansi_spp_no"):
+		return
+
+	spp_no, spp_date = get_spp(doc)
+	if spp_no:
+		doc.custom_kwitansi_spp_no = spp_no
+		doc.custom_kwitansi_spp_date = doc.get("custom_kwitansi_spp_date") or spp_date
+
+
 def get_kwitansi(doc):
 	"""Semua isian kwitansi Sales Invoice, dipakai print format Kwitansi & Kwitansi (Progress).
 
@@ -93,6 +132,8 @@ def get_kwitansi(doc):
 
 	delivery_notes = sorted({row.delivery_note for row in doc.get("items") or [] if row.get("delivery_note")})
 	project = (frappe.db.get_value("Project", doc.project, "project_name") or doc.project) if doc.get("project") else ""
+	# invoice yang udah submit sebelum SPP-nya diisi di SO tetap kecetak nomornya
+	spp_no, spp_date = get_spp(doc)
 
 	return frappe._dict(
 		no=doc.get("custom_kwitansi_no") or "",
@@ -105,8 +146,8 @@ def get_kwitansi(doc):
 		invoice_no=doc.name,
 		delivery_notes=delivery_notes,
 		faktur_no=doc.get("custom_faktur_pajak_no") or "",
-		spp_no=doc.get("custom_kwitansi_spp_no") or "",
-		spp_date=doc.get("custom_kwitansi_spp_date"),
+		spp_no=spp_no or "",
+		spp_date=spp_date,
 		period_from=doc.get("custom_kwitansi_period_from"),
 		period_to=doc.get("custom_kwitansi_period_to"),
 		bank=bank.get("bank") or "",
