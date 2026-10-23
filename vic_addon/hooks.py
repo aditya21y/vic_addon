@@ -149,6 +149,8 @@ doctype_js.setdefault("Purchase Receipt", []).append("public/js/purchase_receipt
 jinja = {
 	"methods": [
 		"vic_addon.vic.item_header.group_items_by_header",
+		# Pengerjaan -> Pengiriman -> item, buat print format doctype yang punya Pengerjaan
+		"vic_addon.vic.item_header.group_items",
 		# kolom Description di tabel item: description dulu, kosong -> item name
 		"vic_addon.vic.print_utils.get_item_description",
 		# nama di bawah "Best regards," pada Inquiry - dipakai juga versi Excel-nya

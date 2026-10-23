@@ -1961,20 +1961,41 @@ Form Opportunity-nya juga dirapiin lewat property setter: section **Organization
 collapsible, dan **Opportunity Date** (`transaction_date`) dipindah dari More Information ke
 header, persis di atas section Organization (`field_order`).
 
-#### Header buat ngelompokin baris item
+#### Pengerjaan & Pengiriman: ngelompokin baris item
 
-Field **Header** (`custom_header`) di baris item: Opportunity (RFQ), Request for Quotation
-(Inquiry), Costing, Quotation, Sales Order, Purchase Order, Purchase Receipt, Purchase Invoice,
-Delivery Note, Sales Invoice. Cukup diisi di baris pertama tiap kelompok — baris yang dikosongin
-ikut Header baris di atasnya, dan waktu disimpan nilainya ditulis balik ke tiap baris. Baris
-pertama gak boleh kosong kalau dokumennya pakai Header.
+Dua field di baris item buat ngelompokin item dua tingkat:
 
-Karena nama field-nya sama di semua doctype, Header ikut kebawa sendiri lewat mapper bawaan
-(RFQ → Inquiry, Quotation → Sales Order → dst). Di print format tiap Header dicetak jadi baris
-tebal sendiri **mulai di kolom Description** (kolom Item / Heat Number di baris itu dikosongin, jadi
-gak kebaca kayak nomor item), item di bawahnya menjorok. Implementasi: `vic_addon/vic/item_header.py`.
+| Field | Fieldname | Doctype |
+| --- | --- | --- |
+| **Pengerjaan** (kelompok atas) | `custom_pengerjaan` | Opportunity (RFQ), Request for Quotation (Inquiry), Costing, Quotation, Sales Order, Delivery Note, Sales Invoice |
+| **Pengiriman** (di dalam Pengerjaan, dulu labelnya *Header*) | `custom_header` | doctype di atas + Purchase Order, Purchase Receipt, Purchase Invoice |
 
-Di tabel item, **yang tebal cuma baris Header**. Baris item (ada Header-nya atau gak) dicetak
+Dua-duanya cukup diisi di baris pertama tiap kelompok — baris yang dikosongin ikut baris di
+atasnya, dan waktu disimpan nilainya ditulis balik ke tiap baris. Pengiriman mulai dari nol lagi
+tiap ganti Pengerjaan (gak ngewarisin Pengiriman dari Pengerjaan sebelumnya). Yang ditolak:
+
+- Pengerjaan dipakai, tapi baris pertama dokumen kosong
+- di satu kelompok Pengerjaan ada Pengiriman, tapi baris pertama kelompok itu kosong
+
+Pengerjaan aja tanpa Pengiriman boleh, Pengiriman aja tanpa Pengerjaan juga boleh (kayak Header
+dulu). Di grid, dua kolomnya lebar 1 — grid item udah penuh, kalau lebih lebar kolom Rate/Amount
+kedorong keluar.
+
+Karena nama field-nya sama di semua doctype, nilainya ikut kebawa sendiri lewat mapper bawaan
+(RFQ → Inquiry, Quotation → Sales Order → Delivery Note / Sales Invoice; dites sampai DN).
+
+Di print format (Quotation (VIC), Delivery Order, Inquiry, Request For Quotation (Customer),
+Costing (Sales), Costing (Import), Purchase Request (Sales Order)) **Pengerjaan dicetak paling
+atas** (tebal + garis bawah), **Pengiriman di bawahnya** (tebal, menjorok satu tingkat), terus
+item menjorok di bawah keduanya. Judul mulai di kolom Description. Urutan kelompok ngikut
+kemunculan pertamanya. Print format PO & Goods Received tetap satu tingkat (Pengiriman aja).
+Implementasi: `vic_addon/vic/item_header.py` (`group_items` / `group_items_by_header`).
+
+Catatan: Supplier Quotation **belum** punya dua field ini, jadi kelompok dari Inquiry putus di situ
+— Costing yang dibikin dari Supplier Quotation mulai tanpa Pengerjaan/Pengiriman. Versi Excel
+Inquiry juga belum nampilin keduanya.
+
+Di tabel item, **yang tebal cuma baris Pengerjaan & Pengiriman**. Baris item dicetak
 normal, termasuk tebal bawaan editor (`<b>`/`<strong>`) di Description — dinormalin lewat
 `.vic-pf .items .desc` di `templates/print_formats/vic_letterhead.html`, jadi berlaku ke semua
 print format VIC sekaligus. Judul kolom dan baris total tetap tebal.
