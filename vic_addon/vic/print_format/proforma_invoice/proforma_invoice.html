@@ -4,6 +4,7 @@
 {%- set pf = get_proforma(doc) -%}
 {%- set currency = doc.currency -%}
 {%- set email = doc.get("contact_email") or (frappe.db.get_value("Customer", doc.customer, "email_id") if doc.customer else "") -%}
+{%- set pt = split_payment_terms(doc.get("payment_terms_template")) -%}
 {%- set tax_no = doc.get("tax_id") or (frappe.db.get_value("Customer", doc.customer, "tax_id") if doc.customer else "") -%}
 
 <style>
@@ -22,7 +23,7 @@
 	.vic-pf .pf-terms .lbl { width: 95px; }
 	.vic-pf .pf-terms .sep { width: 12px; }
 	/* nilai Payment Terms dikotakin; kotaknya tetap kelihatan walau kosong */
-	.vic-pf .pf-terms .pay { display: inline-block; border: 1px solid #000; padding: 1px 10px; min-width: 90px; min-height: 14px; text-align: center; }
+	.vic-pf .pf-terms .pay { display: inline-block; border: 1px solid #000; padding: 1px 10px; min-width: 90px; min-height: 14px; text-align: center; white-space: nowrap; }
 	.vic-pf .po-no { margin-top: 4px; }
 	.vic-pf .po-no .lbl { width: 60px; font-weight: 700; }
 	.vic-pf .po-no .sep { width: 12px; }
@@ -83,7 +84,7 @@
 					<tr>
 						<td class="lbl">Payment Terms</td>
 						<td class="sep">:</td>
-						<td><span class="pay">{{ doc.get("payment_terms_template") or "&nbsp;" }}</span></td>
+						<td><span class="pay">{{ pt.header or "&nbsp;" }}</span></td>
 					</tr>
 					<tr>
 						<td class="lbl">Tax No</td>
@@ -145,6 +146,19 @@
 					</tr>
 				{%- endfor %}
 			{%- endfor %}
+
+			{#- Term pembayaran > 20 karakter: di sini ditulis "Lihat di Note", teks lengkapnya jadi poin pertama
+	    Note di akhir tabel item (split_payment_terms di vic/print_utils.py) -#}
+			{%- if pt.note %}
+				<tr class="note">
+					<td></td>
+					<td class="text">
+						<div>Note:</div>
+						<div class="note-item">Payment Terms : {{ pt.note }}</div>
+					</td>
+					<td colspan="3"></td>
+				</tr>
+			{%- endif %}
 		</tbody>
 	</table>
 

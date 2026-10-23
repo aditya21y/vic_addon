@@ -3,6 +3,7 @@
     Sama kayak Costing (Import): kertas melintang, tanpa kop surat, dan blok keterangan di atas,
     tabel item, sampai blok syarat di bawahnya kebingkai jadi satu kotak nyambung. -#}
 
+{%- set pt = split_payment_terms(doc.get("payment")) -%}
 {%- set vic_hide_letterhead = True -%}
 {%- set project = (frappe.db.get_value("Project", doc.project, "project_name") or doc.project) if doc.project else "" -%}
 
@@ -113,11 +114,14 @@
 
 			{#- Catatan dicetak sebagai baris terakhir tabel, nempel di kolom Description -#}
 			{%- set note_lines = (doc.note or "").splitlines() | map("trim") | select | list %}
-			{%- if note_lines %}
+			{#- Term pembayaran > 20 karakter: di sini ditulis "Lihat di Note", teks lengkapnya jadi poin pertama
+	    Note di akhir tabel item (split_payment_terms di vic/print_utils.py) -#}
+			{%- if pt.note or note_lines %}
 				<tr class="note">
 				<td></td>
 				<td>
 						<div>Note:</div>
+						{%- if pt.note %}<div class="note-item">- Payment : {{ pt.note }}</div>{% endif %}
 						{%- for line in note_lines %}
 							<div class="note-item">- {{ line }}</div>
 						{%- endfor %}
@@ -149,7 +153,7 @@
 		<tr>
 			<td class="lbl">3. Payment</td>
 			<td class="sep">:</td>
-			<td>{{ doc.get("payment") or "" }}</td>
+			<td>{{ pt.header }}</td>
 		</tr>
 		<tr>
 			<td class="lbl">4. Validity</td>

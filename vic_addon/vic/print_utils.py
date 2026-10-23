@@ -318,3 +318,27 @@ def amount_in_english(amount, currency="IDR"):
 	if cents and currency != "IDR":
 		words += f" and {cents:02d}/100"
 	return f"{words[:1].upper()}{words[1:]} {unit}".strip()
+
+
+# ---------------------------------------------------------------------------------------------
+# Payment terms panjang -> Note
+# ---------------------------------------------------------------------------------------------
+
+PAYMENT_TERMS_LIMIT = 20
+
+
+def split_payment_terms(text):
+	"""Term pembayaran buat print format: yang pendek dicetak di tempatnya, yang panjang pindah ke Note.
+
+	Tempat term di kop print format sempit (kotak Payment Terms, kolom kanan). Term lebih dari
+	`PAYMENT_TERMS_LIMIT` karakter (mis. "20% DP, 30% Copy BL, ... 5% Retensi") ditulis "Lihat di Note"
+	di tempatnya, dan teks lengkapnya dicetak jadi poin pertama baris Note - baris terakhir tabel
+	item, di kolom Description. Dipakai Proforma Invoice, Quotation (VIC), Purchase Order (VIC),
+	Costing (Sales).
+	"""
+	import frappe
+
+	text = (text or "").strip()
+	if len(text) > PAYMENT_TERMS_LIMIT:
+		return frappe._dict(header="Lihat di Note", note=text)
+	return frappe._dict(header=text, note="")

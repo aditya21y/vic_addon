@@ -2073,6 +2073,23 @@ nama & jabatan penandatangan. *Atas Nama* rekening = nama company.
 Implementasi: `get_kwitansi`, `terbilang`, `tanggal` di `vic_addon/vic/print_utils.py` (helper Jinja),
 template di `vic_addon/vic/print_format/kwitansi*/`.
 
+#### Payment Terms panjang pindah ke Note
+
+Tempat term pembayaran di kop print format sempit. Kalau term-nya **lebih dari 20 karakter**
+(mis. "20% DP, 30% Copy BL, 30% MOS Gudang, 10% Sebelum Material Onsite, 5% Commisioning, 5%
+Retensi"), di tempatnya ditulis **"Lihat di Note"** dan teks lengkapnya dicetak jadi **poin pertama
+baris Note** — baris terakhir tabel item, di kolom Description. Term ≤ 20 karakter (mis. "CASH")
+tetap di tempatnya.
+
+| Print format | Tempat term | Note |
+| --- | --- | --- |
+| Proforma Invoice | kotak Payment Terms | baris Note baru |
+| Quotation (VIC) | Payment Terms (kanan) | baris Note baru |
+| Purchase Order (VIC) | Payment Terms (kanan) | paling atas di Note yang udah ada (T&C, Penalty Clause) |
+| Costing (Sales) | Terms & Conditions "3. Payment" | paling atas di Note yang udah ada |
+
+Batasnya satu konstanta `PAYMENT_TERMS_LIMIT` di `split_payment_terms` (`vic/print_utils.py`).
+
 #### Print Format: Proforma Invoice (Sales Order)
 
 Print format **Proforma Invoice** di Sales Order, ngikut formulir `performa invoice.pdf`: kop VIC,

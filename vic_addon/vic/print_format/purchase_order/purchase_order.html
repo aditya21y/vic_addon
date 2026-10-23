@@ -1,5 +1,6 @@
 {#- Pesanan ke supplier, dicetak dari Purchase Order -#}
 
+{%- set pt = split_payment_terms(doc.payment_terms_template or doc.tc_name) -%}
 {%- set currency = doc.currency -%}
 {%- set contact_numbers = [doc.contact_mobile, doc.contact_phone] | select | unique | list -%}
 {%- set salutation = frappe.db.get_value("Contact", doc.contact_person, "salutation") if doc.contact_person else None -%}
@@ -90,7 +91,7 @@
 					<tr>
 						<td class="lbl">Payment Terms</td>
 						<td class="sep">:</td>
-						<td>{{ doc.payment_terms_template or doc.tc_name or "" }}</td>
+						<td>{{ pt.header }}</td>
 					</tr>
 					<tr>
 						<td class="lbl">Delivery Time</td>
@@ -152,11 +153,14 @@
 			    isinya dihapus - yang kayak gitu dianggap kosong. -#}
 			{%- set terms = doc.terms if frappe.utils.strip_html(doc.terms or "").replace("&nbsp;", " ").strip() else "" %}
 			{%- set penalty = (doc.get("custom_penalty_clause") or "").strip() %}
-			{%- if terms or penalty %}
+			{#- Term pembayaran > 20 karakter: di sini ditulis "Lihat di Note", teks lengkapnya jadi poin pertama
+	    Note di akhir tabel item (split_payment_terms di vic/print_utils.py) -#}
+			{%- if pt.note or terms or penalty %}
 				<tr class="note">
 					<td></td>
 					<td class="text">
 						<div>Note:</div>
+						{%- if pt.note %}<div class="note-item">Payment Terms : {{ pt.note }}</div>{% endif %}
 						{%- if terms %}<div class="note-item">{{ terms }}</div>{% endif %}
 						{%- if penalty %}<div class="note-item penalty">{{ penalty | e }}</div>{% endif %}
 					</td>
