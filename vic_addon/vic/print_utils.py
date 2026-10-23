@@ -222,3 +222,99 @@ def get_received_from(doc):
 		return "Expedite"
 
 	return "Supplier"
+
+
+# ---------------------------------------------------------------------------------------------
+# Proforma Invoice (Sales Order)
+# ---------------------------------------------------------------------------------------------
+
+
+def get_proforma(doc):
+	"""Isian Proforma Invoice dari Sales Order: ringkasan total, terbilang, rekening, dll.
+
+	Ringkasannya ngikut formulir VIC:
+
+		TOTAL         = Total (sebelum diskon tambahan)
+		DISCOUNT      = Total - Net Total
+		DOWN PAYMENT  = DPP Invoice DP order ini yang udah submit (skema Item DP)
+		SUB TOTAL     = Net Total - Down Payment
+		PPN           = PPN dokumen, dihitung ulang sebanding Sub Total kalau ada DP;
+		                Show VAT for WAPU tanpa baris PPN -> 11% x Sub Total
+		GRAND TOTAL   = Sub Total + PPN
+	"""
+	import frappe
+	from frappe.utils import flt
+
+	company = frappe.get_cached_doc("Company", doc.company)
+
+	total = flt(doc.total)
+	net_total = flt(doc.net_total)
+	down_payment = sum(
+		flt(row.net_total)
+		for row in frappe.get_all(
+			"Sales Invoice",
+			filters={"custom_is_dp": 1, "custom_dp_order": doc.name, "docstatus": 1},
+			fields=["net_total"],
+		)
+	) if frappe.get_meta("Sales Invoice").has_field("custom_dp_order") else 0
+	sub_total = net_total - down_payment
+
+	vat_rows = [
+		tax for tax in doc.get("taxes") or []
+		if not tax.get("is_tax_withholding_account") and tax.get("add_deduct_tax") != "Deduct"
+	]
+	vat = sum(flt(tax.tax_amount_after_discount_amount or tax.tax_amount) for tax in vat_rows)
+	vat_rate = next((flt(tax.rate) for tax in vat_rows if flt(tax.rate)), 11)
+	if vat_rows and down_payment and net_total:
+		vat = vat * sub_total / net_total
+	elif not vat_rows and doc.get("custom_show_vat_for_wapu"):
+		vat = sub_total * 0.11
+
+	vat = flt(vat, doc.precision("total_taxes_and_charges"))
+	grand_total = flt(sub_total + vat, doc.precision("grand_total"))
+
+	bank = frappe._dict()
+	if company.get("custom_kwitansi_bank_account"):
+		bank = frappe.db.get_value(
+			"Bank Account",
+			company.custom_kwitansi_bank_account,
+			["bank", "bank_account_no", "branch_code"],
+			as_dict=True,
+		) or frappe._dict()
+
+	return frappe._dict(
+		total=total,
+		discount=total - net_total,
+		down_payment=down_payment,
+		sub_total=sub_total,
+		vat=vat,
+		vat_rate=vat_rate,
+		grand_total=grand_total,
+		in_words=amount_in_english(grand_total, doc.currency),
+		delivery_notes=frappe.get_all(
+			"Delivery Note Item",
+			filters={"against_sales_order": doc.name, "docstatus": 1},
+			pluck="parent",
+			distinct=True,
+			order_by="parent",
+		),
+		bank=bank.get("bank") or "",
+		bank_branch=bank.get("branch_code") or "",
+		account_no=bank.get("bank_account_no") or "",
+		account_name=company.company_name,
+		signer=company.get("custom_kwitansi_signer") or "",
+	)
+
+
+def amount_in_english(amount, currency="IDR"):
+	"""16.676.640 -> "Sixteen million six hundred seventy-six thousand six hundred forty rupiah"."""
+	from frappe.utils import flt
+	from num2words import num2words
+
+	whole = int(flt(amount))
+	words = num2words(whole, lang="en").replace(",", "").replace(" and ", " ")
+	unit = "rupiah" if currency == "IDR" else (currency or "")
+	cents = round((flt(amount) - whole) * 100)
+	if cents and currency != "IDR":
+		words += f" and {cents:02d}/100"
+	return f"{words[:1].upper()}{words[1:]} {unit}".strip()

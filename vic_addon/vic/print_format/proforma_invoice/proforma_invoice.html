@@ -1,0 +1,193 @@
+{#- Proforma Invoice ke customer, dicetak dari Sales Order (formulir "performa invoice.pdf").
+    Ringkasan total, terbilang, nomor DO, rekening & penandatangan: lihat get_proforma di
+    vic/print_utils.py. Rekening & penandatangan ikut setting Kwitansi di Company. -#}
+{%- set pf = get_proforma(doc) -%}
+{%- set currency = doc.currency -%}
+{%- set email = doc.get("contact_email") or (frappe.db.get_value("Customer", doc.customer, "email_id") if doc.customer else "") -%}
+{%- set tax_no = doc.get("tax_id") or (frappe.db.get_value("Customer", doc.customer, "tax_id") if doc.customer else "") -%}
+
+<style>
+	/* kotak customer di kiri; Payment Terms / Tax No / DO No di kanan */
+	.vic-pf .parties { width: 100%; margin-top: 14px; table-layout: fixed; }
+	.vic-pf .parties > tbody > tr > td { vertical-align: top; }
+	.vic-pf .parties .left { width: 55%; padding-right: 30px !important; }
+	.vic-pf .parties .box {
+		border: 1px solid #000;
+		border-radius: 8px;
+		padding: 8px 10px;
+		min-height: 62px;
+	}
+	.vic-pf .parties .box .name { font-weight: 700; }
+	.vic-pf .pf-terms { margin-left: auto; }
+	.vic-pf .pf-terms .lbl { width: 95px; }
+	.vic-pf .pf-terms .sep { width: 12px; }
+	/* nilai Payment Terms dikotakin; kotaknya tetap kelihatan walau kosong */
+	.vic-pf .pf-terms .pay { display: inline-block; border: 1px solid #000; padding: 1px 10px; min-width: 90px; min-height: 14px; text-align: center; }
+	.vic-pf .po-no { margin-top: 4px; }
+	.vic-pf .po-no .lbl { width: 60px; font-weight: 700; }
+	.vic-pf .po-no .sep { width: 12px; }
+	/* terbilang di kiri, ringkasan total di kanan */
+	.vic-pf .summary { width: 100%; margin-top: 6px; table-layout: fixed; }
+	.vic-pf .summary > tbody > tr > td { vertical-align: top; }
+	.vic-pf .summary .words { width: 58%; padding-right: 20px !important; }
+	.vic-pf .summary .words .cap { font-weight: 700; font-size: 9px; padding-right: 8px !important; white-space: nowrap; vertical-align: top; }
+	.vic-pf .summary .words .text { font-weight: 700; font-size: 13px; }
+	.vic-pf .summary .totals { margin-top: 0; }
+	.vic-pf .summary .totals .lbl { text-align: left; }
+	.vic-pf .summary .totals .money { width: 45%; }
+	/* tanda tangan di kiri, kotak rekening di kanan */
+	.vic-pf .pf-bottom { width: 100%; margin-top: 14px; table-layout: fixed; }
+	.vic-pf .pf-bottom > tbody > tr > td { vertical-align: top; }
+	.vic-pf .pf-bottom .signer { width: 32%; text-align: center; }
+	.vic-pf .pf-bottom .signer .role { padding-bottom: 64px; }
+	.vic-pf .pf-bottom .bank {
+		border: 1px solid #000;
+		border-radius: 8px;
+		padding: 8px 12px;
+	}
+	.vic-pf .pf-bottom .bank .head { font-weight: 700; }
+</style>
+
+<div class="vic-pf">
+	{%- include "vic_addon/templates/print_formats/vic_letterhead.html" -%}
+
+	<div class="title-wrap">
+		<div class="title-block">
+			<div class="doc-title">PROFORMA INVOICE</div>
+			<table class="meta">
+				<tr>
+					<td class="lbl">Invoice No.</td>
+					<td class="sep">:</td>
+					<td>{{ doc.name }}</td>
+				</tr>
+				<tr>
+					<td class="lbl">Date</td>
+					<td class="sep">:</td>
+					<td>{{ frappe.utils.formatdate(doc.transaction_date, "MMMM d, yyyy") | upper }}</td>
+				</tr>
+			</table>
+		</div>
+	</div>
+
+	<table class="parties">
+		<tr>
+			<td class="left">
+				<div class="box">
+					<div class="name">{{ doc.customer_name or doc.customer }}</div>
+					{%- if doc.address_display %}<div>{{ doc.address_display }}</div>{% endif %}
+					{%- if email %}<div>EMAIL : {{ email }}</div>{% endif %}
+				</div>
+			</td>
+			<td>
+				<table class="pf-terms">
+					<tr>
+						<td class="lbl">Payment Terms</td>
+						<td class="sep">:</td>
+						<td><span class="pay">{{ doc.get("payment_terms_template") or "&nbsp;" }}</span></td>
+					</tr>
+					<tr>
+						<td class="lbl">Tax No</td>
+						<td class="sep">:</td>
+						<td>{{ tax_no or "" }}</td>
+					</tr>
+					<tr>
+						<td class="lbl">DO No.</td>
+						<td class="sep">:</td>
+						<td>{{ pf.delivery_notes | join(", ") }}</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+	</table>
+
+	<table class="po-no">
+		<tr>
+			<td class="lbl">PO No.</td>
+			<td class="sep">:</td>
+			<td>{{ doc.po_no or "" }}</td>
+		</tr>
+	</table>
+
+	<table class="items">
+		<thead>
+			<tr>
+				<th style="width: 7%">Item</th>
+				<th class="left" style="width: 45%">Descriptions</th>
+				<th style="width: 12%">Qty</th>
+				<th style="width: 17%">Unit Price<div>{{ currency }}</div></th>
+				<th style="width: 19%">Total Price<div>{{ currency }}</div></th>
+			</tr>
+		</thead>
+		<tbody>
+			{%- set ns = namespace(no = 0) %}
+			{%- for group in group_items(doc.items) %}
+				{%- set indent = group.indent %}
+				{#- Pengerjaan paling atas, di bawahnya Pengiriman, terus item (lihat vic/item_header.py) -#}
+				{%- if group.pengerjaan %}
+					<tr class="group pengerjaan"><td></td><td class="text" colspan="4">{{ group.pengerjaan }}</td></tr>
+				{%- endif %}
+				{%- if group.header %}
+					<tr class="group"><td></td><td class="text {{ group.header_indent }}" colspan="4">{{ group.header }}</td></tr>
+				{%- endif %}
+				{%- for item in group.rows %}
+					{%- set ns.no = ns.no + 1 %}
+					{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
+					{%- set qty = item.qty | float %}
+					<tr>
+						<td class="num">{{ ns.no }}</td>
+						<td class="text {{ indent }}">
+							<div class="desc">{{ get_item_description(item) }}</div>
+							{%- if size %}<div>SIZE : {{ size }}</div>{% endif %}
+						</td>
+						<td class="qty">{{ qty | int if qty == qty | round(0) else "%.2f" | format(qty) }} {{ item.uom }}</td>
+						<td class="money">{{ frappe.utils.fmt_money(item.rate) }}</td>
+						<td class="money">{{ frappe.utils.fmt_money(item.amount) }}</td>
+					</tr>
+				{%- endfor %}
+			{%- endfor %}
+		</tbody>
+	</table>
+
+	<table class="summary">
+		<tr>
+			<td class="words">
+				<table>
+					<tr>
+						<td class="cap">In Words</td>
+						<td class="text">{{ pf.in_words }}</td>
+					</tr>
+				</table>
+			</td>
+			<td>
+				<table class="totals">
+					<tr><td class="lbl">TOTAL</td><td class="money">{{ frappe.utils.fmt_money(pf.total) }}</td></tr>
+					<tr><td class="lbl">DISCOUNT</td><td class="money">{{ frappe.utils.fmt_money(pf.discount) }}</td></tr>
+					<tr><td class="lbl">DOWN PAYMENT</td><td class="money">{{ frappe.utils.fmt_money(pf.down_payment) }}</td></tr>
+					<tr><td class="lbl">SUB TOTAL</td><td class="money">{{ frappe.utils.fmt_money(pf.sub_total) }}</td></tr>
+					<tr><td class="lbl">PPN</td><td class="money">{{ frappe.utils.fmt_money(pf.vat) }}</td></tr>
+					<tr class="grand"><td class="lbl">GRAND TOTAL</td><td class="money">{{ frappe.utils.fmt_money(pf.grand_total) }}</td></tr>
+				</table>
+			</td>
+		</tr>
+	</table>
+
+	<table class="pf-bottom">
+		<tr>
+			<td class="signer">
+				<div class="role">Best Regards,</div>
+				<div>( {{ pf.signer }} )</div>
+			</td>
+			<td>
+				{%- if pf.account_no %}
+					<div class="bank">
+						<div class="head">Please remit the total payable to our account at :</div>
+						<div>{{ pf.bank }}{% if pf.bank_branch %} - {{ pf.bank_branch }}{% endif %}</div>
+						<div>Acc. Name. {{ pf.account_name }}</div>
+						<div>Acc. No. {{ pf.account_no }} ( {{ currency }} )</div>
+					</div>
+				{%- endif %}
+			</td>
+		</tr>
+	</table>
+	{%- include "vic_addon/templates/print_formats/vic_footer.html" -%}
+</div>

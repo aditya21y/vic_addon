@@ -28,6 +28,8 @@ PRINT_FORMATS = {
 	"Kwitansi": "kwitansi",
 	"Kwitansi (Progress)": "kwitansi_progress",
 	"Receipt Note": "receipt_note",
+	# Proforma Invoice dari Sales Order
+	"Proforma Invoice": "proforma_invoice",
 }
 
 

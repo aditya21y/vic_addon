@@ -2073,6 +2073,36 @@ nama & jabatan penandatangan. *Atas Nama* rekening = nama company.
 Implementasi: `get_kwitansi`, `terbilang`, `tanggal` di `vic_addon/vic/print_utils.py` (helper Jinja),
 template di `vic_addon/vic/print_format/kwitansi*/`.
 
+#### Print Format: Proforma Invoice (Sales Order)
+
+Print format **Proforma Invoice** di Sales Order, ngikut formulir `performa invoice.pdf`: kop VIC,
+judul **PROFORMA INVOICE** (Invoice No. = nomor SO, Date = tanggal SO huruf besar), kotak customer
+(nama tebal, alamat, `EMAIL : ` dari kontak / master Customer), di kanannya **Payment Terms** (nama
+Payment Terms Template, dikotakin), **Tax No** (NPWP customer), **DO No.** (Delivery Note submitted
+dari SO ini); **PO No.** customer di bawah kotak. Tabel item sama kayak Quotation (VIC) — termasuk
+judul Pengerjaan / Pengiriman.
+
+Ringkasan di bawah tabel (`get_proforma` di `vic/print_utils.py`):
+
+| Baris | Isi |
+| --- | --- |
+| In Words | Grand Total di bawah, bahasa Inggris gaya formulir: "Sixteen million six hundred seventy-six thousand six hundred forty rupiah" |
+| TOTAL | Total (sebelum diskon tambahan) |
+| DISCOUNT | Total − Net Total |
+| DOWN PAYMENT | DPP Invoice DP (skema Item DP) order ini yang udah submit |
+| SUB TOTAL | Net Total − Down Payment |
+| PPN | PPN SO; kalau ada DP dihitung ulang sebanding Sub Total; Show VAT for WAPU tanpa baris PPN → 11% × Sub Total |
+| GRAND TOTAL | Sub Total + PPN |
+
+Bawah: *Best Regards,* + `( nama )` di kiri, kotak **"Please remit the total payable to our account
+at :"** di kanan (bank - cabang, Acc. Name = nama company, Acc. No. + mata uang). Rekening &
+penandatangan ikut setting **Kwitansi** di Company (*Rekening Kwitansi*, *Penandatangan Kwitansi*);
+kotak rekening gak dicetak kalau rekeningnya belum di-set.
+
+Dites pakai angka formulir (3 × 3.650.000 + 6 × 679.000, PPN 11%): Total 15.024.000, PPN 1.652.640,
+Grand Total 16.676.640, terbilang sama persis. Dengan DP 20%: Down Payment 3.004.800, Sub Total
+12.019.200, PPN 1.322.112, Grand Total 13.341.312.
+
 #### Print Format: Delivery Order (Delivery Note)
 
 Lima blok tanda tangan (Issued By — diisi nama user
