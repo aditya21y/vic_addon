@@ -15,6 +15,8 @@ PRINT_FORMATS = {
 	"Goods Received": "goods_received",
 	"Serial No Label": "serial_no_label",
 	"Delivery Order": "delivery_order",
+	# Delivery Order versi gudang: barang stok aja, tanpa Pengerjaan / Pengiriman
+	"Delivery Order (Stock Only)": "delivery_order_stock",
 	"Quotation (VIC)": "quotation",
 	"Purchase Order (VIC)": "purchase_order",
 	"Purchase Request": "purchase_request",

@@ -692,6 +692,45 @@ jurnal reklasnya submitted, invoice-nya gak bisa dibatalin (link-nya ngunci).
 
 Implementasi: `vic_addon/vic/ppn_tertunda.py` + `vic_addon/public/js/purchase_invoice.js`.
 
+#### Vendor Deposit (uang jaminan ke supplier lewat PO)
+
+Deposit / uang jaminan ke supplier (mis. deposit kontainer) — dicatat sebagai **aset**, bukan
+biaya dan bukan uang muka barang. Tanpa PPN/PPh.
+
+| Tempat | Field / tombol |
+| --- | --- |
+| Company → section **Vendor Deposit** | **Vendor Deposit Account** — akun aset (bukan grup) |
+| Purchase Order (bagian total, di bawah Advance Paid) | **Deposit Amount** (mata uang perusahaan, bisa diubah setelah submit) + **Deposit Paid** (otomatis) |
+| Purchase Order submitted | tombol **Pay Deposit** — muncul selama Deposit Paid < Deposit Amount |
+| Payment Entry | **Deposit for Purchase Order** (penanda, read only) |
+
+**Pay Deposit** buka Payment Entry yang udah keisi: Pay ke supplier PO, **Paid Amount = sisa
+deposit** (boleh dikurangin, bayar sebagian), **Account Paid To = Vendor Deposit Account**,
+**Account Paid From** = akun bank dari **Mode of Payment** yang dipilih (bawaan ERPNext; default awal
+akun bank default company). Jurnalnya:
+
+```
+DR  Vendor Deposit Account (party: supplier)     600.000
+CR  Bank / Kas                                           600.000
+```
+
+Akun deposit bukan akun hutang, jadi ERPNext **gak** bikin Payment Ledger Entry: deposit gak
+nambah **Advance Paid** PO dan gak ketarik *Get Advances* di Purchase Invoice. Saldo deposit per
+supplier dibaca dari **General Ledger** (filter akun deposit + party). Payment Entry deposit
+sengaja gak boleh punya References, pajak, maupun potongan.
+
+**Penjaga:** supplier & company harus sama dengan PO; Account Paid To harus akun deposit; total
+deposit dibayar gak boleh lewat Deposit Amount; Deposit Amount gak boleh diturunin di bawah yang
+udah dibayar. Deposit Paid dihitung ulang tiap Payment Entry deposit disubmit / dibatalin.
+
+**Pengembalian deposit** (penuh atau sebagian) dicatat **manual**, mis. Payment Entry Receive dari
+supplier dengan Account Paid From = akun deposit — gak ngubah Deposit Paid di PO.
+
+Dites (rollback): PO deposit 1jt → bayar 600rb → PE kedua keisi 400rb (bayar 500rb ditolak) → lunas,
+tombol ditolak → cancel PE kedua, Deposit Paid balik 600rb; Advance Paid PO tetap 0.
+
+Implementasi: `vic_addon/vic/vendor_deposit.py`, `vic_addon/public/js/vendor_deposit.js`.
+
 #### Sales Order: PO per supplier + dropship
 
 Info supplier ikut turun sepanjang alur lewat field `Supplier Quotation` + `Supplier` di
@@ -2061,6 +2100,17 @@ Baris tanda tangannya 5 kolom — Issued By / Approved by / Warehouse / Delivere
 Nama di bawah **Issued By** diambil dari pembuat dokumen; empat sisanya sengaja kosong buat tanda
 tangan basah (nama otomatisnya nyusul bareng tiket signature Purchasing Manager & Warehouse
 Captain).
+
+**Delivery Order (Stock Only)** — print format kedua di Delivery Note, buat gudang: isinya sama
+persis kayak Delivery Order (kop, kotak Customer/Delivered To, Vehicle No/PO No, serial number,
+tanda tangan), bedanya:
+
+- item yang **gak Maintain Stock** (jasa, ongkir, Item DP, dll) gak dicetak — dicek dari master
+  Item (`is_stock_item`), nomor urutnya cuma ngitung barang stok;
+- tabelnya **rata**, tanpa judul Pengerjaan / Pengiriman.
+
+Catatan: Product Bundle (item induknya non-stok) ikut kesaring — kalau nanti dipakai, isi
+bundle-nya (`packed_items`) perlu ditambahin. File: `vic_addon/vic/print_format/delivery_order_stock/`.
 
 #### Print Format: Goods Received (Purchase Receipt)
 
