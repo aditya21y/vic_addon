@@ -9,6 +9,7 @@
  "field_order": [
   "item_code",
   "item_name",
+  "custom_pengerjaan",
   "custom_header",
   "column_break_item",
   "uom",
@@ -63,12 +64,20 @@
    "read_only": 1
   },
   {
+   "columns": 1,
+   "description": "Kelompok pengerjaan, dicetak paling atas pada print format (di atas Pengiriman). Apabila dikosongkan, baris ini mengikuti baris di atasnya.",
+   "fieldname": "custom_pengerjaan",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Pengerjaan"
+  },
+  {
+   "columns": 1,
+   "description": "Kelompok pengiriman (di dalam Pengerjaan), dicetak sebagai judul tersendiri pada print format. Apabila dikosongkan, baris ini mengikuti baris di atasnya.",
    "fieldname": "custom_header",
    "fieldtype": "Data",
-   "label": "Header",
-   "description": "Nama kelompok baris item, dicetak sebagai judul tersendiri pada print format. Apabila dikosongkan, baris ini mengikuti kelompok baris di atasnya.",
    "in_list_view": 1,
-   "columns": 2
+   "label": "Pengiriman"
   },
   {
    "fieldname": "column_break_item",
@@ -104,11 +113,11 @@
    "label": "Buying"
   },
   {
+   "description": "Harga beli per unit sebelum diskon, diambil dari Supplier Quotation. Harga setelah diskon tersimpan pada kolom Rate.",
    "fieldname": "price_list_rate",
    "fieldtype": "Currency",
    "label": "Price List Rate",
-   "options": "currency",
-   "description": "Harga beli per unit sebelum diskon, diambil dari Supplier Quotation. Harga setelah diskon tersimpan pada kolom Rate."
+   "options": "currency"
   },
   {
    "columns": 1,
@@ -301,7 +310,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-07-26 00:35:31.690462",
+ "modified": "2026-10-23 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "VIC",
  "name": "Costing Item",

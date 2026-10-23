@@ -75,13 +75,17 @@
 		</thead>
 		<tbody>
 			{%- set ns = namespace(no = 0) %}
-			{%- for header, rows in group_items_by_header(doc.items) %}
-				{%- set indent = "indent" if header else "" %}
-				{%- if header %}
-					{#- judul kelompok mulai di kolom Description, kolom sebelumnya dikosongin -#}
-					<tr class="group"><td></td><td class="text" colspan="5">{{ header }}</td></tr>
+			{%- for group in group_items(doc.items) %}
+				{%- set indent = group.indent %}
+				{#- Pengerjaan paling atas, di bawahnya Pengiriman, terus item (lihat vic/item_header.py) -#}
+				{%- if group.pengerjaan %}
+					<tr class="group pengerjaan"><td></td><td class="text" colspan="5">{{ group.pengerjaan }}</td></tr>
 				{%- endif %}
-				{%- for item in rows %}
+				{%- if group.header %}
+					{#- judul kelompok mulai di kolom Description, kolom sebelumnya dikosongin -#}
+					<tr class="group"><td></td><td class="text {{ group.header_indent }}" colspan="5">{{ group.header }}</td></tr>
+				{%- endif %}
+				{%- for item in group.rows %}
 					{%- set ns.no = ns.no + 1 %}
 					{%- set size = frappe.db.get_value("Item", item.item_code, "custom_size") %}
 					{%- set qty = item.qty | float %}

@@ -104,6 +104,9 @@ for doctype in ("Sales Invoice", "Purchase Invoice"):
 doctype_js["Sales Order"].append("public/js/sales_order.js")
 # PO dropship: tombol bikin Delivery Note, tombol Purchase Receipt disembunyiin
 doctype_js["Purchase Order"].append("public/js/purchase_order.js")
+# deposit ke supplier: tombol Pay Deposit di PO, akun deposit di Payment Entry
+doctype_js["Purchase Order"].append("public/js/vendor_deposit.js")
+doctype_js["Payment Entry"].append("public/js/vendor_deposit.js")
 # RFQ: pilihan Project disaring ke Customer-nya
 doctype_js.setdefault("Opportunity", []).append("public/js/opportunity.js")
 # Repack Percentage: isi persen -> Set Basic Rate Manually dicopot
@@ -149,6 +152,8 @@ doctype_js.setdefault("Purchase Receipt", []).append("public/js/purchase_receipt
 jinja = {
 	"methods": [
 		"vic_addon.vic.item_header.group_items_by_header",
+		# Pengerjaan -> Pengiriman -> item, buat print format doctype yang punya Pengerjaan
+		"vic_addon.vic.item_header.group_items",
 		# kolom Description di tabel item: description dulu, kosong -> item name
 		"vic_addon.vic.print_utils.get_item_description",
 		# nama di bawah "Best regards," pada Inquiry - dipakai juga versi Excel-nya
@@ -325,10 +330,27 @@ doc_events["Payment Entry"] = {
 	"before_validate": [
 		"vic_addon.vic.dp_invoice.set_advance_taxes",
 	],
-	# PPN uang muka pindah dari akun penampung ke akun aslinya begitu DP-nya kebayar
-	"on_submit": "vic_addon.vic.dp_ppn.make_vat_reclass_entry",
-	"on_cancel": "vic_addon.vic.dp_ppn.cancel_vat_reclass_entry",
+	# deposit ke supplier dari tombol Pay Deposit di PO
+	"validate": "vic_addon.vic.vendor_deposit.validate_deposit_payment",
+	"on_submit": [
+		# PPN uang muka pindah dari akun penampung ke akun aslinya begitu DP-nya kebayar
+		"vic_addon.vic.dp_ppn.make_vat_reclass_entry",
+		"vic_addon.vic.vendor_deposit.update_deposit_paid",
+	],
+	"on_cancel": [
+		"vic_addon.vic.dp_ppn.cancel_vat_reclass_entry",
+		"vic_addon.vic.vendor_deposit.update_deposit_paid",
+	],
 }
+
+# Deposit Amount di PO: gak boleh minus / di bawah yang udah dibayar (bisa diubah setelah submit)
+doc_events["Purchase Order"]["validate"].append("vic_addon.vic.vendor_deposit.validate_deposit_amount")
+doc_events["Purchase Order"].setdefault("before_update_after_submit", [])
+if isinstance(doc_events["Purchase Order"]["before_update_after_submit"], str):
+	doc_events["Purchase Order"]["before_update_after_submit"] = [doc_events["Purchase Order"]["before_update_after_submit"]]
+doc_events["Purchase Order"]["before_update_after_submit"].append(
+	"vic_addon.vic.vendor_deposit.validate_deposit_amount"
+)
 
 # Purchase Request dari Sales Order: nomor PO customer ikut kebawa
 doc_events["Material Request"] = {
