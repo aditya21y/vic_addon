@@ -162,6 +162,8 @@ jinja = {
 		"vic_addon.vic.print_utils.get_kwitansi",
 		# Proforma Invoice (Sales Order): ringkasan total, terbilang Inggris, rekening
 		"vic_addon.vic.print_utils.get_proforma",
+		# Invoice (VIC) dari Sales Invoice - formulirnya sama kayak Proforma
+		"vic_addon.vic.print_utils.get_sales_invoice_print",
 		# term pembayaran > 20 karakter pindah ke Note di akhir tabel item
 		"vic_addon.vic.print_utils.split_payment_terms",
 		"vic_addon.vic.print_utils.terbilang",

@@ -30,6 +30,8 @@ PRINT_FORMATS = {
 	"Receipt Note": "receipt_note",
 	# Proforma Invoice dari Sales Order
 	"Proforma Invoice": "proforma_invoice",
+	# Invoice dari Sales Invoice, formulirnya sama kayak Proforma Invoice
+	"Invoice (VIC)": "invoice",
 }
 
 

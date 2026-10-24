@@ -1839,6 +1839,7 @@ dikasih class `left`, `<td>`-nya class `text`, aturannya di letterhead.
 | --- | --- | --- |
 | Quotation (VIC) | **Quotation** (bisa juga dipasang di Sales Order) | QUOTATION |
 | Purchase Order (VIC) | Purchase Order | PURCHASE ORDER |
+| Invoice (VIC) | Sales Invoice | INVOICE (formulirnya sama kayak Proforma Invoice) |
 | Receipt Note | Purchase Invoice | "RECEIPT NOTE" (tanda terima tukar faktur, lihat di bawah) |
 | Purchase Request | Material Request | PURCHASE REQUEST |
 | Inquiry | Request for Quotation | INQUIRY (+ versi Excel, lihat di bawah) |
@@ -2119,6 +2120,14 @@ kotak rekening gak dicetak kalau rekeningnya belum di-set.
 Dites pakai angka formulir (3 × 3.650.000 + 6 × 679.000, PPN 11%): Total 15.024.000, PPN 1.652.640,
 Grand Total 16.676.640, terbilang sama persis. Dengan DP 20%: Down Payment 3.004.800, Sub Total
 12.019.200, PPN 1.322.112, Grand Total 13.341.312.
+
+
+**Invoice (VIC)** (Sales Invoice) pakai formulir yang sama (`INV-09260155.pdf`): judul **INVOICE**, Date =
+Posting Date, kotak **Customer** (judulnya nempel di garis), **Payment Terms** = Due Date dikotakin +
+jumlah harinya dari Posting Date (mis. `18-Oct-2026  30 Days`), Tax No (NPWP customer), DO No. dari baris
+item, PO No. Ringkasannya sama persis (`get_invoice_summary`), bedanya **DOWN PAYMENT** = DPP DP yang
+dibalik di invoice itu (kolom *Allocated* di tabel DP Allocations). Terbilangnya huruf besar + "ONLY".
+Implementasi: `get_sales_invoice_print` di `vic/print_utils.py`, template di `vic/print_format/invoice/`.
 
 #### Print Format: Delivery Order (Delivery Note)
 

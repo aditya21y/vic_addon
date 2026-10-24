@@ -232,23 +232,12 @@ def get_received_from(doc):
 def get_proforma(doc):
 	"""Isian Proforma Invoice dari Sales Order: ringkasan total, terbilang, rekening, dll.
 
-	Ringkasannya ngikut formulir VIC:
-
-		TOTAL         = Total (sebelum diskon tambahan)
-		DISCOUNT      = Total - Net Total
-		DOWN PAYMENT  = DPP Invoice DP order ini yang udah submit (skema Item DP)
-		SUB TOTAL     = Net Total - Down Payment
-		PPN           = PPN dokumen, dihitung ulang sebanding Sub Total kalau ada DP;
-		                Show VAT for WAPU tanpa baris PPN -> 11% x Sub Total
-		GRAND TOTAL   = Sub Total + PPN
+	DOWN PAYMENT = DPP Invoice DP order ini yang udah submit (skema Item DP). Rumus ringkasannya
+	lihat `get_invoice_summary`.
 	"""
 	import frappe
 	from frappe.utils import flt
 
-	company = frappe.get_cached_doc("Company", doc.company)
-
-	total = flt(doc.total)
-	net_total = flt(doc.net_total)
 	down_payment = sum(
 		flt(row.net_total)
 		for row in frappe.get_all(
@@ -257,7 +246,58 @@ def get_proforma(doc):
 			fields=["net_total"],
 		)
 	) if frappe.get_meta("Sales Invoice").has_field("custom_dp_order") else 0
-	sub_total = net_total - down_payment
+
+	delivery_notes = frappe.get_all(
+		"Delivery Note Item",
+		filters={"against_sales_order": doc.name, "docstatus": 1},
+		pluck="parent",
+		distinct=True,
+		order_by="parent",
+	)
+
+	return get_invoice_summary(doc, down_payment, delivery_notes)
+
+
+def get_sales_invoice_print(doc):
+	"""Isian print format Invoice (VIC) dari Sales Invoice - formulirnya sama kayak Proforma.
+
+	DOWN PAYMENT = DPP DP yang dibalik di invoice ini (tabel DP Allocations, kolom Allocated).
+	DO No. dari baris item, Payment Terms = Due Date + jumlah harinya dari Posting Date.
+	"""
+	from frappe.utils import date_diff, flt
+
+	down_payment = sum(flt(row.allocated_amount) for row in doc.get("custom_dp_allocations") or [])
+	delivery_notes = sorted({row.delivery_note for row in doc.get("items") or [] if row.get("delivery_note")})
+
+	summary = get_invoice_summary(doc, down_payment, delivery_notes)
+	summary.due_days = date_diff(doc.due_date, doc.posting_date) if doc.get("due_date") else None
+
+	return summary
+
+
+def get_invoice_summary(doc, down_payment, delivery_notes):
+	"""Ringkasan total + rekening & penandatangan buat Proforma Invoice dan Invoice (VIC).
+
+	Ringkasannya ngikut formulir VIC:
+
+		TOTAL         = Total (sebelum diskon tambahan)
+		DISCOUNT      = Total - Net Total
+		DOWN PAYMENT  = DPP uang muka yang dipotong (lihat pemanggilnya)
+		SUB TOTAL     = Net Total - Down Payment
+		PPN           = PPN dokumen, dihitung ulang sebanding Sub Total kalau ada DP;
+		                Show VAT for WAPU tanpa baris PPN -> 11% x Sub Total
+		GRAND TOTAL   = Sub Total + PPN
+
+	Rekening & penandatangan ikut setting Kwitansi di Company.
+	"""
+	import frappe
+	from frappe.utils import flt
+
+	company = frappe.get_cached_doc("Company", doc.company)
+
+	total = flt(doc.total)
+	net_total = flt(doc.net_total)
+	sub_total = net_total - flt(down_payment)
 
 	vat_rows = [
 		tax for tax in doc.get("taxes") or []
@@ -285,19 +325,13 @@ def get_proforma(doc):
 	return frappe._dict(
 		total=total,
 		discount=total - net_total,
-		down_payment=down_payment,
+		down_payment=flt(down_payment),
 		sub_total=sub_total,
 		vat=vat,
 		vat_rate=vat_rate,
 		grand_total=grand_total,
 		in_words=amount_in_english(grand_total, doc.currency),
-		delivery_notes=frappe.get_all(
-			"Delivery Note Item",
-			filters={"against_sales_order": doc.name, "docstatus": 1},
-			pluck="parent",
-			distinct=True,
-			order_by="parent",
-		),
+		delivery_notes=delivery_notes,
 		bank=bank.get("bank") or "",
 		bank_branch=bank.get("branch_code") or "",
 		account_no=bank.get("bank_account_no") or "",
