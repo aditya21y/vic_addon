@@ -115,11 +115,11 @@ frappe.ui.form.on("Costing Item", {
 	rate: calculate,
 	margin_percentage: calculate,
 
-	// diisi user = jadi harga nego, gak ngikut selling rate lagi.
-	// dikosongin = balik ngikut selling rate.
+	// diisi user = jadi harga nego, gak ngikut selling rate lagi - termasuk kalau diisi 0
+	// (mis. barang tambahan yang gak ditagih). Dikosongin = balik ngikut selling rate.
 	quotation_rate(frm, cdt, cdn) {
 		const item = locals[cdt][cdn];
-		item.quotation_rate_manually_set = flt(item.quotation_rate) ? 1 : 0;
+		item.quotation_rate_manually_set = is_null(item.quotation_rate) ? 0 : 1;
 		calculate(frm);
 	},
 });

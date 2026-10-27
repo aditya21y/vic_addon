@@ -69,12 +69,13 @@ class Costing(Document):
 		"""Baris tanpa Supplier Quotation ambil harga pokok dari valuation rate gudangnya.
 
 		Barang stok yang udah nangkring di gudang gak punya penawaran supplier, jadi harga
-		pokoknya diambil dari nilai persediaan di gudang itu. Cuma diisi kalau Rate-nya masih
-		kosong: harga dari SQTN maupun angka yang diketik user gak ketiban. Kalau di gudang itu
-		item-nya belum punya nilai persediaan, Rate-nya dibiarin buat diisi manual.
+		pokoknya diambil dari nilai persediaan di gudang itu. Cuma diisi kalau Rate-nya beneran
+		kosong (belum pernah diisi): harga dari SQTN maupun angka yang diketik user - termasuk 0,
+		mis. barang tambahan - gak ketiban. Kalau di gudang itu item-nya belum punya nilai
+		persediaan, Rate-nya jadi 0 buat diisi manual.
 		"""
 		for item in self.items:
-			if item.supplier_quotation or flt(item.rate):
+			if item.supplier_quotation or item.rate not in (None, ""):
 				continue
 
 			item.rate = flt(get_valuation_rate(item.item_code, item.warehouse))

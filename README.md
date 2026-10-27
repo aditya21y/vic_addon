@@ -198,9 +198,14 @@ ya nilai persediaannya. Aturannya:
 | Baris | Rate-nya |
 | --- | --- |
 | Ada Supplier Quotation | Dari net rate SQTN, gak disentuh |
-| Tanpa SQTN, Rate masih kosong | Valuation rate item di gudang baris itu |
-| Tanpa SQTN, Rate diisi manual | Angka user dipertahanin |
-| Tanpa SQTN, gudangnya belum punya nilai persediaan | Dibiarin 0 buat diisi manual |
+| Tanpa SQTN, Rate masih kosong (belum pernah diisi) | Valuation rate item di gudang baris itu |
+| Tanpa SQTN, Rate diisi manual — **termasuk 0** | Angka user dipertahanin |
+| Tanpa SQTN, gudangnya belum punya nilai persediaan | Jadi 0 buat diisi manual |
+
+**Rate gak wajib dan boleh 0** — buat item tambahan yang gak ada harganya (mis. barang tambahan).
+Baris bisa ditambah langsung di tabel Items, gak harus lewat Get Items. Rate 0 bikin HPP, Selling,
+dan Quotation Rate baris itu ikut 0. Karena 0 sekarang dianggap isian user, Rate yang udah kesimpan
+0 gak ditarik ulang dari gudang tiap simpan — ganti item/gudang di form buat narik valuation-nya lagi.
 
 Angkanya per gudang, jadi item yang sama di gudang beda bisa beda harga pokok. Di form, gudang
 dan rate-nya keisi begitu item dipilih dan ditarik ulang kalau gudangnya diganti; server ngisi
@@ -270,8 +275,9 @@ selling 31.327,96, profit 5.027,96 (19,12%).
 
 **Quotation Rate** default ngikut Selling Rate (termasuk kalau margin/rate diubah), karena
 angka inilah yang kebawa ke Quotation ke customer. Kalau user isi manual (harga nego), field
-`Quotation Rate Manually Set` otomatis nyala dan nilainya berhenti ngikut Selling Rate.
-Kosongin Quotation Rate-nya buat balik ke mode auto.
+`Quotation Rate Manually Set` otomatis nyala dan nilainya berhenti ngikut Selling Rate — **termasuk
+kalau diisi 0** (harga ke customer 0, mis. barang tambahan yang gak ditagih; profit baris itu jadi
+minus sebesar HPP-nya). Kosongin Quotation Rate-nya (bukan diisi 0) buat balik ke mode auto.
 
 **Ambil item dari Supplier Quotation**, dua arah:
 
