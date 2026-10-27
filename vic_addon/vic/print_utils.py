@@ -124,7 +124,7 @@ def get_kwitansi(doc):
 		date=doc.get("custom_kwitansi_date") or doc.posting_date,
 		city=company.get("custom_kwitansi_city") or "Jakarta",
 		amount=amount,
-		received_from=doc.customer_name or doc.customer,
+		received_from=(doc.get("custom_kwitansi_received_from") or "").strip() or doc.customer_name or doc.customer,
 		project=project,
 		payment_for=(doc.get("custom_kwitansi_payment_for") or "").strip(),
 		invoice_no=doc.name,

@@ -2086,7 +2086,8 @@ Dua print format kwitansi buat tagihan progress/pelunasan, sama-sama dari Sales 
 | **Kwitansi (Progress)** | berbingkai + logo: No. & Faktur No., Sudah Terima dari (+ nama project), Sejumlah Uang (terbilang), Untuk Pembayaran + SPP No./Tanggal + Periode Tanggal, rekening, `Rp. 17,760,000,000`, penandatangan + jabatan |
 
 Isian yang diketik user ada di tab baru **Kwitansi** di Sales Invoice — **semuanya bisa diisi setelah
-submit**: No. Kwitansi, Tanggal Kwitansi (kosong → tanggal invoice), Nilai Kwitansi (kosong → total
+submit**: No. Kwitansi, Tanggal Kwitansi (kosong → tanggal invoice), **Telah Terima Dari** (kosong → nama
+customer; dicetak di "Telah Terima Dari" / "Sudah Terima dari"), Nilai Kwitansi (kosong → total
 tagihan dikurangi DP yang dibalik & uang muka yang dialokasiin), Rekening Tujuan (Bank Account; default
 dari Company), Untuk Pembayaran, dan section *Detail Progress* (SPP/SPK No. & tanggal, periode dari–s/d).
 
