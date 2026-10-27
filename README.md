@@ -1919,9 +1919,16 @@ maupun Grand Total. Tanda tangan *Best regards,* + **Sales Name** (kosong → na
 #### Show VAT for WAPU
 
 Checkbox **Show VAT for WAPU** (`custom_show_vat_for_wapu`, tab Taxes di sebelah Sales/Purchase
-Taxes and Charges Template, **bisa diubah setelah submit**) di **Quotation, Sales Order, Sales
-Invoice, Purchase Order, Purchase Receipt**. Buat transaksi WAPU: PPN-nya dipungut pembeli, jadi
-tabel Taxes and Charges dikosongin — tapi di kertas PPN tetap harus kelihatan.
+Taxes and Charges Template, **bisa diubah setelah submit**) di **Quotation, Sales Order, Delivery
+Note, Sales Invoice, Purchase Order, Purchase Receipt**. Buat transaksi WAPU: PPN-nya dipungut
+pembeli, jadi tabel Taxes and Charges dikosongin — tapi di kertas PPN tetap harus kelihatan.
+
+**Otomatis dari Tax Category.** Tax Category punya centangan **WAPU** (`custom_is_wapu`). Di **Sales
+Order, Delivery Note, dan Sales Invoice**, begitu Tax Category yang ditandai WAPU dipilih, Show VAT for
+WAPU langsung kecentang (dan dicentang lagi waktu disimpan) — lewat `fetch_from` +
+`fetch_if_empty` bawaan Frappe, gak ada kode. Cuma nyentang: centangan manual tanpa Tax Category WAPU
+tetap boleh dan gak ketimpa, dan ganti ke Tax Category non-WAPU **gak** ngelepas centangannya —
+lepas manual kalau perlu.
 
 Kalau dicentang **dan** dokumennya gak punya baris PPN, print format nyetak:
 
@@ -1933,7 +1940,7 @@ Kalau dicentang **dan** dokumennya gak punya baris PPN, print format nyetak:
 
 Cuma di kertas — nilai dokumen, GL, dan outstanding gak berubah. Kalau tabel pajaknya **ada** baris
 PPN, centangan ini diabaikan dan baris PPN itu yang dicetak (biar gak dobel). Nama field-nya sama di
-lima doctype, jadi ikut kebawa lewat mapper bawaan (Quotation → SO → SI, PO → PR).
+semua doctype itu, jadi ikut kebawa lewat mapper bawaan (Quotation → SO → DN → SI, PO → PR).
 
 Yang beneran nyetak baru **Quotation (VIC)** (juga kalau dipasang di Sales Order) dan **Purchase
 Order (VIC)**. Sales Invoice dan Purchase Receipt belum punya print format VIC yang nyetak total
