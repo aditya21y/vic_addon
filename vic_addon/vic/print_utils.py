@@ -64,43 +64,27 @@ def tanggal(date, upper=False):
 	return text.upper() if upper else text
 
 
-# SPP / SPK: nama field-nya sama di Sales Order & Sales Invoice, jadi Create > Sales Invoice dari SO
-# langsung nyalin isinya (mapper ERPNext nyalin field yang namanya sama)
-SPP_FIELDS = ("custom_kwitansi_spp_no", "custom_kwitansi_spp_date")
-
-
 def get_spp(doc):
-	"""(SPP / SPK No., tanggal) buat kwitansi: punya invoice sendiri, kosong -> dari Sales Order.
+	"""(SPP / SPK No., tanggal) buat kwitansi: isian tab Kwitansi di invoice, kosong -> Customer's
+	Purchase Order (`po_no` / `po_date`) invoice-nya, kosong juga -> punya Sales Order-nya.
 
-	Diambil sepasang: kalau nomornya diisi di invoice, tanggalnya juga dari invoice (walau kosong),
-	biar nomor & tanggal gak kecampur dari dua sumber. Sales Order-nya dari baris item - invoice
-	lewat Delivery Note tetap nyimpen nomor SO di barisnya.
+	Customer's PO udah kesalin sendiri dari Sales Order waktu invoice dibikin; Sales Order-nya
+	dipakai buat PO No. yang baru diisi di SO setelah invoice-nya kebentuk (field itu bisa diubah
+	setelah submit). Diambil sepasang: nomor & tanggal gak kecampur dari dua sumber.
 	"""
 	import frappe
 
 	if doc.get("custom_kwitansi_spp_no"):
 		return doc.custom_kwitansi_spp_no, doc.get("custom_kwitansi_spp_date")
 
+	if doc.get("po_no"):
+		return doc.po_no, doc.get("po_date")
+
 	sales_order = next((row.sales_order for row in doc.get("items") or [] if row.get("sales_order")), None)
 	if not sales_order:
 		return None, None
 
-	return frappe.db.get_value("Sales Order", sales_order, SPP_FIELDS) or (None, None)
-
-
-def set_spp_from_sales_order(doc, method=None):
-	"""Hook `before_validate` Sales Invoice: SPP / SPK yang masih kosong diisi dari Sales Order.
-
-	Nutup invoice yang gak dibikin langsung dari SO (mis. lewat Delivery Note), jadi isiannya
-	kelihatan di tab Kwitansi. Isian user gak pernah ketiban.
-	"""
-	if doc.get("custom_kwitansi_spp_no"):
-		return
-
-	spp_no, spp_date = get_spp(doc)
-	if spp_no:
-		doc.custom_kwitansi_spp_no = spp_no
-		doc.custom_kwitansi_spp_date = doc.get("custom_kwitansi_spp_date") or spp_date
+	return frappe.db.get_value("Sales Order", sales_order, ["po_no", "po_date"]) or (None, None)
 
 
 def get_kwitansi(doc):

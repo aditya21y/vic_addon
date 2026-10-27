@@ -2090,13 +2090,14 @@ submit**: No. Kwitansi, Tanggal Kwitansi (kosong → tanggal invoice), Nilai Kwi
 tagihan dikurangi DP yang dibalik & uang muka yang dialokasiin), Rekening Tujuan (Bank Account; default
 dari Company), Untuk Pembayaran, dan section *Detail Progress* (SPP/SPK No. & tanggal, periode dari–s/d).
 
-**SPP / SPK No. & tanggalnya diambil dari Sales Order.** Sales Order punya field **SPP / SPK No.** dan
-**Tanggal SPP / SPK** (di bawah Subject, bisa diisi setelah submit) dengan nama field yang sama kayak di
-invoice (`custom_kwitansi_spp_no`, `custom_kwitansi_spp_date`), jadi *Create > Sales Invoice* dari SO
-langsung nyalin isinya. Invoice yang lewat Delivery Note diisi waktu disimpan, dari SO di baris item-nya.
-Dua-duanya cuma ngisi yang kosong — isian di invoice tetap bisa diedit dan gak ketiban. Invoice yang udah
-submit sebelum SPP-nya diisi di SO tetap kecetak nomor SO-nya di kwitansi. Nomor & tanggal diambil
-sepasang dari sumber yang sama.
+**SPP / SPK No. & tanggalnya diambil dari Customer's Purchase Order.** Isian *SPP / SPK No.* & *Tanggal
+SPP / SPK* di tab Kwitansi tetap bisa diisi buat nimpa; kalau kosong, kwitansi nyetak **Customer's
+Purchase Order** (`po_no`) & tanggalnya (`po_date`) dari invoice itu — yang udah kesalin sendiri dari
+Sales Order. Kalau di invoice juga kosong, diambil dari Sales Order-nya (buat PO No. yang baru diisi di
+SO setelah invoice kebentuk). Nomor & tanggal diambil sepasang dari sumber yang sama.
+
+Dulu Sales Order punya field SPP / SPK sendiri — udah dibuang (patch `drop_sales_order_spp`; isian
+lamanya dipindah ke Customer's Purchase Order kalau field itu masih kosong).
 
 Sisanya diambil otomatis: nama customer, nama project, Faktur No. (*Nomor Faktur Pajak*), nomor invoice
 & DO (ditambahin di belakang Untuk Pembayaran di Kwitansi biasa, kalau belum ditulis sendiri),
