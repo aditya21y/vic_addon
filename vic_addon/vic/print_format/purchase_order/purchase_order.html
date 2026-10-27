@@ -96,7 +96,8 @@
 					<tr>
 						<td class="lbl">Delivery Time</td>
 						<td class="sep">:</td>
-						<td>{{ frappe.utils.formatdate(doc.schedule_date, "MMMM d, yyyy") if doc.schedule_date else "" }}</td>
+						{#- field Delivery Time duluan; kosong -> tanggal Required By -#}
+						<td>{{ doc.get("custom_delivery_time") or (frappe.utils.formatdate(doc.schedule_date, "MMMM d, yyyy") if doc.schedule_date else "") }}</td>
 					</tr>
 				</table>
 				<div class="box">

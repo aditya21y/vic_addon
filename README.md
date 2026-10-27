@@ -1914,8 +1914,9 @@ PPN; PO tanpa PPN tetap kecetak senilai 0, ngikut formulir — kecuali **Show VA
 Masukan @ 11.0". Baris pajak lain (PPh, potongan) tetap dicetak pakai deskripsinya. Terbilang dari
 field `in_words` bawaan ERPNext, blok tanda
 tangan Supplier Approved + Director, dan baris warna salinan (Putih = Supplier, Merah =
-Purchasing, Kuning = Accounting, Hijau = Finance). Delivery Time-nya ngambil **Required By**
-(`schedule_date`), bukan teks hardcode.
+Purchasing, Kuning = Accounting, Hijau = Finance). Delivery Time-nya ngambil field **Delivery Time**
+(`custom_delivery_time`, teks bebas di sebelah Required By, mis. "2-3 minggu setelah PO", bisa diubah
+setelah submit); kosong → tanggal **Required By** (`schedule_date`).
 
 **Quotation (VIC)** ngikut template `Quotation.pdf`: kotak bergaris **Customer** (nama tebal + kontak
 dengan sapaan dari Contact), di kanannya Delivery Point, Delivery Time, Validity, Payment Terms; Your Ref
