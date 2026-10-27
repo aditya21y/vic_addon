@@ -1507,6 +1507,13 @@ Rate diisi, ERPNext ngitung ulang kayak biasa.
 **Details**, kolom kanan di bawah Company — lewat property setter `field_order`. Isinya dicetak di
 print format Delivery Order.
 
+#### Billing Currency wajib di Customer & Supplier
+
+**Billing Currency** (`default_currency`) di Customer dan Supplier dibikin **wajib** (property setter
+`reqd`), biar mata uang transaksinya gak ketebak dari default company. Customer/Supplier lama yang
+masih kosong gak diubah otomatis — begitu dibuka & disimpan lagi, field-nya harus diisi dulu. Di
+Quick Entry (tombol + New) field-nya ikut muncul karena wajib.
+
 #### Form Supplier dirampingin
 
 - **Disembunyiin** (property setter `hidden`): Company Bank Account (`default_bank_account`),
