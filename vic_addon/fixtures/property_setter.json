@@ -1486,5 +1486,53 @@
   "property_type": "Check",
   "row_name": null,
   "value": "1"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Opportunity Item",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "amount",
+  "is_system_generated": 1,
+  "modified": "2026-10-27 18:00:00.000000",
+  "module": "VIC",
+  "name": "Opportunity Item-amount-default",
+  "property": "default",
+  "property_type": "Text",
+  "row_name": null,
+  "value": "0"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Opportunity Item",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "base_rate",
+  "is_system_generated": 1,
+  "modified": "2026-10-27 18:00:00.000000",
+  "module": "VIC",
+  "name": "Opportunity Item-base_rate-default",
+  "property": "default",
+  "property_type": "Text",
+  "row_name": null,
+  "value": "0"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Opportunity Item",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "base_amount",
+  "is_system_generated": 1,
+  "modified": "2026-10-27 18:00:00.000000",
+  "module": "VIC",
+  "name": "Opportunity Item-base_amount-default",
+  "property": "default",
+  "property_type": "Text",
+  "row_name": null,
+  "value": "0"
  }
 ]

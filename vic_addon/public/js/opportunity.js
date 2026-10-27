@@ -21,8 +21,8 @@ frappe.ui.form.on("Opportunity", {
 
 // Rate item RFQ wajib diisi tapi ERPNext gak pernah ngambilin harganya - di tahap RFQ harganya
 // emang belum ada, jadi langsung diisi 0. Baris baru udah 0 dari default (property setter
-// `Opportunity Item-rate-default`); ini buat baris yang Rate-nya sempat dikosongin. Rate yang
-// udah diisi user gak ditimpa.
+// `Opportunity Item-rate-default`, begitu juga Amount & versi Company Currency-nya); ini buat
+// baris yang Rate-nya sempat dikosongin. Rate yang udah diisi user gak ditimpa.
 frappe.ui.form.on("Opportunity Item", {
 	item_code(frm, cdt, cdn) {
 		const row = locals[cdt][cdn];

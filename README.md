@@ -1489,6 +1489,12 @@ ngambilin harga (di tahap RFQ harganya emang belum ada). Property setter
 server/import. Di form, ngisi Item Code di baris yang Rate-nya kosong ikut ngisi 0; Rate yang udah
 diketik user gak ditimpa.
 
+Amount, Rate (Company Currency), dan Amount (Company Currency) juga wajib, tapi ERPNext baru ngitung
+ketiganya waktu Qty/Rate **diubah**. Baris yang baru ditambah terus langsung disimpan jadi ditolak
+("... is required in every row"), jadi ketiganya ikut default 0 (`Opportunity Item-amount-default`,
+`-base_rate-default`, `-base_amount-default`). Rate-nya 0, jadi 0 itu emang nilai yang bener; begitu
+Rate diisi, ERPNext ngitung ulang kayak biasa.
+
 #### Delivery Note: Vehicle No di tab Details
 
 **Vehicle No** (`vehicle_no`) dipindah dari tab More Info (section Transporter Info) ke header tab
