@@ -13,7 +13,8 @@ Gantiin alur DP lama (Advance Invoice / Payment Request). Contoh order DPP 1.000
 	                  progress, jadi tagihannya tinggal 440)
 	5. PE             Dr Bank 440 / Cr Piutang 440                        (bawaan ERPNext)
 
-Sisi pembelian sama persis, arahnya kebalik (Uang Muka Pembelian = aset, PPN Masukan).
+Cuma sisi penjualan. Sisi pembelian dulu ikut skema ini, sekarang dicabut - DP ke supplier cukup
+advance payment (Payment Entry) di Purchase Order, dialokasiin di Purchase Invoice lewat Advances.
 
 DP yang dibalik ditarik ke tabel **DP Allocations** di invoice progress (tombol *Get DP
 Invoices*, mirip *Get Advances*): DP Invoice dari order yang sama, party & company sama. Default
@@ -42,15 +43,6 @@ SIDES = {
 		party_account="debit_to",
 		item_account="income_account",
 		company_account="custom_sales_dp_account",
-	),
-	"Purchase Invoice": frappe._dict(
-		order_doctype="Purchase Order",
-		order_field="purchase_order",
-		party_type="Supplier",
-		party_field="supplier",
-		party_account="credit_to",
-		item_account="expense_account",
-		company_account="custom_purchase_dp_account",
 	),
 }
 
@@ -219,7 +211,7 @@ def get_dp_settings(company, side):
 	if not (item and account):
 		frappe.throw(
 			_("Set the DP Item and the {0} account in Company {1} (section DP Invoice) first.").format(
-				_("Uang Muka Penjualan") if side.company_account == "custom_sales_dp_account" else _("Uang Muka Pembelian"),
+				_("Uang Muka Penjualan"),
 				frappe.bold(company),
 			),
 			title=_("DP Invoice Not Set Up"),
@@ -232,8 +224,7 @@ def get_dp_settings(company, side):
 
 
 def get_withholding_category(item, doc, side):
-	field = "sales_tax_withholding_category" if side.party_type == "Customer" else "purchase_tax_withholding_category"
-	return item.get(field) or frappe.get_cached_value(
+	return item.get("sales_tax_withholding_category") or frappe.get_cached_value(
 		side.party_type, doc.get(side.party_field), "tax_withholding_category"
 	)
 
@@ -245,13 +236,13 @@ def get_order_cost_center(order):
 @frappe.whitelist()
 def get_dp_terms(order_doctype, order, invoice=None):
 	"""Pilihan DP Term buat form: baris Payment Schedule order + tanda yang udah di-DP."""
-	if order_doctype not in ("Sales Order", "Purchase Order"):
+	if order_doctype != "Sales Order":
 		frappe.throw(_("Invalid order type."))
 
 	order_doc = frappe.get_doc(order_doctype, order)
 	order_doc.check_permission("read")
 
-	invoice_doctype = "Sales Invoice" if order_doctype == "Sales Order" else "Purchase Invoice"
+	invoice_doctype = "Sales Invoice"
 	used = {
 		get_term_index(row.custom_dp_term): row.name
 		for row in get_dp_invoices(invoice_doctype, order, exclude=invoice)

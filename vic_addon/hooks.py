@@ -97,9 +97,9 @@ doctype_js["Payment Request"] = ["public/js/payment_request.js"]
 doctype_js["Landed Cost Voucher"] = ["public/js/landed_cost_voucher.js"]
 # isi Deductions or Loss -> Paid/Received Amount dihitung ulang, Allocated tetap sebesar Outstanding
 doctype_js.setdefault("Payment Entry", []).append("public/js/payment_entry_deduction.js")
-# skema DP pakai Item DP: pilihan term DP + tombol Get DP Invoices
-for doctype in ("Sales Invoice", "Purchase Invoice"):
-	doctype_js.setdefault(doctype, []).append("public/js/dp_item_invoice.js")
+# skema DP pakai Item DP (cuma penjualan; DP ke supplier lewat advance payment di PO):
+# pilihan term DP + tombol Get DP Invoices
+doctype_js.setdefault("Sales Invoice", []).append("public/js/dp_item_invoice.js")
 # tombol bikin PO per supplier
 doctype_js["Sales Order"].append("public/js/sales_order.js")
 # PO dropship: tombol bikin Delivery Note, tombol Purchase Receipt disembunyiin
@@ -403,22 +403,22 @@ for doctype, handler in (
 
 # invoice final cuma nagih sisa PPN/PPh yang belum dibayar lewat DP
 for doctype in ("Sales Invoice", "Purchase Invoice"):
-	doc_events[doctype]["before_validate"] = [
-		# invoice DP (Is DP Invoice): semua item diganti satu baris Item DP senilai term DP-nya
-		"vic_addon.vic.dp_item_invoice.set_dp_invoice",
-		"vic_addon.vic.advance_tax.restore_tax_rows",
-	]
+	doc_events[doctype]["before_validate"] = ["vic_addon.vic.advance_tax.restore_tax_rows"]
 	doc_events[doctype]["validate"].append("vic_addon.vic.advance_tax.deduct_advance_taxes")
-	# invoice progress: DP dari order yang sama dibalik lewat Reverse Journal waktu submit
-	doc_events[doctype]["validate"].append("vic_addon.vic.dp_item_invoice.validate_dp_allocations")
-	doc_events[doctype].setdefault("on_submit", [])
-	if isinstance(doc_events[doctype]["on_submit"], str):
-		doc_events[doctype]["on_submit"] = [doc_events[doctype]["on_submit"]]
-	doc_events[doctype]["on_submit"].append("vic_addon.vic.dp_item_invoice.make_reverse_journal")
-	doc_events[doctype]["before_cancel"] = [
-		"vic_addon.vic.dp_item_invoice.block_cancel_of_used_dp",
-		"vic_addon.vic.dp_item_invoice.cancel_reverse_journal",
-	]
+
+# Skema DP pakai Item DP - cuma Sales Invoice. DP ke supplier cukup advance payment di PO.
+# invoice DP (Is DP Invoice): semua item diganti satu baris Item DP senilai term DP-nya
+doc_events["Sales Invoice"]["before_validate"].insert(0, "vic_addon.vic.dp_item_invoice.set_dp_invoice")
+# invoice progress: DP dari order yang sama dibalik lewat Reverse Journal waktu submit
+doc_events["Sales Invoice"]["validate"].append("vic_addon.vic.dp_item_invoice.validate_dp_allocations")
+doc_events["Sales Invoice"].setdefault("on_submit", [])
+if isinstance(doc_events["Sales Invoice"]["on_submit"], str):
+	doc_events["Sales Invoice"]["on_submit"] = [doc_events["Sales Invoice"]["on_submit"]]
+doc_events["Sales Invoice"]["on_submit"].append("vic_addon.vic.dp_item_invoice.make_reverse_journal")
+doc_events["Sales Invoice"]["before_cancel"] = [
+	"vic_addon.vic.dp_item_invoice.block_cancel_of_used_dp",
+	"vic_addon.vic.dp_item_invoice.cancel_reverse_journal",
+]
 
 # retensi: baris RETENSI minus di invoice progress, plus di invoice retensi (lihat vic/retention.py)
 doc_events["Sales Invoice"]["before_validate"].insert(1, "vic_addon.vic.retention.set_retention")

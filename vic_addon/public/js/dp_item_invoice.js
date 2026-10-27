@@ -5,49 +5,42 @@
 // Invoice progress: tombol "Get DP Invoices" narik DP dari order yang sama ke tabel DP Allocations;
 // waktu submit, porsi itu dibalik lewat Reverse Journal yang ngurangin tagihan invoice ini.
 
-const DP_SIDE = {
-	"Sales Invoice": { order_doctype: "Sales Order", order_field: "sales_order" },
-	"Purchase Invoice": { order_doctype: "Purchase Order", order_field: "purchase_order" },
-};
+// Cuma Sales Invoice - DP ke supplier lewat advance payment di Purchase Order.
+frappe.ui.form.on("Sales Invoice", {
+	refresh(frm) {
+		load_dp_terms(frm);
+		add_get_dp_button(frm);
+		auto_get_dp_invoices(frm);
+	},
 
-["Sales Invoice", "Purchase Invoice"].forEach((doctype) => {
-	frappe.ui.form.on(doctype, {
-		refresh(frm) {
-			load_dp_terms(frm);
-			add_get_dp_button(frm);
-			auto_get_dp_invoices(frm);
-		},
+	custom_is_dp(frm) {
+		if (frm.doc.custom_is_dp && !frm.doc.custom_dp_order) {
+			const row = (frm.doc.items || []).find((item) => item.sales_order);
+			if (row) frm.set_value("custom_dp_order", row.sales_order);
+		}
+		load_dp_terms(frm);
+		add_get_dp_button(frm);
+	},
 
-		custom_is_dp(frm) {
-			if (frm.doc.custom_is_dp && !frm.doc.custom_dp_order) {
-				const field = DP_SIDE[frm.doctype].order_field;
-				const row = (frm.doc.items || []).find((item) => item[field]);
-				if (row) frm.set_value("custom_dp_order", row[field]);
-			}
-			load_dp_terms(frm);
-			add_get_dp_button(frm);
-		},
+	custom_dp_order(frm) {
+		frm.set_value("custom_dp_term", "");
+		frm.set_value("custom_dp_percentage", 0);
+		load_dp_terms(frm);
+	},
 
-		custom_dp_order(frm) {
-			frm.set_value("custom_dp_term", "");
-			frm.set_value("custom_dp_percentage", 0);
-			load_dp_terms(frm);
-		},
+	custom_dp_term(frm) {
+		const term = (frm.__dp_terms || []).find((row) => row.label === frm.doc.custom_dp_term);
+		if (!term) return;
 
-		custom_dp_term(frm) {
-			const term = (frm.__dp_terms || []).find((row) => row.label === frm.doc.custom_dp_term);
-			if (!term) return;
-
-			frm.set_value("custom_dp_percentage", term.portion);
-			if (term.used_in) {
-				frappe.msgprint({
-					title: __("DP Term Already Billed"),
-					indicator: "orange",
-					message: __("This term is already billed in {0}.", [term.used_in]),
-				});
-			}
-		},
-	});
+		frm.set_value("custom_dp_percentage", term.portion);
+		if (term.used_in) {
+			frappe.msgprint({
+				title: __("DP Term Already Billed"),
+				indicator: "orange",
+				message: __("This term is already billed in {0}.", [term.used_in]),
+			});
+		}
+	},
 });
 
 function load_dp_terms(frm) {
@@ -59,7 +52,7 @@ function load_dp_terms(frm) {
 	frappe.call({
 		method: "vic_addon.vic.dp_item_invoice.get_dp_terms",
 		args: {
-			order_doctype: DP_SIDE[frm.doctype].order_doctype,
+			order_doctype: "Sales Order",
 			order: frm.doc.custom_dp_order,
 			invoice: frm.is_new() ? null : frm.doc.name,
 		},
@@ -87,8 +80,7 @@ function auto_get_dp_invoices(frm) {
 	if (!frm.is_new() || frm.__dp_auto_loaded || frm.doc.custom_is_dp || frm.doc.is_return) return;
 	if ((frm.doc.custom_dp_allocations || []).length) return;
 
-	const field = DP_SIDE[frm.doctype].order_field;
-	if (!(frm.doc.items || []).some((item) => item[field])) return;
+	if (!(frm.doc.items || []).some((item) => item.sales_order)) return;
 
 	frm.__dp_auto_loaded = true;
 	get_dp_invoices(frm, false);

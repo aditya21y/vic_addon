@@ -359,9 +359,13 @@ perkiraan. Additional cost (ongkir dll) gak ikut profit rencana — realisasinya
 sebanding. Selisih jual/profit minus dan selisih beli plus ditandain merah.
 
 Implementasi: `vic_addon/vic/costing_realization.py`, report di `vic_addon/vic/report/costing_realization/`.
-#### DP Invoice pakai Item DP (skema sekarang)
+#### DP Invoice pakai Item DP (skema sekarang, cuma penjualan)
 
-Sumber: `new dp schemaa.xlsx`, **Opsi 2**. Jalan **berdampingan** dengan alur DP lewat Advance
+Sumber: `new dp schemaa.xlsx`, **Opsi 2**. **Cuma Sales Invoice.** Sisi pembelian dulu ikut skema ini,
+sekarang dicabut: DP ke supplier cukup **advance payment** — Payment Entry (Pay) ke Purchase Order,
+terus dialokasiin di Purchase Invoice lewat tabel **Advances** (*Get Advances Paid*) bawaan ERPNext.
+Field Is DP Invoice / DP Term / tabel DP Invoices di Purchase Invoice dan akun Uang Muka Pembelian di
+Company dibuang (patch `drop_purchase_dp_invoice`; kolom & jurnal lama tetap utuh). Jalan **berdampingan** dengan alur DP lewat Advance
 Invoice (bagian berikutnya) — dua-duanya masih dipakai, tombol *Create > Payment Request* di Sales
 Order & Purchase Order tetap ada.
 
@@ -376,14 +380,10 @@ Contoh order DPP 1.000 + PPN 10%, payment schedule DP 20% + 80%, ditagih progres
 | 5 | Payment Entry | Dr Bank 440 / Cr Piutang 440 | bawaan ERPNext |
 | 6 | Progress 50% kedua | sama kayak #3–#5: reverse 100 + 10, bayar 440 | |
 
-Sisi **pembelian** sama persis dengan arah kebalik: Dr Uang Muka Pembelian (aset) + PPN Masukan,
-reverse-nya Dr Hutang / Cr Uang Muka Pembelian / Cr PPN Masukan.
-
 **Setting (Company → section *DP Invoice (Item DP)*):** **DP Item** (item jasa, *Maintain Stock*
-mati, boleh dijual & dibeli), akun **Uang Muka Penjualan** (income baris DP di Sales Invoice) dan
-**Uang Muka Pembelian** (expense baris DP di Purchase Invoice).
+mati, boleh dijual) dan akun **Uang Muka Penjualan** (income baris DP di Sales Invoice).
 
-**Invoice DP** — bikin Sales/Purchase Invoice dari order seperti biasa, lalu centang **Is DP
+**Invoice DP** — bikin Sales Invoice dari Sales Order seperti biasa, lalu centang **Is DP
 Invoice** dan pilih **DP Term** (baris Payment Schedule order). Waktu disimpan semua item diganti
 satu baris Item DP:
 
@@ -407,9 +407,6 @@ Waktu invoice progress disubmit, **Reverse Journal** dibikin & disubmit otomatis
 Reversal For* di JE nunjuk ke invoice-nya). Isinya ngebalik **jurnal GL invoice DP-nya sendiri**
 (semua baris selain piutang/hutang) × Allocated / DPP DP — akun Uang Muka, PPN, PPh, sampai cost
 center-nya persis yang dipakai invoice DP. Baris piutang/hutangnya nempel ke invoice progress.
-
-Contoh PPh (supplier kena 2%, sisi pembelian): invoice DP potong 4, tiap progress potong 10 tapi
-reverse-nya ngembaliin 2 → total 4 − 2 − 2 + 10 + 10 = **20** = 2% × 1.000, uang keluar 1.080.
 
 **Cancel:** cancel invoice progress → Reverse Journal-nya ikut dicancel duluan, DP-nya bisa dipakai
 lagi. Invoice DP yang udah dipakai invoice progress submitted **gak bisa dicancel**.
