@@ -164,6 +164,9 @@ jinja = {
 		"vic_addon.vic.print_utils.get_proforma",
 		# Invoice (VIC) dari Sales Invoice - formulirnya sama kayak Proforma
 		"vic_addon.vic.print_utils.get_sales_invoice_print",
+		# Barang Tambahan gak dicetak di print format Sales Invoice; DO yang dicetak dari invoice
+		"vic_addon.vic.print_utils.get_printed_items",
+		"vic_addon.vic.print_utils.get_invoice_delivery_order",
 		# term pembayaran > 20 karakter pindah ke Note di akhir tabel item
 		"vic_addon.vic.print_utils.split_payment_terms",
 		"vic_addon.vic.print_utils.terbilang",

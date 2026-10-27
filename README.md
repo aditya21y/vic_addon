@@ -748,13 +748,14 @@ Item yang belum punya SQTN kolom suppliernya kosong dan wajib diisi sebelum lanj
 Tombol bawaan ERPNext **Create > Purchase Order** di Sales Order disembunyiin — udah gak dipakai,
 diganti tombol ini.
 
-Tiga kolom bisa diedit langsung di modal:
+Empat kolom bisa diedit langsung di modal:
 
 | Kolom | Kelakuannya |
 | --- | --- |
 | **Qty** | Boleh dikurangin buat mesen sebagian dulu — sisanya tetap kecatat belum di-PO, jadi bisa dibikinin PO lagi nanti |
 | **Supplier Quotation** | Pilihannya cuma penawaran submitted yang **ada item baris itu**; milih penawaran yang gak nawarin itemnya bikin harga gak ketarik, jadi disaring dari sumbernya |
 | **Supplier** | Ngikut otomatis begitu SQTN dipilih, dan kekunci selama SQTN keisi — mau isi supplier sendiri, kosongin dulu SQTN-nya |
+| **Transaction Type** | Reguler / Dropship / Mixed, default dari baris SO. Yang dipilih masuk ke baris PO (header PO ringkasannya) — alur Delivery Note / Purchase Receipt dari PO ngikut tipe ini. Baris SO-nya sendiri gak diubah |
 
 Harga beli PO ngikut SQTN yang dipilih di modal (bukan yang nempel di baris SO), jadi kalau ada
 penawaran lain yang lebih murah tinggal ditukar di situ.
@@ -1840,6 +1841,7 @@ dikasih class `left`, `<td>`-nya class `text`, aturannya di letterhead.
 | Quotation (VIC) | **Quotation** (bisa juga dipasang di Sales Order) | QUOTATION |
 | Purchase Order (VIC) | Purchase Order | PURCHASE ORDER |
 | Invoice (VIC) | Sales Invoice | INVOICE (formulirnya sama kayak Proforma Invoice) |
+| Delivery Order (Invoice) | Sales Invoice | DELIVERY ORDER ("DO asli" dari invoice, tanpa Barang Tambahan) |
 | Receipt Note | Purchase Invoice | "RECEIPT NOTE" (tanda terima tukar faktur, lihat di bawah) |
 | Purchase Request | Material Request | PURCHASE REQUEST |
 | Inquiry | Request for Quotation | INQUIRY (+ versi Excel, lihat di bawah) |
@@ -2128,6 +2130,24 @@ jumlah harinya dari Posting Date (mis. `18-Oct-2026  30 Days`), Tax No (NPWP cus
 item, PO No. Ringkasannya sama persis (`get_invoice_summary`), bedanya **DOWN PAYMENT** = DPP DP yang
 dibalik di invoice itu (kolom *Allocated* di tabel DP Allocations). Terbilangnya huruf besar + "ONLY".
 Implementasi: `get_sales_invoice_print` di `vic/print_utils.py`, template di `vic/print_format/invoice/`.
+
+**Barang Tambahan.** Checkbox **Barang Tambahan** (`custom_is_additional_item`) di baris item Sales Order,
+Delivery Note, dan Sales Invoice — nama field-nya sama, jadi tandanya kebawa sendiri SO → SI maupun
+SO → DN → SI (mapper ERPNext). Bisa dicentang/dilepas setelah submit. Baris yang dicentang **gak dicetak**
+di dua print format Sales Invoice:
+
+| Print Format (Sales Invoice) | Isinya |
+| --- | --- |
+| **Invoice (VIC)** | Invoice biasa, baris barang tambahan dilewat |
+| **Delivery Order (Invoice)** | "DO asli" — bentuknya sama kayak Delivery Order di Delivery Note, tapi dicetak dari invoice: DO No. = Delivery Note di baris item (kosong → nomor invoice), tanggal & Vehicle No. dari DN pertama, Serial No dari baris invoice (kosong → dari baris DN-nya) |
+
+Cuma barisnya yang disembunyiin — qty, stok, nilai, dan **total di invoice tetap total dokumen**
+(barang tambahan yang ada harganya tetap ikut kejumlah). Nomor urut item ngelompatin baris yang
+disembunyiin. Print format Delivery Order di Delivery Note gak kena. Tanda yang dicentang di SO setelah
+invoice-nya kebentuk gak ikut nyusul — centang langsung di baris invoice-nya.
+
+Implementasi: `get_printed_items` & `get_invoice_delivery_order` di `vic/print_utils.py`, template di
+`vic/print_format/delivery_order_invoice/`.
 
 #### Print Format: Delivery Order (Delivery Note)
 

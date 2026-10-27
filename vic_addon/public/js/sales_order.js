@@ -100,10 +100,13 @@ function show_purchase_order_dialog(frm, rows) {
 						columns: 1,
 					},
 					{
-						fieldtype: "Data",
+						// default dari baris SO, boleh diganti - yang dipilih di sini yang masuk ke
+						// baris PO (Delivery Note / Purchase Receipt dari PO ngikut tipe baris PO)
+						fieldtype: "Select",
 						fieldname: "transaction_type",
-						label: __("Type"),
-						read_only: 1,
+						label: __("Transaction Type"),
+						options: ["Reguler", "Dropship", "Mixed"],
+						reqd: 1,
 						in_list_view: 1,
 						columns: 1,
 					},
@@ -243,6 +246,7 @@ function submit_purchase_orders(frm, selected_items) {
 				supplier: row.supplier,
 				supplier_quotation: row.supplier_quotation,
 				qty: row.pending_qty,
+				transaction_type: row.transaction_type,
 			})),
 		},
 		freeze: true,

@@ -134,7 +134,8 @@
 		</thead>
 		<tbody>
 			{%- set ns = namespace(no = 0) %}
-			{%- for group in group_items(doc.items) %}
+			{#- baris Barang Tambahan gak dicetak (total di bawah tetap total dokumen) -#}
+			{%- for group in group_items(get_printed_items(doc)) %}
 				{%- set indent = group.indent %}
 				{#- Pengerjaan paling atas, di bawahnya Pengiriman, terus item (lihat vic/item_header.py) -#}
 				{%- if group.pengerjaan %}

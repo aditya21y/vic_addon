@@ -376,3 +376,54 @@ def split_payment_terms(text):
 	if len(text) > PAYMENT_TERMS_LIMIT:
 		return frappe._dict(header="Lihat di Note", note=text)
 	return frappe._dict(header=text, note="")
+
+
+# ---------------------------------------------------------------------------------------------
+# Barang tambahan & Delivery Order dari Sales Invoice
+# ---------------------------------------------------------------------------------------------
+
+
+def get_printed_items(doc):
+	"""Baris item yang dicetak di print format Sales Invoice: baris **Barang Tambahan** dibuang.
+
+	Cuma barisnya yang gak dicetak - dokumennya sendiri (qty, stok, nilai, total) gak berubah.
+	"""
+	return [item for item in doc.get("items") or [] if not item.get("custom_is_additional_item")]
+
+
+def get_invoice_delivery_order(doc):
+	"""Isian print format Delivery Order (Invoice): surat jalan yang dicetak dari Sales Invoice.
+
+	DO No. = Delivery Note di baris item invoice (kosong -> nomor invoice, mis. invoice yang
+	langsung update stock). Tanggal & Vehicle No. dari Delivery Note pertama. Serial No diambil
+	dari baris invoice-nya, kalau kosong dari baris Delivery Note-nya.
+	"""
+	import frappe
+
+	from vic_addon.vic.serial_no import get_serial_nos
+
+	items = get_printed_items(doc)
+	delivery_notes = sorted({item.delivery_note for item in doc.get("items") or [] if item.get("delivery_note")})
+
+	delivery_note = frappe._dict()
+	if delivery_notes:
+		fields = ["posting_date", "vehicle_no"]
+		if frappe.get_meta("Delivery Note").has_field("custom_print_format_date"):
+			fields.append("custom_print_format_date")
+		delivery_note = frappe.db.get_value("Delivery Note", delivery_notes[0], fields, as_dict=True) or frappe._dict()
+
+	serials = {}
+	for item in items:
+		numbers = get_serial_nos(item)
+		if not numbers and item.get("dn_detail"):
+			numbers = get_serial_nos(frappe.get_doc("Delivery Note Item", item.dn_detail))
+		serials[item.name] = numbers
+
+	# key-nya `rows`, bukan `items`: di Jinja `dlv.items` kebaca method dict.items, bukan isinya
+	return frappe._dict(
+		rows=items,
+		do_no=", ".join(delivery_notes) or doc.name,
+		date=delivery_note.get("custom_print_format_date") or delivery_note.get("posting_date") or doc.posting_date,
+		vehicle_no=delivery_note.get("vehicle_no") or "",
+		serials=serials,
+	)

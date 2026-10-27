@@ -12,6 +12,8 @@ from frappe.utils import flt, get_link_to_form, getdate
 
 from vic_addon.vic.dropship import DROPSHIP, MIXED, REGULER, set_transaction_type
 
+TRANSACTION_TYPES = (REGULER, DROPSHIP, MIXED)
+
 
 @frappe.whitelist()
 def get_items_for_purchase_order(sales_order):
@@ -91,7 +93,8 @@ def make_purchase_orders(sales_order, selected_items=None):
 	atau baris yang qty-nya dipecah dua-duanya (Mixed). Tipe tiap barisnya tetap kebawa ke
 	baris PO-nya, header PO cuma nyimpen ringkasannya.
 
-	`selected_items` itu isian dari modal: baris mana aja yang mau di-PO plus suppliernya.
+	`selected_items` itu isian dari modal: baris mana aja yang mau di-PO plus supplier, qty, dan
+	tipe transaksinya.
 	Kalau gak dikasih (dipanggil dari script), suppliernya diambil dari SQTN di baris item.
 
 	Yang bikin dokumennya tetap `make_purchase_order` bawaan ERPNext (biar dapet handling
@@ -144,7 +147,7 @@ def make_purchase_orders(sales_order, selected_items=None):
 
 			# dipasang setelah baris nyasar dibuang, biar ringkasan tipe di header gak ngitung
 			# baris yang barusan kepotong
-			set_transaction_type_details(purchase_order, doc)
+			set_transaction_type_details(purchase_order, doc, selection)
 			purchase_order.save()
 			purchase_orders.append(purchase_order.name)
 
@@ -255,10 +258,10 @@ def get_purchase_order_links(purchase_orders):
 
 
 def get_selection_by_row(doc, pending_qty, selected_items=None):
-	"""Pilihan user dari modal per baris SO: supplier, Supplier Quotation, dan qty.
+	"""Pilihan user dari modal per baris SO: supplier, Supplier Quotation, qty, dan tipe transaksi.
 
 	Kalau dipanggil tanpa modal (dari script), suppliernya diambil dari baris item Sales
-	Order-nya dan qty-nya ngikut sisa yang belum di-PO.
+	Order-nya, qty-nya ngikut sisa yang belum di-PO, dan tipenya ngikut baris SO.
 	"""
 	if isinstance(selected_items, str):
 		selected_items = frappe.parse_json(selected_items)
@@ -269,6 +272,7 @@ def get_selection_by_row(doc, pending_qty, selected_items=None):
 				supplier=item.custom_supplier,
 				supplier_quotation=item.custom_supplier_quotation,
 				qty=None,
+				transaction_type=None,
 			)
 			for item in doc.items
 			if item.custom_supplier and item.name in pending_qty
@@ -284,6 +288,7 @@ def get_selection_by_row(doc, pending_qty, selected_items=None):
 			supplier=row.supplier,
 			supplier_quotation=row.supplier_quotation,
 			qty=flt(row.qty) or None,
+			transaction_type=row.transaction_type if row.transaction_type in TRANSACTION_TYPES else None,
 		)
 
 	return selection
@@ -382,17 +387,23 @@ def get_rows_by_group(doc, selection):
 	return groups
 
 
-def set_transaction_type_details(purchase_order, sales_order):
-	"""Tipe tiap baris PO ngikut baris Sales Order-nya, header-nya cuma ringkasan.
+def set_transaction_type_details(purchase_order, sales_order, selection=None):
+	"""Tipe tiap baris PO: pilihan user di modal, kosong -> ngikut baris Sales Order-nya. Header-nya
+	cuma ringkasan.
+
+	Baris Sales Order-nya sendiri gak diubah - SO-nya udah submit, dan alur dropship berikutnya
+	(Delivery Note / Purchase Receipt dari PO) bacanya tipe baris PO.
 
 	Satu PO boleh campur, jadi alamat kirim customer dipasang begitu **ada** baris yang
 	dikirim langsung ke lapangan (Dropship atau Mixed) - barang yang masuk gudang sendiri tetap
 	dialamatkan ke situ lewat gudang di barisnya.
 	"""
+	selection = selection or {}
 	types = {item.name: (item.custom_transaction_type or REGULER) for item in sales_order.items}
 
 	for item in purchase_order.items:
-		item.custom_transaction_type = types.get(item.sales_order_item, REGULER)
+		chosen = selection.get(item.sales_order_item, frappe._dict()).get("transaction_type")
+		item.custom_transaction_type = chosen or types.get(item.sales_order_item, REGULER)
 
 	set_transaction_type(purchase_order)
 
