@@ -104,15 +104,10 @@
 	/* description item itu HTML dari editor - paragrafnya jangan nambah jarak */
 	.vic-pf .items .desc p { margin: 0; }
 	/* Baris judul kelompok item: tebal, ngambil selebar tabel, dan gak dikasih border kanan-kiri
-	   biar kebaca sebagai pemisah, bukan sebagai baris item. Item di bawahnya menjorok ke dalam
-	   lewat .indent - padding <td> di atas dikunci !important, jadi aturannya dibikin lebih
-	   spesifik (td.indent) supaya menang. */
+	   biar kebaca sebagai pemisah, bukan sebagai baris item. Item di bawahnya gak menjorok. */
 	.vic-pf .items tr.group td { font-weight: 700; text-align: left; }
-	/* Pengerjaan = kelompok paling atas, dibedain dari Pengiriman pakai garis bawah */
-	.vic-pf .items tr.group.pengerjaan td { text-decoration: underline; }
-	.vic-pf .items td.indent { padding-left: 24px !important; }
-	/* item di bawah Pengerjaan + Pengiriman menjorok dua tingkat */
-	.vic-pf .items td.indent-2 { padding-left: 48px !important; }
+	/* Pengiriman = kelompok paling atas, dibedain dari Pengerjaan pakai garis bawah */
+	.vic-pf .items tr.group.pengiriman td { text-decoration: underline; }
 	.vic-pf .items tr.note .note-item { padding-left: 22px; }
 	/* total nempel di kanan, selebar dua kolom terakhir tabel item */
 	.vic-pf .totals { width: 100%; margin-top: 6px; }

@@ -126,10 +126,9 @@
 		<tbody>
 			{%- set ns = namespace(no = 0) %}
 			{%- for header, rows in group_items_by_header(doc.items) %}
-				{%- set indent = "indent" if header else "" %}
 				{%- if header %}
 					{#- judul kelompok mulai di kolom Description, kolom sebelumnya dikosongin -#}
-					<tr class="group"><td></td><td class="text" colspan="4">{{ header }}</td></tr>
+					<tr class="group pengiriman"><td></td><td class="text" colspan="4">{{ header }}</td></tr>
 				{%- endif %}
 				{%- for item in rows %}
 					{%- set ns.no = ns.no + 1 %}
@@ -137,7 +136,7 @@
 					{%- set qty = item.qty | float %}
 					<tr>
 						<td class="num">{{ ns.no }}</td>
-						<td class="text {{ indent }}">
+						<td class="text">
 							<div class="desc">{{ get_item_description(item) }}</div>
 							{%- if size %}<div>Size : {{ size }}</div>{% endif %}
 						</td>

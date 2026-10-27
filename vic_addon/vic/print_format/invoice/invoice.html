@@ -136,13 +136,13 @@
 			{%- set ns = namespace(no = 0) %}
 			{#- baris Barang Tambahan gak dicetak (total di bawah tetap total dokumen) -#}
 			{%- for group in group_items(get_printed_items(doc)) %}
-				{%- set indent = group.indent %}
-				{#- Pengerjaan paling atas, di bawahnya Pengiriman, terus item (lihat vic/item_header.py) -#}
-				{%- if group.pengerjaan %}
-					<tr class="group pengerjaan"><td></td><td class="text" colspan="4">{{ group.pengerjaan }}</td></tr>
+				{#- Pengiriman paling atas, di bawahnya Pengerjaan, terus item - gak ada yang menjorok
+				    (lihat vic/item_header.py). Judulnya mulai di kolom Description. -#}
+				{%- if group.pengiriman %}
+					<tr class="group pengiriman"><td></td><td class="text" colspan="4">{{ group.pengiriman }}</td></tr>
 				{%- endif %}
-				{%- if group.header %}
-					<tr class="group"><td></td><td class="text {{ group.header_indent }}" colspan="4">{{ group.header }}</td></tr>
+				{%- if group.pengerjaan %}
+					<tr class="group"><td></td><td class="text" colspan="4">{{ group.pengerjaan }}</td></tr>
 				{%- endif %}
 				{%- for item in group.rows %}
 					{%- set ns.no = ns.no + 1 %}
@@ -150,7 +150,7 @@
 					{%- set qty = item.qty | float %}
 					<tr>
 						<td class="num">{{ ns.no }}</td>
-						<td class="text {{ indent }}">
+						<td class="text">
 							<div class="desc">{{ get_item_description(item) }}</div>
 							{%- if size %}<div>SIZE : {{ size }}</div>{% endif %}
 						</td>

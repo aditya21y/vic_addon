@@ -2003,21 +2003,27 @@ Form Opportunity-nya juga dirapiin lewat property setter: section **Organization
 collapsible, dan **Opportunity Date** (`transaction_date`) dipindah dari More Information ke
 header, persis di atas section Organization (`field_order`).
 
-#### Pengerjaan & Pengiriman: ngelompokin baris item
+#### Pengiriman & Pengerjaan: ngelompokin baris item
 
 Dua field di baris item buat ngelompokin item dua tingkat:
 
 | Field | Fieldname | Doctype |
 | --- | --- | --- |
-| **Pengerjaan** (kelompok atas) | `custom_pengerjaan` | Opportunity (RFQ), Request for Quotation (Inquiry), Costing, Quotation, Sales Order, Delivery Note, Sales Invoice |
-| **Pengiriman** (di dalam Pengerjaan, dulu labelnya *Header*) | `custom_header` | doctype di atas + Purchase Order, Purchase Receipt, Purchase Invoice |
+| **Pengiriman** (kelompok atas, dulu labelnya *Header*) | `custom_header` | Opportunity (RFQ), Request for Quotation (Inquiry), Costing, Quotation, Sales Order, Delivery Note, Sales Invoice, Purchase Order, Purchase Receipt, Purchase Invoice |
+| **Pengerjaan** (di dalam Pengiriman) | `custom_pengerjaan` | doctype di atas kecuali Purchase Order, Purchase Receipt, Purchase Invoice |
+
+Di form, kolom Pengiriman ada di depan Pengerjaan.
 
 Dua-duanya cukup diisi di baris pertama tiap kelompok — baris yang dikosongin ikut baris di
-atasnya, dan waktu disimpan nilainya ditulis balik ke tiap baris. Pengiriman mulai dari nol lagi
-tiap ganti Pengerjaan (gak ngewarisin Pengiriman dari Pengerjaan sebelumnya). Yang ditolak:
+atasnya, dan waktu disimpan nilainya ditulis balik ke tiap baris. Pengerjaan mulai dari nol lagi
+tiap ganti Pengiriman (gak ngewarisin Pengerjaan dari Pengiriman sebelumnya). Yang ditolak:
 
-- Pengerjaan dipakai, tapi baris pertama dokumen kosong
-- di satu kelompok Pengerjaan ada Pengiriman, tapi baris pertama kelompok itu kosong
+- Pengiriman dipakai, tapi baris pertama dokumen kosong
+- di satu kelompok Pengiriman ada Pengerjaan, tapi baris pertama kelompok itu kosong
+
+(Dulu kebalik — Pengerjaan di atas, Pengiriman di dalamnya. Dokumen lama yang barisnya udah keisi
+semua tetap aman; yang bisa ditolak waktu disimpan ulang cuma dokumen yang pakai Pengiriman tapi
+baris pertamanya kosong.)
 
 Pengerjaan aja tanpa Pengiriman boleh, Pengiriman aja tanpa Pengerjaan juga boleh (kayak Header
 dulu). Di grid, dua kolomnya lebar 1 — grid item udah penuh, kalau lebih lebar kolom Rate/Amount
@@ -2026,18 +2032,19 @@ kedorong keluar.
 Karena nama field-nya sama di semua doctype, nilainya ikut kebawa sendiri lewat mapper bawaan
 (RFQ → Inquiry, Quotation → Sales Order → Delivery Note / Sales Invoice; dites sampai DN).
 
-Di print format (Quotation (VIC), Delivery Order, Inquiry, Request For Quotation (Customer),
-Costing (Sales), Costing (Import), Purchase Request (Sales Order)) **Pengerjaan dicetak paling
-atas** (tebal + garis bawah), **Pengiriman di bawahnya** (tebal, menjorok satu tingkat), terus
-item menjorok di bawah keduanya. Judul mulai di kolom Description. Urutan kelompok ngikut
-kemunculan pertamanya. Print format PO & Goods Received tetap satu tingkat (Pengiriman aja).
+Di print format (Quotation (VIC), Delivery Order, Delivery Order (Invoice), Invoice (VIC), Proforma
+Invoice, Inquiry, Request For Quotation (Customer), Costing (Sales), Costing (Import), Purchase Request
+(Sales Order)) **Pengiriman dicetak paling atas** (tebal + garis bawah), **Pengerjaan di bawahnya**
+(tebal), terus itemnya. **Gak ada yang menjorok** — judul & item sama-sama mulai di kolom
+Description. Urutan kelompok ngikut kemunculan pertamanya. Print format PO & Goods Received tetap satu
+tingkat (Pengiriman aja, tebal + garis bawah, item juga gak menjorok).
 Implementasi: `vic_addon/vic/item_header.py` (`group_items` / `group_items_by_header`).
 
 Catatan: Supplier Quotation **belum** punya dua field ini, jadi kelompok dari Inquiry putus di situ
-— Costing yang dibikin dari Supplier Quotation mulai tanpa Pengerjaan/Pengiriman. Versi Excel
+— Costing yang dibikin dari Supplier Quotation mulai tanpa Pengiriman/Pengerjaan. Versi Excel
 Inquiry juga belum nampilin keduanya.
 
-Di tabel item, **yang tebal cuma baris Pengerjaan & Pengiriman**. Baris item dicetak
+Di tabel item, **yang tebal cuma baris Pengiriman & Pengerjaan**. Baris item dicetak
 normal, termasuk tebal bawaan editor (`<b>`/`<strong>`) di Description — dinormalin lewat
 `.vic-pf .items .desc` di `templates/print_formats/vic_letterhead.html`, jadi berlaku ke semua
 print format VIC sekaligus. Judul kolom dan baris total tetap tebal.
