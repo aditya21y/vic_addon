@@ -1809,7 +1809,9 @@ tanggalnya diisi di Delivery Note terus diturunin ke tiap Serial No waktu DN dis
 | Serial No | Warranty Start Date (ERPNext cuma punya Warranty Expiry Date) |
 
 - Dua field di Delivery Note Item cuma nongol buat item yang `Has Serial No`-nya nyala —
-  penandanya field tersembunyi yang narik `has_serial_no` dari master Item.
+  penandanya checkbox **With Serial Number** (`custom_has_serial_no`) yang narik `has_serial_no` dari
+  master Item. Checkbox-nya kelihatan di form baris & sebagai kolom di tabel item (read only, ngikut
+  master Item).
 - Start Date boleh dikosongin: otomatis ngikut posting date Delivery Note.
 - End Date lebih awal dari Start Date langsung ditolak.
 - Waktu submit, tiap Serial No di baris itu dapat Warranty Start Date, `Warranty Expiry Date`,
