@@ -2185,8 +2185,8 @@ Implementasi: `get_printed_items` & `get_invoice_delivery_order` di `vic/print_u
 #### Print Format: Delivery Order (Delivery Note)
 
 Lima blok tanda tangan (Issued By — diisi nama user
-pembuat —, Approved by, Warehouse, Delivered by, Received by) dikotakin, nyambung jadi satu baris
-kotak.
+pembuat —, Approved by, Warehouse, Delivered by, Received by) sejajar satu baris, **tanpa kotak
+maupun garis**.
 
 Ngikutin form DO yang selama ini dipakai VIC: kop surat + logo, kotak judul **DELIVERY ORDER**
 dengan DO No. & Date di bawahnya, blok bergaris **Customer** (nama + alamat) dan **Delivered To**,
@@ -2199,7 +2199,7 @@ Isinya diambil dari data yang emang udah ada di Delivery Note:
 | --- | --- |
 | Date | **Print Format Date** kalau diisi, kalau enggak Posting Date |
 | Customer | `customer_name` + `address_display` |
-| Delivered To | Alamat pengiriman (kalau beda dari alamat customer), kalau gak ada ikut nama Project |
+| Delivered To | Field **Delivered To** di Delivery Note (`custom_delivered_to`, di bawah Shipping Address, teks bebas, bisa diubah setelah submit — sama kayak di Purchase Order). Keisi otomatis tiap Shipping Address dipilih, kalau alamatnya beda dari alamat customer; kalau sama, dikosongin. Kosong → alamat pengiriman (kalau beda dari alamat customer), lalu nama Project, lalu nama customer. Dipakai juga di Delivery Order (Stock Only) dan Delivery Order (Invoice) (diambil dari DN pertama) |
 | Vehicle No. / PO No. | `vehicle_no` / `po_no` bawaan Delivery Note |
 | Size | Field **Size** di master Item, dicetak cuma kalau item-nya punya |
 | Serial Number | Serial No baris itu, dilist di bawah deskripsi |

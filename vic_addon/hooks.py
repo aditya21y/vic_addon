@@ -104,6 +104,8 @@ doctype_js.setdefault("Sales Invoice", []).append("public/js/dp_item_invoice.js"
 doctype_js["Sales Order"].append("public/js/sales_order.js")
 # PO dropship: tombol bikin Delivery Note, tombol Purchase Receipt disembunyiin
 doctype_js["Purchase Order"].append("public/js/purchase_order.js")
+# Delivered To keisi dari Shipping Address, bisa diedit (sama kayak PO)
+doctype_js.setdefault("Delivery Note", []).append("public/js/delivery_note.js")
 # deposit ke supplier: tombol Pay Deposit di PO, akun deposit di Payment Entry
 doctype_js["Purchase Order"].append("public/js/vendor_deposit.js")
 doctype_js["Payment Entry"].append("public/js/vendor_deposit.js")

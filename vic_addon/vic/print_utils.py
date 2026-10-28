@@ -381,7 +381,7 @@ def get_invoice_delivery_order(doc):
 	"""Isian print format Delivery Order (Invoice): surat jalan yang dicetak dari Sales Invoice.
 
 	DO No. = Delivery Note di baris item invoice (kosong -> nomor invoice, mis. invoice yang
-	langsung update stock). Tanggal & Vehicle No. dari Delivery Note pertama. Serial No diambil
+	langsung update stock). Tanggal, Vehicle No., & Delivered To dari Delivery Note pertama. Serial No diambil
 	dari baris invoice-nya, kalau kosong dari baris Delivery Note-nya.
 	"""
 	import frappe
@@ -393,9 +393,9 @@ def get_invoice_delivery_order(doc):
 
 	delivery_note = frappe._dict()
 	if delivery_notes:
+		meta = frappe.get_meta("Delivery Note")
 		fields = ["posting_date", "vehicle_no"]
-		if frappe.get_meta("Delivery Note").has_field("custom_print_format_date"):
-			fields.append("custom_print_format_date")
+		fields += [field for field in ("custom_print_format_date", "custom_delivered_to") if meta.has_field(field)]
 		delivery_note = frappe.db.get_value("Delivery Note", delivery_notes[0], fields, as_dict=True) or frappe._dict()
 
 	serials = {}
@@ -411,5 +411,6 @@ def get_invoice_delivery_order(doc):
 		do_no=", ".join(delivery_notes) or doc.name,
 		date=delivery_note.get("custom_print_format_date") or delivery_note.get("posting_date") or doc.posting_date,
 		vehicle_no=delivery_note.get("vehicle_no") or "",
+		delivered_to=delivery_note.get("custom_delivered_to") or "",
 		serials=serials,
 	)

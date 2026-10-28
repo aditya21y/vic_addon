@@ -46,6 +46,11 @@ doc.customer_address) else None -%}
 		font-size: 10px;
 	}
 
+	/* isian field Delivered To diketik bebas, baris barunya ikut kecetak */
+	.vic-pf .parties .box .delivered-to {
+		white-space: pre-line;
+	}
+
 	.vic-pf .ship .lbl {
 		width: 80px;
 	}
@@ -67,20 +72,18 @@ doc.customer_address) else None -%}
 		word-break: break-all;
 	}
 
-	/* lima blok tanda tangan sama lebar, dikotakin; garisnya dipaksa !important (CSS print Frappe
-	   ngenolin border sel), jabatan di atas dengan garis bawah, ruang tanda tangan di bawahnya */
+	/* lima blok tanda tangan sama lebar, tanpa kotak & garis; jabatan di atas, ruang tanda tangan di
+	   bawahnya */
 	.vic-pf .sign {
 		table-layout: fixed;
 	}
 
 	.vic-pf .sign td {
 		width: 20%;
-		border: 1px solid #000 !important;
 		padding: 6px 6px 8px !important;
 	}
 
 	.vic-pf .sign td .role {
-		border-bottom: 1px solid #000;
 		padding-bottom: 4px;
 		margin-bottom: 58px;
 		font-weight: 700;
@@ -119,7 +122,13 @@ doc.customer_address) else None -%}
 
 				<div class="box">
 					<span class="cap">Delivered To</span>
-					<div>{{ delivered_to or project_name or doc.customer_name or doc.customer }}</div>
+					{#- field Delivered To duluan (bisa diedit, kebawa dari Shipping Address); kosong -> alamat
+					    pengiriman, nama project, nama customer -#}
+					{%- if doc.get("custom_delivered_to") %}
+						<div class="delivered-to">{{ doc.custom_delivered_to }}</div>
+					{%- else %}
+						<div>{{ delivered_to or project_name or doc.customer_name or doc.customer }}</div>
+					{%- endif %}
 				</div>
 			</td>
 			<td>
