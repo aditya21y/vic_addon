@@ -151,9 +151,10 @@ def get_kwitansi(doc):
 def get_receipt_note(doc):
 	"""Isian print format Receipt Note (tanda terima tukar faktur) dari Purchase Invoice.
 
-	Satu invoice = satu baris tabel. Invoice No. pakai nomor tagihan supplier (Supplier Invoice
-	No), kosong -> nomor PI. DO No. = Supplier Delivery Note di Purchase Receipt yang nyambung ke
-	baris item invoice-nya; PO No. dari baris item juga.
+	Satu invoice = satu baris tabel. Invoice No. & Date = Supplier Invoice No & Date (dua-duanya
+	bisa diisi setelah submit; kosong -> dibiarin kosong buat ditulis tangan, bukan nomor PI). DO No.
+	= field Supplier DO No., kosong -> Supplier Delivery Note di Purchase Receipt yang nyambung ke
+	baris item invoice-nya. PO No. = nomor Purchase Order di baris item.
 	"""
 	import frappe
 	from frappe.utils import flt
@@ -161,7 +162,8 @@ def get_receipt_note(doc):
 	items = doc.get("items") or []
 	purchase_orders = sorted({row.purchase_order for row in items if row.get("purchase_order")})
 	purchase_receipts = sorted({row.purchase_receipt for row in items if row.get("purchase_receipt")})
-	delivery_notes = (
+	supplier_do_no = (doc.get("custom_supplier_do_no") or "").strip()
+	delivery_notes = [supplier_do_no] if supplier_do_no else (
 		frappe.get_all(
 			"Purchase Receipt",
 			filters={"name": ["in", purchase_receipts], "supplier_delivery_note": ["is", "set"]},
@@ -174,8 +176,8 @@ def get_receipt_note(doc):
 
 	amount = flt(doc.rounded_total or doc.grand_total)
 	row = frappe._dict(
-		invoice_no=doc.get("bill_no") or doc.name,
-		date=doc.get("bill_date") or doc.posting_date,
+		invoice_no=doc.get("bill_no") or "",
+		date=doc.get("bill_date"),
 		nominal=amount,
 		tax_invoice_no=doc.get("custom_faktur_pajak_no") or "",
 		do_no=", ".join(dict.fromkeys(delivery_notes)),

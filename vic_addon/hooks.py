@@ -442,6 +442,10 @@ for doctype in ("Purchase Order", "Purchase Receipt", "Purchase Invoice"):
 doc_events["Purchase Invoice"].setdefault("before_submit", []).append(
 	"vic_addon.vic.ppn_tertunda.validate_ppn_tertunda"
 )
+# Supplier Invoice No bisa diubah setelah submit - keunikannya tetap dicek
+doc_events["Purchase Invoice"].setdefault("before_update_after_submit", []).append(
+	"vic_addon.vic.purchase_invoice.validate_supplier_invoice_after_submit"
+)
 
 # doc_events = {
 # 	"*": {

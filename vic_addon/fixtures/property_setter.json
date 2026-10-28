@@ -1566,5 +1566,37 @@
   "property_type": "Check",
   "row_name": null,
   "value": "1"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Purchase Invoice",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "bill_no",
+  "is_system_generated": 1,
+  "modified": "2026-10-28 22:00:00.000000",
+  "module": "VIC",
+  "name": "Purchase Invoice-bill_no-allow_on_submit",
+  "property": "allow_on_submit",
+  "property_type": "Check",
+  "row_name": null,
+  "value": "1"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Purchase Invoice",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "bill_date",
+  "is_system_generated": 1,
+  "modified": "2026-10-28 22:00:00.000000",
+  "module": "VIC",
+  "name": "Purchase Invoice-bill_date-allow_on_submit",
+  "property": "allow_on_submit",
+  "property_type": "Check",
+  "row_name": null,
+  "value": "1"
  }
 ]

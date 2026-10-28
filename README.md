@@ -2258,12 +2258,18 @@ blok-bloknya dipisah garis dobel.
 | DATE / NO | Posting Date & nomor Purchase Invoice |
 | RECEIVED FROM | Kotak yang dicentang: invoice subkon (*Is Subcontracted*) atau Supplier Group-nya mengandung "subcon/subkon" → **Subcontractor**; Supplier Group "ekspedisi/expedi/forwarder/logistic/cargo" → **Expedite**; sisanya **Supplier**. Di bawahnya nama supplier |
 | AMOUNT / In Words | Rounded/Grand Total invoice + terbilangnya (`in_words`) |
-| Invoice No. / Date | **Supplier Invoice No** & **Supplier Invoice Date** (kosong → nomor & tanggal PI) |
+| Invoice No. / Date | **Supplier Invoice No** & **Supplier Invoice Date** — dua-duanya **bisa diubah setelah submit** (property setter `allow_on_submit`). Kosong → dibiarin kosong buat ditulis tangan |
 | Nominal | Rounded/Grand Total |
 | Tax Invoice No. | Field baru **Nomor Faktur Pajak** (`custom_faktur_pajak_no`, di bawah Supplier Invoice Date, bisa diisi setelah submit) |
-| DO No. | *Supplier Delivery Note* dari Purchase Receipt yang nyambung ke baris item invoice |
-| PO No. | PO dari baris item |
+| DO No. | Field baru **Supplier DO No.** (`custom_supplier_do_no`, teks bebas, di bawah Nomor Faktur Pajak, bisa diisi setelah submit); kosong → *Supplier Delivery Note* dari Purchase Receipt yang nyambung ke baris item invoice |
+| PO No. | Nomor Purchase Order di baris item |
 | RECEIVED BY / DATE / SIGN | Dikosongin buat diisi tangan |
+
+Supplier Invoice No yang diganti setelah submit tetap dicek gak dobel (cek bawaan ERPNext, kalau
+*Check Supplier Invoice Number Uniqueness* nyala) — `vic_addon/vic/purchase_invoice.py`, hook
+`before_update_after_submit`. Yang **gak** ikut berubah kalau diganti setelah submit: Remarks
+("Against Supplier Invoice ...") dan jatuh tempo Payment Schedule yang dihitung dari Supplier Invoice
+Date — dua-duanya keisi waktu submit.
 
 Implementasi: `get_receipt_note` di `vic_addon/vic/print_utils.py` (helper Jinja), template di
 `vic_addon/vic/print_format/receipt_note/`.
