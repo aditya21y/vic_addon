@@ -221,7 +221,8 @@
 		{%- endfor %}
 		<tr class="grand">
 			<td class="lbl">GRAND TOTAL PRICE</td>
-			<td class="money">{{ frappe.utils.fmt_money((doc.grand_total | float) + wapu_vat) }}</td>
+			{#- Rounded Total kalau dipakai (lihat get_grand_total); VAT WAPU ikut dijumlah lalu dibulatin -#}
+			<td class="money">{{ frappe.utils.fmt_money(get_grand_total(doc, (doc.grand_total | float) + wapu_vat) if wapu_vat else get_grand_total(doc)) }}</td>
 		</tr>
 	</table>
 

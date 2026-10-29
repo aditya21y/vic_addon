@@ -3,6 +3,31 @@
 from frappe.utils import strip_html
 
 
+def get_grand_total(doc, amount=None):
+	"""Grand total yang dicetak di semua print format VIC.
+
+	Rounded Total dipakai kalau isinya bukan 0 atau pembulatannya gak dimatiin (*Disable Rounded
+	Total* gak dicentang); selain itu Grand Total. ERPNext ngenolin Rounded Total waktu
+	pembulatannya dimatiin, jadi saat itu yang kecetak Grand Total.
+
+	`amount` buat total yang dihitung sendiri sama print format-nya (VAT WAPU, ringkasan yang
+	dipotong DP): dibulatin persis kayak ERPNext ngebulatin Rounded Total, kalau dokumennya pakai
+	pembulatan. Doctype yang gak punya Rounded Total dibiarin apa adanya.
+	"""
+	from frappe.utils import flt, round_based_on_smallest_currency_fraction
+
+	rounded = doc.get("rounded_total")
+	uses_rounding = rounded is not None and (flt(rounded) or not doc.get("disable_rounded_total"))
+
+	if amount is None:
+		return flt(rounded) if uses_rounding else flt(doc.get("grand_total"))
+
+	if not uses_rounding:
+		return flt(amount)
+
+	return round_based_on_smallest_currency_fraction(amount, doc.currency, doc.precision("rounded_total"))
+
+
 def get_item_description(item):
 	"""Isi kolom Description di tabel item: description dulu, kalau kosong baru item name.
 
@@ -100,7 +125,7 @@ def get_kwitansi(doc):
 
 	# nilai yang beneran ditagih: total dikurangi DP yang dibalik & uang muka yang udah dialokasiin
 	amount = flt(doc.get("custom_kwitansi_amount")) or (
-		flt(doc.rounded_total or doc.grand_total)
+		get_grand_total(doc)
 		- flt(doc.get("custom_total_dp_allocated"))
 		- flt(doc.get("total_advance"))
 	)
@@ -174,7 +199,7 @@ def get_receipt_note(doc):
 		else []
 	)
 
-	amount = flt(doc.rounded_total or doc.grand_total)
+	amount = get_grand_total(doc)
 	row = frappe._dict(
 		invoice_no=doc.get("bill_no") or "",
 		date=doc.get("bill_date"),
@@ -272,7 +297,7 @@ def get_invoice_summary(doc, down_payment, delivery_notes):
 		SUB TOTAL     = Net Total - Down Payment
 		PPN           = PPN dokumen, dihitung ulang sebanding Sub Total kalau ada DP;
 		                Show VAT for WAPU tanpa baris PPN -> 11% x Sub Total
-		GRAND TOTAL   = Sub Total + PPN
+		GRAND TOTAL   = Sub Total + PPN, dibulatin kayak Rounded Total dokumennya (`get_grand_total`)
 
 	Rekening & penandatangan ikut setting Kwitansi di Company.
 	"""
@@ -297,7 +322,7 @@ def get_invoice_summary(doc, down_payment, delivery_notes):
 		vat = sub_total * 0.11
 
 	vat = flt(vat, doc.precision("total_taxes_and_charges"))
-	grand_total = flt(sub_total + vat, doc.precision("grand_total"))
+	grand_total = get_grand_total(doc, flt(sub_total + vat, doc.precision("grand_total")))
 
 	bank = frappe._dict()
 	if company.get("custom_kwitansi_bank_account"):

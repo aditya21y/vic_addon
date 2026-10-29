@@ -175,7 +175,8 @@
 	    di kertas - dokumennya sendiri gak berubah. Kalau ada baris PPN di tabel, yang dipakai baris itu. -#}
 	{%- set vat_rows = doc.taxes | rejectattr("is_tax_withholding_account") | selectattr("add_deduct_tax", "ne", "Deduct") | list %}
 	{%- set wapu_vat = frappe.utils.flt((doc.net_total | float) * 0.11, 2) if (doc.get("custom_show_vat_for_wapu") and not vat_rows) else 0 %}
-	{%- set grand_total = (doc.grand_total | float) + wapu_vat %}
+	{#- Rounded Total kalau dipakai (lihat get_grand_total); VAT WAPU ikut dijumlah lalu dibulatin -#}
+	{%- set grand_total = get_grand_total(doc, (doc.grand_total | float) + wapu_vat) if wapu_vat else get_grand_total(doc) %}
 	{%- set in_words = frappe.utils.money_in_words(grand_total, doc.currency) if wapu_vat else doc.in_words %}
 	<table class="summary">
 		<tr>

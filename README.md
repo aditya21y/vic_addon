@@ -1980,6 +1980,14 @@ Invoice, Delivery Note, Supplier Quotation, Purchase Order, Purchase Invoice, Pu
 Dokumen baru langsung gak dibulatin; user masih bisa nguncheck per dokumen. Dokumen lama gak
 disentuh.
 
+**Grand Total di print format ngikut pembulatan dokumennya.** Semua print format VIC yang nyetak
+Grand Total (Quotation, Purchase Order, Invoice, Proforma Invoice, Kwitansi, Kwitansi (Progress),
+Receipt Note) pakai **Rounded Total** kalau isinya bukan 0 atau Disable Rounded Total-nya gak dicentang;
+selain itu **Grand Total**. Total yang dihitung sendiri sama print format-nya (VAT WAPU, ringkasan Invoice /
+Proforma yang dipotong DP) dibulatin persis kayak ERPNext ngebulatin Rounded Total, kalau dokumennya
+pakai pembulatan. Terbilangnya ikut angka yang dicetak. Helper: `get_grand_total` di
+`vic_addon/vic/print_utils.py`.
+
 Lewat property setter `<Doctype>-disable_rounded_total-default` — namanya sengaja sama persis
 dengan yang dibikin **Global Defaults → Disable Rounded Total**, jadi fixture kita nimpa record itu,
 bukan nambah yang kedua. Bedanya: centangan di Global Defaults juga nyembunyiin field Rounded Total

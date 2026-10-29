@@ -158,6 +158,8 @@ jinja = {
 		"vic_addon.vic.item_header.group_items",
 		# kolom Description di tabel item: description dulu, kosong -> item name
 		"vic_addon.vic.print_utils.get_item_description",
+		# Grand Total di semua print format: Rounded Total kalau dipakai, kalau enggak Grand Total
+		"vic_addon.vic.print_utils.get_grand_total",
 		# nama di bawah "Best regards," pada Inquiry - dipakai juga versi Excel-nya
 		"vic_addon.vic.print_utils.get_inquiry_signatory",
 		# kwitansi Sales Invoice: isian + terbilang & tanggal bahasa Indonesia
