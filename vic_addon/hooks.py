@@ -160,6 +160,9 @@ jinja = {
 		"vic_addon.vic.print_utils.get_item_description",
 		# Grand Total di semua print format: Rounded Total kalau dipakai, kalau enggak Grand Total
 		"vic_addon.vic.print_utils.get_grand_total",
+		# nomor dokumen yang dicetak: nomor asli kalau "Print Original Number" dicentang (dokumen amend)
+		"vic_addon.vic.print_utils.get_print_name",
+		"vic_addon.vic.print_utils.get_print_names",
 		# nama di bawah "Best regards," pada Inquiry - dipakai juga versi Excel-nya
 		"vic_addon.vic.print_utils.get_inquiry_signatory",
 		# kwitansi Sales Invoice: isian + terbilang & tanggal bahasa Indonesia

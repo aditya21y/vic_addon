@@ -100,7 +100,7 @@ doc.customer_address) else None -%}
 				<tr>
 					<td class="lbl">DO No.</td>
 					<td class="sep">:</td>
-					<td>{{ doc.name }}</td>
+					<td>{{ get_print_name(doc) }}</td>
 				</tr>
 				<tr>
 					<td class="lbl">Date</td>

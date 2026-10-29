@@ -1973,6 +1973,23 @@ Order (VIC)**. Sales Invoice dan Purchase Receipt belum punya print format VIC y
 harga (Kwitansi nyetak nilai tagihan, Goods Received gak ada harga) — checkbox-nya udah ada, tinggal
 dipakai begitu print format-nya dibikin.
 
+#### Print Original Number (dokumen amend)
+
+Dokumen yang di-amend namanya dapet akhiran `R` (`SAL-ORD-2610-00001R1`, `...R2`, lihat naming di atas).
+Checkbox **Print Original Number** (`custom_print_original_number`) di **Purchase Order, Purchase Receipt,
+Purchase Invoice, Sales Order, Delivery Note, Sales Invoice** — paling atas, di bawah Series, cuma muncul
+kalau *Amended From* keisi, bisa diubah setelah submit. Kalau dicentang, print format nyetak **nomor
+dokumen aslinya** (yang pertama kali dibikin): rantai Amended From ditelusurin sampai ujung, jadi `...R2`
+tetap kecetak `SAL-ORD-2610-00001`, bukan `...R1`.
+
+Kena ke nomor dokumen itu sendiri di print format-nya (Purchase Order (VIC), Goods Received, Receipt Note,
+Proforma Invoice, Purchase Request (Sales Order), Quotation (VIC) kalau dicetak dari SO, Delivery Order,
+Delivery Order (Stock Only), Invoice (VIC), Delivery Order (Invoice), Kwitansi), **dan** ke nomor dokumen
+lain yang ikut dicetak — No. DO di Invoice/Proforma/Kwitansi/Delivery Order (Invoice), No. PO di Goods
+Received & Receipt Note — tiap dokumen ngikut centangannya sendiri. Nama dokumennya di sistem gak berubah.
+
+Helper: `get_print_name` / `get_print_names` di `vic_addon/vic/print_utils.py`.
+
 #### Disable Rounded Total default nyala
 
 **Disable Rounded Total** default-nya **1** di semua dokumen transaksi: Quotation, Sales Order, Sales

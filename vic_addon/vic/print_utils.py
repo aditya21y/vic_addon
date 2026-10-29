@@ -28,6 +28,60 @@ def get_grand_total(doc, amount=None):
 	return round_based_on_smallest_currency_fraction(amount, doc.currency, doc.precision("rounded_total"))
 
 
+# Centangan "Print Original Number" di PO, PR, PI, SO, DN, SI (muncul kalau dokumennya hasil amend)
+ORIGINAL_NUMBER_FIELD = "custom_print_original_number"
+
+
+def get_print_name(doc):
+	"""Nomor dokumen yang dicetak: nomor aslinya kalau *Print Original Number* dicentang.
+
+	Dokumen amend namanya `...-00001R1`, `...-00001R2`, dst., dan Amended From-nya nunjuk ke versi
+	sebelumnya - jadi rantainya ditelusurin sampai dokumen pertama (yang gak punya Amended From).
+	Gak dicentang, bukan hasil amend, atau doctype-nya gak punya centangan ini -> nomornya sendiri.
+	"""
+	if not (doc.get(ORIGINAL_NUMBER_FIELD) and doc.get("amended_from")):
+		return doc.name
+
+	return get_original_name(doc.doctype, doc.amended_from)
+
+
+def get_print_names(doctype, names):
+	"""Versi `get_print_name` buat nomor dokumen lain yang ikut dicetak (No. DO, No. PO, dst.) -
+	tiap dokumen ngikut centangan *Print Original Number*-nya sendiri. Urutan & duplikat dijaga."""
+	import frappe
+
+	names = [name for name in names or [] if name]
+	if not names or not frappe.get_meta(doctype).has_field(ORIGINAL_NUMBER_FIELD):
+		return names
+
+	flagged = {
+		row.name: row.amended_from
+		for row in frappe.get_all(
+			doctype,
+			filters={"name": ["in", list(set(names))], ORIGINAL_NUMBER_FIELD: 1, "amended_from": ["is", "set"]},
+			fields=["name", "amended_from"],
+		)
+	}
+	printed = [get_original_name(doctype, flagged[name]) if name in flagged else name for name in names]
+
+	return list(dict.fromkeys(printed))
+
+
+def get_original_name(doctype, name):
+	"""Telusurin Amended From sampai dokumen pertama."""
+	import frappe
+
+	seen = set()
+	while name and name not in seen:
+		seen.add(name)
+		previous = frappe.db.get_value(doctype, name, "amended_from")
+		if not previous:
+			break
+		name = previous
+
+	return name
+
+
 def get_item_description(item):
 	"""Isi kolom Description di tabel item: description dulu, kalau kosong baru item name.
 
@@ -152,8 +206,8 @@ def get_kwitansi(doc):
 		received_from=(doc.get("custom_kwitansi_received_from") or "").strip() or doc.customer_name or doc.customer,
 		project=project,
 		payment_for=(doc.get("custom_kwitansi_payment_for") or "").strip(),
-		invoice_no=doc.name,
-		delivery_notes=delivery_notes,
+		invoice_no=get_print_name(doc),
+		delivery_notes=get_print_names("Delivery Note", delivery_notes),
 		faktur_no=doc.get("custom_faktur_pajak_no") or "",
 		spp_no=spp_no or "",
 		spp_date=spp_date,
@@ -206,7 +260,7 @@ def get_receipt_note(doc):
 		nominal=amount,
 		tax_invoice_no=doc.get("custom_faktur_pajak_no") or "",
 		do_no=", ".join(dict.fromkeys(delivery_notes)),
-		po_no=", ".join(purchase_orders),
+		po_no=", ".join(get_print_names("Purchase Order", purchase_orders)),
 	)
 
 	return frappe._dict(
@@ -342,7 +396,7 @@ def get_invoice_summary(doc, down_payment, delivery_notes):
 		vat_rate=vat_rate,
 		grand_total=grand_total,
 		in_words=amount_in_english(grand_total, doc.currency),
-		delivery_notes=delivery_notes,
+		delivery_notes=get_print_names("Delivery Note", delivery_notes),
 		bank=bank.get("bank") or "",
 		bank_branch=bank.get("branch_code") or "",
 		account_no=bank.get("bank_account_no") or "",
@@ -433,7 +487,7 @@ def get_invoice_delivery_order(doc):
 	# key-nya `rows`, bukan `items`: di Jinja `dlv.items` kebaca method dict.items, bukan isinya
 	return frappe._dict(
 		rows=items,
-		do_no=", ".join(delivery_notes) or doc.name,
+		do_no=", ".join(get_print_names("Delivery Note", delivery_notes)) or get_print_name(doc),
 		date=delivery_note.get("custom_print_format_date") or delivery_note.get("posting_date") or doc.posting_date,
 		vehicle_no=delivery_note.get("vehicle_no") or "",
 		delivered_to=delivery_note.get("custom_delivered_to") or "",

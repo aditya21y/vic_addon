@@ -95,7 +95,7 @@
 			<td class="title" colspan="2">"RECEIPT NOTE"</td>
 			<td class="meta-cell">
 				<div class="meta"><span class="lbl">DATE</span><span class="sep">:</span>{{ frappe.utils.formatdate(doc.posting_date, "MMMM d, yyyy") }}</div>
-				<div class="meta"><span class="lbl">NO</span><span class="sep">:</span>{{ doc.name }}</div>
+				<div class="meta"><span class="lbl">NO</span><span class="sep">:</span>{{ get_print_name(doc) }}</div>
 			</td>
 		</tr>
 

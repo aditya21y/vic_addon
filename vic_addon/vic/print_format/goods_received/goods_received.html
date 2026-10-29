@@ -1,5 +1,6 @@
 {#- Tanda terima barang dari supplier, dicetak dari Purchase Receipt -#}
-{%- set purchase_orders = doc.items | map(attribute="purchase_order") | select | unique | list -%}
+{#- nomor PO ngikut centangan Print Original Number di PO-nya masing-masing -#}
+{%- set purchase_orders = get_print_names("Purchase Order", doc.items | map(attribute="purchase_order") | select | unique | list) -%}
 
 <style>
 	.vic-pf .po { margin-top: 12px; }
@@ -24,7 +25,7 @@
 				<tr>
 					<td class="lbl">GR No.</td>
 					<td class="sep">:</td>
-					<td>{{ doc.name }}</td>
+					<td>{{ get_print_name(doc) }}</td>
 				</tr>
 				<tr>
 					<td class="lbl">Date</td>
