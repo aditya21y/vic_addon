@@ -1734,6 +1734,26 @@ di atas PO — tanpa PO gak ada yang bisa diterima, dan gagalnya baru kelihatan 
 (ERPNext ngamuk nyari Serial No yang harusnya lahir dari Purchase Receipt itu). Jadi dicegat di
 `before_submit` dengan pesan yang nyebut baris, item, dan SO-nya.
 
+**Retur dropship.** Customer ngeretur barang dropship → barangnya balik ke supplier juga. Waktu **retur
+Delivery Note** (Create > Return dari DN dropship) disubmit:
+
+| # | Dokumen | Yang terjadi |
+| --- | --- | --- |
+| 1 | Retur DN | barang masuk lagi ke gudang transit dropship (bawaan ERPNext) |
+| 2 | **Retur Purchase Receipt** (otomatis, submitted) | atas PR dropship-nya — barang keluar dari gudang transit balik ke supplier. Serial No yang diretur customer ikut dibalikin |
+| 3 | **Retur Purchase Invoice / debit note** (otomatis, submitted) | cuma kalau baris PR itu **udah ditagih** — sebanyak qty yang diretur |
+| — | Payment Entry | **gak dibikin**, walaupun PI-nya udah dibayar. Debit note-nya nyimpen outstanding sendiri (piutang ke supplier), dibereskan manual |
+
+Retur PR dibikin di `on_submit` (bukan `before_submit` kayak alur maju): stoknya baru masuk gudang transit
+setelah retur DN-nya kecatat. Qty retur dibagi ke baris PR dropship atas baris SO yang sama, sebatas yang
+belum diretur — PR yang dibikin buat DN asalnya didahuluin. Retur PI-nya ngambil baris invoice yang nagih
+baris PR itu (`pr_detail`), sebatas qty yang belum diretur di invoice itu. Tanggal posting semua ngikut
+retur DN.
+
+PR dropship (alur maju) dan retur PR/PI nyimpen nomor DN-nya di field **Dropship Delivery Note**
+(`custom_dropship_delivery_note`). Retur DN dibatalin → retur PI lalu retur PR-nya ikut dibatalin duluan.
+Implementasi: `vic_addon/vic/dropship_return.py`.
+
 **Required By di PO** ngikut delivery date Sales Order. Buat SO yang tanggal kirimnya udah lewat,
 ERPNext bakal nolak PO-nya (`Required By cannot be before Date`), jadi tanggal yang udah lewat
 dimajuin otomatis ke tanggal PO — cuma buat PO yang lahir dari tombol Create, PO manual tetap

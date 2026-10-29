@@ -439,7 +439,8 @@ def make_dropship_purchase_receipt(doc, method=None):
 	Purchase Receipt (barangnya masuk dengan nomor dari supplier), dan kalau user gak ngisi,
 	nomor hasil generate Purchase Receipt ditarik balik ke Delivery Note. Lihat `serial_no.py`.
 	"""
-	if doc.custom_transaction_type != DROPSHIP or doc.custom_dropship_purchase_receipt:
+	# retur DN dropship dibalikin lewat retur PR/PI setelah submit - lihat dropship_return.py
+	if doc.get("is_return") or doc.custom_transaction_type != DROPSHIP or doc.custom_dropship_purchase_receipt:
 		return
 
 	quantity_by_sales_order_item = {
@@ -597,6 +598,8 @@ def create_purchase_receipt(delivery_note, purchase_order, allocation, serial_no
 		return None
 
 	receipt.items = items
+	# nomor DN-nya dicatat, biar retur DN nanti tau PR mana yang dibalikin (lihat dropship_return.py)
+	receipt.custom_dropship_delivery_note = delivery_note.name
 	set_transaction_type(receipt)
 	set_serial_nos_on_receipt(receipt, serial_nos_by_sales_order_item or {})
 	receipt.insert(ignore_permissions=True)

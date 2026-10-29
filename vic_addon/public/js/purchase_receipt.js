@@ -2,7 +2,8 @@
 // Section harga & Accounting Dimensions disembunyiin lewat property setter (fixtures), tapi tiga
 // total di bawah tabel item dimunculin lagi sama ERPNext (`change_form_labels`, jalan tiap
 // refresh dan ganti currency) - jadi abis itu kelar, disembunyiin lagi di sini. Total Quantity
-// di section yang sama tetap kelihatan.
+// di section yang sama tetap kelihatan. Net Total (Company Currency) cuma disembunyiin di sini:
+// field itu wajib tanpa default, jadi Frappe nolak property setter `hidden` buat dia.
 
 const PRICE_TOTALS = ["base_total", "base_net_total", "net_total"];
 

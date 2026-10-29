@@ -14,3 +14,4 @@ vic_addon.patches.drop_wapu_fields
 vic_addon.patches.disable_inquiry_supplier_email
 vic_addon.patches.drop_purchase_dp_invoice
 vic_addon.patches.drop_sales_order_spp
+vic_addon.patches.drop_purchase_receipt_base_net_total_hidden

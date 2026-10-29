@@ -311,7 +311,14 @@ doc_events["Purchase Receipt"]["validate"].append("vic_addon.vic.serial_no.set_s
 
 # garansi mulai jalan pas barang dikirim, tanggalnya diturunin ke tiap Serial No
 doc_events["Delivery Note"]["validate"].append("vic_addon.vic.serial_no.set_warranty_dates")
-doc_events["Delivery Note"]["on_submit"] = "vic_addon.vic.serial_no.update_serial_no_warranty"
+doc_events["Delivery Note"]["on_submit"] = [
+	"vic_addon.vic.serial_no.update_serial_no_warranty",
+	# retur DN dropship -> retur PR (+ retur PI kalau udah ditagih), tanpa Payment Entry
+	"vic_addon.vic.dropship_return.make_dropship_returns",
+]
+doc_events["Delivery Note"].setdefault("before_cancel", []).append(
+	"vic_addon.vic.dropship_return.cancel_dropship_returns"
+)
 
 # harga dikunci ke dokumen sumbernya, jangan ketiban Item Price
 # for doctype in ("Quotation", "Sales Order"):
