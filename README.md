@@ -1519,7 +1519,8 @@ Quick Entry (tombol + New) field-nya ikut muncul karena wajib.
   (di atas Tax ID). Pilihannya dari master baru **Tax ID Type** (modul VIC), diisi awal
   **TIN** (NPWP), **NIK**, **Passport**, **Other ID** — jenis ID pembeli/penjual di Coretax. Isian
   awal itu cuma dibikin kalau master-nya masih kosong (tiap install/migrate), jadi data yang udah
-  diubah/dihapus user gak muncul lagi.
+  diubah/dihapus user gak muncul lagi. Field yang sama (posisi & master-nya sama) ada juga di
+  **Customer**.
 
 Implementasi: fixture + `vic_addon/vic/doctype/tax_id_type/`.
 
