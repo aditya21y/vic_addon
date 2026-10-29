@@ -1384,9 +1384,15 @@ multi-currency dibiarin kayak bawaan. Implementasi: `vic_addon/public/js/payment
 
 #### Badge & pop-up notifikasi
 
-Lonceng **Notification** di sidebar dapet angka notifikasi belum dibaca (badge merah), dan tiap
-notifikasi baru (di-tag, di-assign, dll) muncul pop-up di pojok kanan bawah + suara `alert` bawaan
-Frappe (ikut setting *Mute Sounds* user). Klik pop-up → buka dokumennya.
+Lonceng **Notification** di sidebar nunjukin angka notifikasi belum dibaca, dan tiap notifikasi baru
+(di-tag, di-assign, dll) muncul pop-up di pojok kanan bawah + suara `alert` bawaan Frappe (ikut
+setting *Mute Sounds* user). Klik pop-up → buka dokumennya.
+
+Angkanya ditaruh di **pill bawaan Frappe v16** di baris lonceng (`.notification-count`, di sebelah
+label), bukan badge sendiri. Badge lama nempel di pojok ikon dan nongol keluar kotaknya, jadi kepotong
+sama area scroll sidebar (`overflow` hidden/auto). Pill bawaan Frappe cuma diisi angka waktu login lalu
++1 tiap event — di sini diisi angka yang beneran dari database (Notification Log yang belum dibaca).
+Waktu sidebar diciutin jadi rail ikon, pill-nya ikut ketutup (bawaan Frappe).
 
 - Update tanpa refresh lewat event realtime `notification` yang dikirim Notification Log waktu
   dibikin; cadangannya polling tiap 60 detik kalau socket-nya putus.

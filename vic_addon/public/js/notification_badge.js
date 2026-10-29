@@ -1,8 +1,10 @@
-// Badge angka notifikasi belum dibaca di lonceng sidebar + pop-up pojok kanan bawah (pakai suara).
+// Angka notifikasi belum dibaca di lonceng sidebar + pop-up pojok kanan bawah (pakai suara).
 //
 // Notifikasi baru (di-tag, di-assign, dll) dikirim Frappe lewat event realtime "notification"
-// waktu Notification Log-nya dibikin. Bawaannya event itu cuma nyalain titik di lonceng; di sini
-// ditambah angka, pop-up, dan suara. Polling tiap 60 detik jadi cadangan kalau socket-nya putus -
+// waktu Notification Log-nya dibikin. Frappe v16 udah punya pill angka sendiri di baris lonceng
+// (`.notification-count`), tapi cuma diisi dari angka waktu login terus +1 tiap event - gak pernah
+// diitung ulang, jadi bisa melenceng. Di sini pill itu diisi angka yang beneran dari database, plus
+// pop-up dan suara. Polling tiap 60 detik jadi cadangan kalau socket-nya putus -
 // client socket.io bawaan cuma nyoba nyambung ulang 3x, abis itu nyerah sampai halaman di-refresh,
 // jadi batas itu juga dicabut. Angka & isi notifikasinya dari vic_addon/vic/notifications.py.
 
@@ -43,16 +45,19 @@ vic.notifications = {
 			.catch(() => { });
 	},
 
+	// Angkanya ditaruh di pill bawaan Frappe, bukan badge sendiri yang nempel di pojok ikon: badge
+	// yang keluar dari kotak ikon kepotong sama area scroll sidebar (overflow-nya hidden/auto).
 	render_badge() {
-		const icon = $(".sidebar-notification .sidebar-item-icon");
-		if (!icon.length) return;
-
-		let badge = icon.find(".vic-notification-badge");
-		if (!badge.length) {
-			badge = $(`<span class="vic-notification-badge"></span>`).appendTo(icon);
+		const count = $(".notification-count");
+		if (this.count > 0) {
+			count
+				.text(this.count > 99 ? "99+" : this.count)
+				.attr("aria-label", __("{0} unread notifications", [this.count]))
+				.removeClass("hidden");
+		} else {
+			count.removeAttr("aria-label").addClass("hidden");
 		}
 
-		badge.text(this.count > 99 ? "99+" : this.count).toggle(this.count > 0);
 		$(".sidebar-notification").attr(
 			"title",
 			this.count ? __("Notification ({0} unread)", [this.count]) : __("Notification")
@@ -120,13 +125,6 @@ vic.notifications = {
 	add_style() {
 		if ($("#vic-notification-style").length) return;
 		$(`<style id="vic-notification-style">
-			.sidebar-notification .sidebar-item-icon { position: relative; }
-			.vic-notification-badge {
-				position: absolute; top: -6px; right: -8px; min-width: 16px; height: 16px;
-				padding: 0 4px; border-radius: 8px; background: var(--red-500, #e03636); color: #fff;
-				font-size: 10px; font-weight: 600; line-height: 16px; text-align: center;
-				pointer-events: none;
-			}
 			.vic-notification-stack {
 				position: fixed; right: 20px; bottom: 20px; z-index: 1060;
 				display: flex; flex-direction: column; gap: 8px; max-width: 360px;
@@ -153,7 +151,7 @@ vic.notifications = {
 	},
 };
 
-// sidebar (dan tombol Notification-nya) dibikin setelah desk siap - ditunggu sampai elemennya ada
+// sidebar (dan tombol Notification + pill angkanya) dibikin setelah desk siap - ditunggu sampai elemennya ada
 $(document).on("startup", () => {
 	const wait = setInterval(() => {
 		if ($(".sidebar-notification").length) {
