@@ -657,6 +657,34 @@ akun penampung tetap kepindah.
 
 Implementasi: `vic_addon/vic/dp_ppn.py`.
 
+#### Target Grand Total (Purchase Invoice)
+
+Tagihan supplier sering beda dikit sama hitungan PI (pembulatan di pihak supplier). Field **Target Grand
+Total** (`custom_target_grand_total`, di bawah Grand Total): isi Grand Total di tagihan supplier, waktu
+**disimpan** rate tiap item disesuaikan biar **Net Total + pajak = angka itu**.
+
+1. Semua rate diskalain proporsional (pajak persentase ikut, pajak nominal/`Actual` dianggap tetap).
+2. Sisa sen dikejar dengan geser rate 0,01 per langkah, mulai dari baris qty terkecil.
+3. Kalau tetap gak bisa pas — rate 2 desimal + pembulatan PPN kadang ngelompat 0,02 — muncul peringatan
+   oranye berisi selisihnya (biasanya 0,01), gak ada diskon/akun tersembunyi yang nutupin.
+
+Selama field-nya keisi, tiap simpan rate-nya disesuaiin lagi (mis. qty diubah); kosongin buat berhenti.
+Cuma draft, bukan retur.
+
+**Nyambung ke PR & COGS.** Alurnya DO & PR udah ada duluan, PI belakangan. Yang berubah rate item
+(`base_net_amount` PI), jadi kalau **Buying Settings → Set Landed Cost Based on Purchase Invoice Rate**
+nyala, selisihnya masuk ke *Amount Difference with Purchase Invoice* di PR, valuasi di-repost, dan COGS
+Delivery Note ikut berubah (dites: PI dari 362,22 jadi 360,36 → COGS DN −362,22 → −360,36). Repost-nya
+jalan lewat antrean background ERPNext — worker/scheduler harus nyala.
+
+**Maintain Same Rate.** Buying Settings di site ini *Maintain Same Rate Throughout the Purchase Cycle* =
+**Stop**, yang nolak rate PI beda dari PO/PR. Buat invoice yang Target Grand Total-nya diisi, cek itu
+dilewatin (mixin `TargetGrandTotalMixin`, hook `extend_doctype_class`); invoice lain tetap dicek.
+**Over billing tetap berlaku:** kalau target lebih **besar** dari nilai PO, submit ditolak ERPNext kecuali
+*Over Billing Allowance* (Accounts Settings / Item) cukup.
+
+Implementasi: `vic_addon/vic/purchase_invoice.py` (hook `before_validate`).
+
 #### PPN Masukan Tertunda (Purchase Invoice)
 
 Purchase Invoice yang **faktur pajaknya belum diterima**: PPN-nya dicatat dulu di akun PPN
