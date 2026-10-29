@@ -39,8 +39,14 @@
 	.vic-pf .qtn-terms { width: 100%; }
 	.vic-pf .qtn-terms .lbl { width: 95px; }
 	.vic-pf .qtn-terms .sep { width: 12px; }
-	/* Your Ref & Subject selebar halaman - kalau lebarnya otomatis, Subject kepotong ke baris baru */
-	.vic-pf .terms.ref { margin-top: 8px; width: 100%; }
+	/* Your Ref & Subject selebar kolom kiri (kotak Customer), label selebar label kolom kanan - isian
+	   yang kepanjangan turun ke baris berikutnya di dalam kolom itu */
+	.vic-pf .terms.ref { margin-top: 8px; width: 52%; table-layout: fixed; }
+	.vic-pf .terms.ref .lbl { width: 95px; }
+	.vic-pf .terms.ref td { overflow-wrap: anywhere; }
+	/* gambar logonya punya ruang kosong di atas (~25px setelah diperkecil), jadi dinaikin biar
+	   sejajar sama nama & alamat company di sebelahnya */
+	.vic-pf .head .logo img { margin-top: -20px; }
 </style>
 
 <div class="vic-pf">
