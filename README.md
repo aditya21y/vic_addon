@@ -1680,6 +1680,24 @@ tombol yang dua-duanya lewat modal berisi baris + **qty yang bisa diedit**:
 | **Create > Delivery Note** | Baris Dropship & Mixed | Sisa baris itu |
 | **Create > Purchase Receipt** | Baris Reguler & Mixed (Dropship gak ikut) | Sisa baris itu |
 
+**Tarik banyak PO sekaligus dari Delivery Note.** Di DN draft ada tombol **Get Items From > Purchase
+Order (Dropship)**, dua langkah:
+
+1. pilih PO-nya (bisa banyak) — pilihannya PO submitted yang masih punya baris Dropship/Mixed belum
+   terkirim penuh, disaring ke customer DN kalau udah keisi;
+2. tabel baris Dropship & Mixed dari semua PO itu (PO, SO, item, tipe, Order Qty, **Qty** yang bisa
+   diedit — baris Mixed dipecah di sini), centang yang dikirim → **Get Items**.
+
+Barisnya **ditambahin** ke DN yang lagi dibuka: dirakit lewat Sales Order masing-masing (baris PO
+dikelompokin per SO, tiap SO dipetain ke DN yang sama), qty ngikut isian, gudang transit dropship. Baris
+yang udah ada di DN dibiarin, baris SO yang udah ada gak ditambahin dobel. Semua PO-nya harus buat
+**customer & company yang sama** — kalau beda ditolak. Waktu DN disubmit, Purchase Receipt dropship
+kebentuk otomatis per PO kayak biasa.
+
+Tombol **Create > Delivery Note** di PO pakai perakit yang sama (`build_delivery_note` di
+`vic_addon/vic/dropship.py`), jadi PO yang nyakup beberapa SO (customer sama) sekarang juga bisa — dulu
+ditolak.
+
 **Sisanya dihitung sekali, dipakai dua modal**: `qty - received_qty - qty yang nyangkut di DN
 draft`. `received_qty` di baris PO udah nyakup dua jalur — porsi yang masuk gudang lewat Purchase
 Receipt biasa, **dan** porsi dropship yang penerimaannya kebentuk otomatis waktu DN disubmit — jadi

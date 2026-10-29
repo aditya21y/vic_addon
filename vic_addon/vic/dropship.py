@@ -15,6 +15,7 @@ Note di tanggal yang sama, jadi saldonya nol tapi stock ledger dan valuasinya te
 
 import frappe
 from frappe import _
+from frappe.query_builder import Order
 from frappe.utils import flt, getdate
 
 from vic_addon.vic.serial_no import (
@@ -310,58 +311,175 @@ def get_draft_delivery_qty(purchase_order):
 
 @frappe.whitelist()
 def make_delivery_note(source_name, selected_items=None, target_doc=None):
-	"""Bikin Delivery Note dari Purchase Order buat barang yang dikirim langsung ke lapangan.
+	"""Bikin Delivery Note dari satu Purchase Order (tombol Create > Delivery Note di PO).
 
-	DN-nya tetap dibikin dari Sales Order (itu dokumen ke customer), cuma isinya dibatasi ke
-	baris yang dipilih user di modal, qty-nya ikut isian user, dan barangnya keluar dari gudang
-	transit dropship.
+	Tanpa pilihan dari modal, semua baris Dropship/Mixed PO-nya ikut dengan qty penuh. Isinya
+	dirakit `build_delivery_note`, sama kayak tarik banyak PO dari form Delivery Note.
 	"""
-	from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note as make_dn
-
 	purchase_order = frappe.get_doc("Purchase Order", source_name)
 	purchase_order.check_permission("read")
 
-	qty_by_row = get_selected_qty(selected_items)
-
-	items = [
-		item
+	qty_by_row = get_selected_qty(selected_items) or {
+		item.name: flt(item.qty)
 		for item in purchase_order.items
 		if item.custom_transaction_type in (DROPSHIP, MIXED)
-		and (not qty_by_row or item.name in qty_by_row)
-	]
-	if not items:
+	}
+	if not qty_by_row:
 		frappe.throw(
 			_("No Dropship or Mixed item in this Purchase Order."), title=_("Nothing to Deliver")
 		)
 
-	sales_orders = {item.sales_order for item in items if item.sales_order}
-	if not sales_orders:
+	return build_delivery_note(qty_by_row, target_doc)
+
+
+@frappe.whitelist()
+def search_dropship_purchase_orders(customer=None, txt=None):
+	"""Pilihan PO di dialog *Get Items From > Purchase Order (Dropship)* di Delivery Note.
+
+	PO submitted yang masih punya baris Dropship/Mixed belum terkirim penuh. Kalau customer DN-nya
+	udah keisi, cuma PO buat Sales Order customer itu.
+	"""
+	po = frappe.qb.DocType("Purchase Order")
+	item = frappe.qb.DocType("Purchase Order Item")
+	so = frappe.qb.DocType("Sales Order")
+
+	query = (
+		frappe.qb.from_(po)
+		.join(item)
+		.on(item.parent == po.name)
+		.join(so)
+		.on(so.name == item.sales_order)
+		.select(po.name, po.supplier, po.transaction_date, so.customer)
+		.distinct()
+		.where(
+			(po.docstatus == 1)
+			& (po.status.notin(["Closed", "Completed", "On Hold"]))
+			& (item.custom_transaction_type.isin([DROPSHIP, MIXED]))
+			& (item.qty > item.received_qty)
+		)
+		.orderby(po.transaction_date, order=Order.desc)
+		.limit(50)
+	)
+	if customer:
+		query = query.where(so.customer == customer)
+	if txt:
+		query = query.where(po.name.like(f"%{txt}%") | po.supplier.like(f"%{txt}%"))
+
+	return [
+		{
+			"value": row.name,
+			"description": f"{row.supplier} · {row.customer} · {frappe.format(row.transaction_date, {'fieldtype': 'Date'})}",
+		}
+		for row in query.run(as_dict=True)
+		if frappe.has_permission("Purchase Order", "read", row.name)
+	]
+
+
+@frappe.whitelist()
+def get_items_from_purchase_orders(purchase_orders):
+	"""Baris Dropship/Mixed yang masih bisa dikirim dari beberapa PO sekaligus - isi tabel dialog
+	tarik PO di Delivery Note. Baris yang sisanya udah nol gak ditampilin."""
+	rows = []
+	for name in frappe.parse_json(purchase_orders) if isinstance(purchase_orders, str) else purchase_orders or []:
+		for row in get_items_for_delivery_note(name):
+			if flt(row["qty"]) > 0:
+				rows.append({**row, "purchase_order": name})
+
+	return rows
+
+
+@frappe.whitelist()
+def make_delivery_note_from_purchase_orders(selected_items, target_doc=None):
+	"""Tombol *Get Items From > Purchase Order (Dropship)* di Delivery Note: baris yang dipilih dari
+	beberapa PO ditambahin ke DN yang lagi dibuka."""
+	qty_by_row = get_selected_qty(selected_items)
+	if not qty_by_row:
+		frappe.throw(_("Select at least one item"), title=_("Nothing to Deliver"))
+
+	return build_delivery_note(qty_by_row, target_doc)
+
+
+def build_delivery_note(qty_by_row, target_doc=None):
+	"""Rakit Delivery Note buat barang dropship dari baris PO yang dipilih: `{baris PO: qty}`.
+
+	DN-nya tetap dibikin dari Sales Order (itu dokumen ke customer) - baris PO dikelompokin per SO,
+	terus tiap SO dipetain berurutan ke DN yang sama. Yang dipakai cuma baris SO yang dipilih,
+	qty-nya ikut isian (baris PO yang nunjuk ke baris SO yang sama dijumlah), dan barangnya keluar
+	dari gudang transit dropship. Baris yang udah ada di DN dibiarin; baris SO yang udah ada di DN
+	gak ditambahin dobel.
+
+	Semua SO-nya harus buat customer & company yang sama (satu DN satu customer).
+	"""
+	from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note as make_dn
+
+	rows = frappe.get_all(
+		"Purchase Order Item",
+		filters={"name": ["in", list(qty_by_row)], "docstatus": 1},
+		fields=["name", "parent", "item_code", "sales_order", "sales_order_item", "custom_transaction_type"],
+	)
+	for purchase_order in {row.parent for row in rows}:
+		frappe.has_permission("Purchase Order", "read", purchase_order, throw=True)
+
+	rows = [row for row in rows if row.custom_transaction_type in (DROPSHIP, MIXED)]
+	if not rows:
+		frappe.throw(_("No Dropship or Mixed item selected."), title=_("Nothing to Deliver"))
+
+	unlinked = sorted({row.item_code for row in rows if not row.sales_order_item})
+	if unlinked:
 		frappe.throw(
-			_("Dropship items in this Purchase Order are not linked to any Sales Order."),
+			_("Dropship items {0} are not linked to any Sales Order.").format(", ".join(unlinked)),
 			title=_("Sales Order Not Found"),
 		)
 
-	if len(sales_orders) > 1:
+	qty_by_sales_order_item = {}
+	for row in rows:
+		qty_by_sales_order_item[row.sales_order_item] = qty_by_sales_order_item.get(
+			row.sales_order_item, 0
+		) + flt(qty_by_row[row.name])
+
+	sales_orders = sorted({row.sales_order for row in rows})
+	parties = frappe.get_all(
+		"Sales Order", filters={"name": ["in", sales_orders]}, fields=["name", "customer", "company"]
+	)
+	# dari form datangnya JSON (DN yang lagi dibuka, boleh belum disimpan)
+	if isinstance(target_doc, str | dict):
+		target_doc = frappe.get_doc(frappe.parse_json(target_doc))
+
+	customers = {row.customer for row in parties} | ({target_doc.customer} if target_doc and target_doc.get("customer") else set())
+	companies = {row.company for row in parties} | ({target_doc.company} if target_doc and target_doc.get("company") else set())
+	if len(customers) > 1 or len(companies) > 1:
 		frappe.throw(
-			_("This Purchase Order covers more than one Sales Order ({0}). Create the Delivery Note from each Sales Order instead.").format(
-				", ".join(sorted(sales_orders))
-			)
+			_("One Delivery Note can only cover one customer and company. The selected Purchase Orders are for {0}.").format(
+				", ".join(sorted(customers | companies))
+			),
+			title=_("Different Customer"),
 		)
 
-	qty_by_sales_order_item = {
-		item.sales_order_item: qty_by_row.get(item.name, flt(item.qty)) for item in items
-	}
+	delivery_note = target_doc
+	if delivery_note:
+		# baris kosong bawaan form baru dibuang
+		delivery_note.items = [item for item in delivery_note.items if item.item_code]
+	existing_rows = {item.so_detail for item in delivery_note.items} if delivery_note else set()
 
-	delivery_note = make_dn(sales_orders.pop(), target_doc)
-	delivery_note.items = [
-		item for item in delivery_note.items if item.so_detail in qty_by_sales_order_item
-	]
+	for sales_order in sales_orders:
+		kept = list(delivery_note.items) if delivery_note else []
+		delivery_note = make_dn(sales_order, delivery_note)
+		added = [
+			item
+			for item in delivery_note.items
+			if not any(item is old for old in kept)
+			and item.so_detail in qty_by_sales_order_item
+			and item.so_detail not in existing_rows
+		]
+		delivery_note.items = kept + added
 
 	warehouse = get_dropship_warehouse(delivery_note.company)
-	for item in delivery_note.items:
-		item.custom_transaction_type = DROPSHIP
-		item.warehouse = warehouse
-		item.qty = flt(qty_by_sales_order_item[item.so_detail], item.precision("qty"))
+	for idx, item in enumerate(delivery_note.items, start=1):
+		item.idx = idx
+		if item.so_detail in qty_by_sales_order_item and item.so_detail not in existing_rows:
+			item.custom_transaction_type = DROPSHIP
+			item.warehouse = warehouse
+			item.qty = flt(qty_by_sales_order_item[item.so_detail], item.precision("qty"))
 
 	set_transaction_type(delivery_note)
 
