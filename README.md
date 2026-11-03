@@ -1436,11 +1436,12 @@ Lonceng **Notification** di sidebar nunjukin angka notifikasi belum dibaca, dan 
 (di-tag, di-assign, dll) muncul pop-up di pojok kanan bawah + suara `alert` bawaan Frappe (ikut
 setting *Mute Sounds* user). Klik pop-up → buka dokumennya.
 
-Angkanya ditaruh di **pill bawaan Frappe v16** di baris lonceng (`.notification-count`, di sebelah
-label), bukan badge sendiri. Badge lama nempel di pojok ikon dan nongol keluar kotaknya, jadi kepotong
-sama area scroll sidebar (`overflow` hidden/auto). Pill bawaan Frappe cuma diisi angka waktu login lalu
-+1 tiap event — di sini diisi angka yang beneran dari database (Notification Log yang belum dibaca).
-Waktu sidebar diciutin jadi rail ikon, pill-nya ikut ketutup (bawaan Frappe).
+Angkanya ditaruh di **pill sebaris sama label lonceng** (di sebelah kanan tulisan *Notification*),
+bukan badge yang nempel di pojok ikon. Badge lama nongol keluar kotak ikon, jadi kepotong sama area
+scroll sidebar (`overflow` hidden/auto). Kalau versi Frappe-nya punya pill angka sendiri
+(`.notification-count`), pill itu yang dipakai; di v16.25–16.27 belum ada (lonceng cuma punya titik
+`.notifications-unseen`), jadi pill-nya dibikin sendiri (`.vic-notification-count`). Angkanya diambil
+dari database (Notification Log yang belum dibaca).
 
 - Update tanpa refresh lewat event realtime `notification` yang dikirim Notification Log waktu
   dibikin; cadangannya polling tiap 60 detik kalau socket-nya putus.

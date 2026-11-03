@@ -45,10 +45,13 @@ vic.notifications = {
 			.catch(() => { });
 	},
 
-	// Angkanya ditaruh di pill bawaan Frappe, bukan badge sendiri yang nempel di pojok ikon: badge
+	// Angkanya ditaruh di pill sebaris sama label lonceng, bukan badge yang nempel di pojok ikon: badge
 	// yang keluar dari kotak ikon kepotong sama area scroll sidebar (overflow-nya hidden/auto).
+	// Pill bawaan Frappe (`.notification-count`) dipakai kalau ada - di v16.25-16.27 belum ada, cuma
+	// titik `.notifications-unseen`, jadi pill-nya dibikin sendiri.
 	render_badge() {
-		const count = $(".notification-count");
+		let count = $(".notification-count");
+		if (!count.length) count = this.get_pill();
 		if (this.count > 0) {
 			count
 				.text(this.count > 99 ? "99+" : this.count)
@@ -62,6 +65,18 @@ vic.notifications = {
 			"title",
 			this.count ? __("Notification ({0} unread)", [this.count]) : __("Notification")
 		);
+	},
+
+	// dicari ulang tiap render - sidebar bisa digambar ulang dan pill lamanya ikut ilang
+	get_pill() {
+		const anchor = $(".sidebar-notification .item-anchor").first();
+		let pill = anchor.find(".vic-notification-count");
+		if (anchor.length && !pill.length) {
+			pill = $(`<span class="vic-notification-count hidden"></span>`);
+			const control = anchor.children(".sidebar-item-control");
+			control.length ? pill.insertBefore(control) : pill.appendTo(anchor);
+		}
+		return pill;
 	},
 
 	show_popup(notification) {
@@ -125,6 +140,12 @@ vic.notifications = {
 	add_style() {
 		if ($("#vic-notification-style").length) return;
 		$(`<style id="vic-notification-style">
+			.vic-notification-count {
+				margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+				background: var(--red-500, #e03636); color: #fff; font-size: 11px; font-weight: 600;
+				line-height: 18px; text-align: center; flex-shrink: 0;
+			}
+			.vic-notification-count.hidden { display: none; }
 			.vic-notification-stack {
 				position: fixed; right: 20px; bottom: 20px; z-index: 1060;
 				display: flex; flex-direction: column; gap: 8px; max-width: 360px;
