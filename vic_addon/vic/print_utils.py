@@ -166,6 +166,21 @@ def get_spp(doc):
 	return frappe.db.get_value("Sales Order", sales_order, ["po_no", "po_date"]) or (None, None)
 
 
+def set_spp_from_sales_order(doc, method=None):
+	"""Hook `before_validate` Sales Invoice: SPP / SPK yang masih kosong diisi dari Customer's PO.
+
+	Sumbernya sama kayak yang dicetak kwitansi (`get_spp`), cuma ditulis ke tab Kwitansi biar
+	kelihatan di form. Isian user gak pernah ketiban.
+	"""
+	if doc.get("custom_kwitansi_spp_no"):
+		return
+
+	spp_no, spp_date = get_spp(doc)
+	if spp_no:
+		doc.custom_kwitansi_spp_no = spp_no
+		doc.custom_kwitansi_spp_date = doc.get("custom_kwitansi_spp_date") or spp_date
+
+
 def get_kwitansi(doc):
 	"""Semua isian kwitansi Sales Invoice, dipakai print format Kwitansi & Kwitansi (Progress).
 

@@ -2218,6 +2218,9 @@ Purchase Order** (`po_no`) & tanggalnya (`po_date`) dari invoice itu — yang ud
 Sales Order. Kalau di invoice juga kosong, diambil dari Sales Order-nya (buat PO No. yang baru diisi di
 SO setelah invoice kebentuk). Nomor & tanggal diambil sepasang dari sumber yang sama.
 
+Waktu invoice disimpan, isian itu juga ditulis ke tab Kwitansi kalau *SPP / SPK No.*-nya masih kosong
+(hook `print_utils.set_spp_from_sales_order`), biar kelihatan di form. Isian yang udah ada gak ditimpa.
+
 Dulu Sales Order punya field SPP / SPK sendiri — udah dibuang (patch `drop_sales_order_spp`; isian
 lamanya dipindah ke Customer's Purchase Order kalau field itu masih kosong).
 

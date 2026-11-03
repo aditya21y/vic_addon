@@ -436,6 +436,8 @@ doc_events["Sales Invoice"]["before_cancel"] = [
 
 # retensi: baris RETENSI minus di invoice progress, plus di invoice retensi (lihat vic/retention.py)
 doc_events["Sales Invoice"]["before_validate"].insert(1, "vic_addon.vic.retention.set_retention")
+# SPP / SPK kwitansi yang masih kosong diisi dari Customer's Purchase Order (invoice, lalu Sales Order)
+doc_events["Sales Invoice"]["before_validate"].append("vic_addon.vic.print_utils.set_spp_from_sales_order")
 doc_events["Sales Invoice"]["validate"].append("vic_addon.vic.retention.validate_negative_rates")
 doc_events["Sales Invoice"]["before_cancel"].insert(0, "vic_addon.vic.retention.block_cancel_of_billed_retention")
 
