@@ -762,6 +762,26 @@ tombol ditolak → cancel PE kedua, Deposit Paid balik 600rb; Advance Paid PO te
 
 Implementasi: `vic_addon/vic/vendor_deposit.py`, `vic_addon/public/js/vendor_deposit.js`.
 
+#### Sales Order submitted: cuma bisa tambah item
+
+Tombol bawaan **Update Items** di Sales Order diganti **Add Items**: SO yang udah submit cuma boleh dapat
+**baris baru** — baris yang udah ada gak bisa diubah (qty, rate, UOM, tanggal) atau dihapus.
+
+- **Muncul** di SO submitted selama statusnya bukan Closed / On Hold — **termasuk yang udah 100% terkirim
+  atau ditagih** (Update Items bawaan ERPNext ngilang di kondisi itu; yang *partially* sebenarnya masih
+  ada).
+- Dialognya cuma berisi baris baru: Item, Qty, UOM, Rate, Delivery Date (default dari SO), Transaction
+  Type (default Mixed).
+- Barisnya ditambahin lewat mesin Update Items bawaan ERPNext (`update_child_qty_rate`), jadi status,
+  % delivered/billed, pajak, dan validasinya tetap ERPNext yang ngurus. Contoh (dites): SO 100%
+  terkirim + 1 item baru → % Delivered 40, status balik *To Deliver and Bill*.
+- **Dijaga di server juga:** `update_child_qty_rate` di-override (`override_whitelisted_methods`) — request
+  buat Sales Order yang ngubah atau ngehapus baris lama ditolak, dari jalur mana pun. Doctype lain
+  (Purchase Order dll) gak kena.
+
+Implementasi: `add_sales_order_items`, `update_child_qty_rate`, `validate_add_only` di
+`vic_addon/vic/sales_order.py` + `vic_addon/public/js/sales_order.js`.
+
 #### Sales Order: PO per supplier + dropship
 
 Info supplier ikut turun sepanjang alur lewat field `Supplier Quotation` + `Supplier` di

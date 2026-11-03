@@ -17,9 +17,110 @@ frappe.ui.form.on("Sales Order", {
 // Dicopot lewat `custom_refresh`, bukan handler `refresh` di atas: tombolnya dipasang controller
 // ERPNext (`cscript.refresh`) yang jalannya setelah handler `frappe.ui.form.on`, sedangkan
 // `custom_refresh` dipanggil Frappe sesudah controller itu.
+//
+// Update Items bawaan juga dicopot di sini (dipasang di dua tempat oleh ERPNext, dua-duanya sebelum
+// `custom_refresh`), diganti Add Items: SO submitted cuma boleh nambah baris baru.
 cur_frm.cscript.custom_refresh = function () {
-	this.frm.remove_custom_button(__("Purchase Order"), __("Create"));
+	const frm = this.frm;
+	frm.remove_custom_button(__("Purchase Order"), __("Create"));
+	frm.remove_custom_button(__("Update Items"));
+
+	if (frm.doc.docstatus === 1 && !["Closed", "On Hold"].includes(frm.doc.status) && frm.has_perm("write")) {
+		frm.add_custom_button(__("Add Items"), () => add_sales_order_items(frm));
+	}
 };
+
+// SO yang udah submit cuma boleh dapat baris baru - baris lama gak bisa diubah atau dihapus (dicek
+// juga di server, lihat `add_sales_order_items` & `validate_add_only` di vic/sales_order.py). Tetap
+// bisa walau SO-nya udah 100% terkirim / ditagih.
+function add_sales_order_items(frm) {
+	const dialog = new frappe.ui.Dialog({
+		title: __("Add Items to {0}", [frm.doc.name]),
+		size: "extra-large",
+		fields: [
+			{
+				fieldtype: "HTML",
+				options: `<p class="text-muted small">${__(
+					"Only new items can be added. Existing items in this Sales Order cannot be changed or deleted."
+				)}</p>`,
+			},
+			{
+				fieldname: "items",
+				fieldtype: "Table",
+				label: __("New Items"),
+				in_place_edit: true,
+				data: [{ delivery_date: frm.doc.delivery_date, transaction_type: "Mixed" }],
+				fields: [
+					{
+						fieldtype: "Link",
+						fieldname: "item_code",
+						label: __("Item"),
+						options: "Item",
+						reqd: 1,
+						in_list_view: 1,
+						columns: 3,
+						get_query: () => ({ filters: { is_sales_item: 1, disabled: 0 } }),
+					},
+					{ fieldtype: "Float", fieldname: "qty", label: __("Qty"), reqd: 1, in_list_view: 1, columns: 1 },
+					{ fieldtype: "Link", fieldname: "uom", label: __("UOM"), options: "UOM", in_list_view: 1, columns: 1 },
+					{
+						fieldtype: "Currency",
+						fieldname: "rate",
+						label: __("Rate"),
+						options: frm.doc.currency,
+						in_list_view: 1,
+						columns: 2,
+					},
+					{
+						fieldtype: "Date",
+						fieldname: "delivery_date",
+						label: __("Delivery Date"),
+						reqd: 1,
+						default: frm.doc.delivery_date,
+						in_list_view: 1,
+						columns: 2,
+					},
+					{
+						fieldtype: "Select",
+						fieldname: "transaction_type",
+						label: __("Transaction Type"),
+						options: ["Reguler", "Dropship", "Mixed"],
+						default: "Mixed",
+						in_list_view: 1,
+						columns: 1,
+					},
+				],
+			},
+		],
+		primary_action_label: __("Add"),
+		primary_action() {
+			const rows = (dialog.get_values().items || []).filter((row) => row.item_code);
+			if (!rows.length) {
+				frappe.msgprint(__("Add at least one item"));
+				return;
+			}
+
+			frappe.call({
+				method: "vic_addon.vic.sales_order.add_sales_order_items",
+				args: { sales_order: frm.doc.name, items: rows },
+				freeze: true,
+				freeze_message: __("Adding Items"),
+				callback({ message }) {
+					if (!message) return;
+
+					dialog.hide();
+					frappe.show_alert({
+						message: __("{0} item(s) added to {1}", [message.length, frm.doc.name]),
+						indicator: "green",
+					});
+					frm.reload_doc();
+				},
+			});
+		},
+	});
+
+	dialog.show();
+}
 
 // Modal: user ngecek dulu baris mana yang mau di-PO, dari penawaran siapa, dan berapa banyak.
 // Satu PO per supplier. Supplier ngikut Supplier Quotation yang dipilih; mau ganti supplier

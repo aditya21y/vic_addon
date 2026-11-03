@@ -527,6 +527,8 @@ override_doctype_dashboards = {
 }
 
 override_whitelisted_methods = {
+	# Update Items di Sales Order submitted: cuma boleh nambah baris, baris lama gak boleh diubah/dihapus
+	"erpnext.controllers.accounts_controller.update_child_qty_rate": "vic_addon.vic.sales_order.update_child_qty_rate",
 	# tombol Create Payment Entry di DP Invoice, biar tabel pajak DP langsung keisi di form
 	"erpnext.accounts.doctype.payment_request.payment_request.make_payment_entry": "vic_addon.vic.dp_invoice.make_payment_entry",
 	# tombol Create Payment Request di SO/PO: DP dihitung dari net total + tabel pajak keisi

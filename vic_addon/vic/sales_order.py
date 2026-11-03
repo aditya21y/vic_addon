@@ -470,3 +470,118 @@ def set_supplier_quotation_details(purchase_order, sales_order, selection=None):
 		# harga cuma diambil kalau mata uangnya sama, biar gak ketuker kurs
 		if frappe.db.get_value("Supplier Quotation", quotation, "currency") == purchase_order.currency:
 			item.rate = quotation_item.net_rate
+
+
+# ---------------------------------------------------------------------------------------------
+# Tambah item ke Sales Order yang udah submit - cuma nambah, baris lama gak boleh diubah/dihapus
+# ---------------------------------------------------------------------------------------------
+
+# kolom baris lama yang dikirim balik apa adanya - ERPNext cuma ngelewatin baris yang semuanya sama
+UNCHANGED_FIELDS = ("item_code", "qty", "rate", "uom", "conversion_factor", "delivery_date", "description")
+
+
+@frappe.whitelist()
+def add_sales_order_items(sales_order, items):
+	"""Tombol *Add Items* di Sales Order submitted: tambah baris baru, baris lama gak disentuh.
+
+	Pakai `update_child_qty_rate` bawaan ERPNext (mesin tombol Update Items), jadi status, % delivered
+	& billed, pajak, dan validasinya tetap ERPNext yang ngurus. Baris lama dikirim balik persis apa
+	adanya - baris yang gak ikut dikirim bakal dihapus ERPNext, dan baris yang beda dikit dianggap
+	diubah. Tipe transaksi baris baru diisi setelahnya (mesin ERPNext gak nyentuh custom field).
+
+	Beda sama Update Items bawaan: tetap bisa walau SO-nya udah 100% terkirim / ditagih, kecuali
+	Closed atau On Hold.
+	"""
+	from erpnext.controllers.accounts_controller import update_child_qty_rate
+
+	doc = frappe.get_doc("Sales Order", sales_order)
+	doc.check_permission("write")
+
+	if doc.docstatus != 1:
+		frappe.throw(_("Items can only be added to a submitted Sales Order."))
+	if doc.status in ("Closed", "On Hold"):
+		frappe.throw(
+			_("Sales Order {0} is {1}. Reopen or resume it first.").format(doc.name, _(doc.status)),
+			title=_("Cannot Add Items"),
+		)
+
+	new_items = [frappe._dict(row) for row in frappe.parse_json(items) if row.get("item_code") and flt(row.get("qty"))]
+	if not new_items:
+		frappe.throw(_("Add at least one item with a quantity."), title=_("Nothing to Add"))
+
+	existing = [
+		{"docname": row.name, **{field: str(row.get(field)) if field == "delivery_date" else row.get(field) for field in UNCHANGED_FIELDS}}
+		for row in doc.items
+	]
+	added = [
+		{
+			"item_code": row.item_code,
+			"qty": flt(row.qty),
+			"rate": flt(row.rate),
+			"uom": row.uom,
+			"delivery_date": row.delivery_date or doc.delivery_date,
+			"description": frappe.db.get_value("Item", row.item_code, "description") or row.item_code,
+		}
+		for row in new_items
+	]
+	previous_rows = {row.name for row in doc.items}
+
+	update_child_qty_rate("Sales Order", frappe.as_json(existing + added), doc.name, "items")
+
+	# tipe transaksi baris baru (Reguler / Dropship / Mixed), header-nya ringkasan
+	doc.reload()
+	types = iter(row.get("transaction_type") or MIXED for row in new_items)
+	for row in doc.items:
+		if row.name not in previous_rows:
+			row.db_set("custom_transaction_type", next(types, MIXED), update_modified=False)
+	set_transaction_type(doc)
+	doc.db_set("custom_transaction_type", doc.custom_transaction_type, update_modified=False)
+
+	return [row.name for row in doc.items if row.name not in previous_rows]
+
+
+@frappe.whitelist()
+def update_child_qty_rate(parent_doctype, trans_items, parent_doctype_name, child_docname="items"):
+	"""Pengganti `erpnext...update_child_qty_rate` (mesin Update Items): Sales Order cuma boleh nambah.
+
+	Dipasang lewat `override_whitelisted_methods`, jadi berlaku dari jalur mana pun (dialog bawaan,
+	API). Request yang ngehapus atau ngubah baris lama Sales Order ditolak; doctype lain diterusin
+	apa adanya.
+	"""
+	from erpnext.controllers.accounts_controller import update_child_qty_rate as erpnext_update
+
+	if parent_doctype == "Sales Order":
+		validate_add_only(parent_doctype_name, frappe.parse_json(trans_items))
+
+	return erpnext_update(parent_doctype, trans_items, parent_doctype_name, child_docname)
+
+
+def validate_add_only(sales_order, rows):
+	"""Semua baris lama harus ikut, dengan isi yang sama persis - yang boleh cuma baris baru."""
+	sent = {row.get("docname"): row for row in rows if row.get("docname")}
+	problems = []
+
+	for item in frappe.get_doc("Sales Order", sales_order).items:
+		row = sent.get(item.name)
+		if not row:
+			problems.append(_("Row #{0} ({1}) cannot be deleted").format(item.idx, item.item_code))
+			continue
+
+		changed = (
+			row.get("item_code") != item.item_code
+			or flt(row.get("qty")) != flt(item.qty)
+			or flt(row.get("rate")) != flt(item.rate)
+			or (row.get("uom") or item.uom) != item.uom
+			or flt(row.get("conversion_factor") or item.conversion_factor) != flt(item.conversion_factor)
+			or (row.get("delivery_date") and getdate(row.get("delivery_date")) != getdate(item.delivery_date))
+		)
+		if changed:
+			problems.append(_("Row #{0} ({1}) cannot be changed").format(item.idx, item.item_code))
+
+	if problems:
+		frappe.throw(
+			_("A submitted Sales Order can only get new items. Existing items cannot be changed or deleted:")
+			+ "<br>"
+			+ "<br>".join(problems),
+			title=_("Only Adding Items Is Allowed"),
+		)
