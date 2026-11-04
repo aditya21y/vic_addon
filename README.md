@@ -1996,7 +1996,7 @@ kosong → alamat supplier (Supplier Address).
 Order To dan Delivered To **keisi otomatis** tiap Supplier Address / Shipping Address dipilih (termasuk
 waktu ganti supplier), dalam bentuk teks biasa per baris — habis itu bebas diedit. Ganti alamat lagi =
 isiannya ketimpa alamat yang baru. Terbilang di kiri, sejajar blok total di kanan. Tanda tangan: kiri
-*Best regards,* → field **Best Regards** (`custom_best_regards`, section Terms & Conditions, bisa
+*Best regards,* → field **Best Regards** (`custom_best_regards`, tab Details di bawah Company, bisa
 diubah setelah submit; kosong → nama user pembuat) → *Director*; kanan *Supplier Approved* → nama
 kontak supplier.
 
