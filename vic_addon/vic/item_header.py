@@ -1,29 +1,29 @@
-"""Pengelompokan baris item dua tingkat: Pengiriman, lalu Pengerjaan.
+"""Pengelompokan baris item dua tingkat: Header 1, lalu Header 2.
 
-- **Pengiriman** (`custom_header`, dulu labelnya "Header") - kelompok paling atas. Ada di
-  Opportunity (RFQ), Request for Quotation (Inquiry), Costing, Quotation, Sales Order, Delivery
-  Note, Sales Invoice, plus Purchase Order, Purchase Receipt, Purchase Invoice.
-- **Pengerjaan** (`custom_pengerjaan`) - kelompok di dalam Pengiriman. Ada di doctype di atas
-  kecuali Purchase Order, Purchase Receipt, Purchase Invoice.
+- **Header 1** (`custom_header`) - kelompok paling atas. Ada di Opportunity (RFQ), Request for
+  Quotation (Inquiry), Costing, Quotation, Sales Order, Delivery Note, Sales Invoice, plus Purchase
+  Order, Purchase Receipt, Purchase Invoice.
+- **Header 2** (`custom_pengerjaan`) - kelompok di dalam Header 1. Ada di doctype di atas kecuali
+  Purchase Order, Purchase Receipt, Purchase Invoice.
 
-Dua-duanya cukup diisi di baris pertama tiap kelompok: baris yang dikosongin ikut baris di
-atasnya. Pengerjaan mulai dari nol lagi tiap ganti Pengiriman - baris pertama Pengiriman baru gak
-ngewarisin Pengerjaan dari Pengiriman sebelumnya. Yang gak boleh:
+Labelnya dulu Pengiriman (Header 1) dan Pengerjaan (Header 2). Yang diganti cuma label: fieldname
+dan nama internal di kode & print format (`group.pengiriman`, `group.pengerjaan`) tetap.
 
-- Pengiriman dipakai, tapi baris pertama dokumen kosong (gak ada baris di atasnya buat diikutin)
-- di satu kelompok Pengiriman ada Pengerjaan, tapi baris pertama kelompok itu kosong
+Dua-duanya opsional dan cukup diisi di baris pertama tiap kelompok: baris yang dikosongin ikut baris
+di atasnya. Header 2 mulai dari nol lagi tiap ganti Header 1 - baris pertama Header 1 baru gak
+ngewarisin Header 2 dari Header 1 sebelumnya. Baris yang di atasnya belum ada nilai (mis. baris
+pertama dokumen) boleh kosong dan tetap kosong: dicetak tanpa judul.
 
 Nilai yang diwarisin ditulis balik ke barisnya waktu dokumen disimpan. Jadi isi tabelnya selalu
 eksplisit, dan waktu dokumen diturunin (Quotation -> Sales Order -> Delivery Note, Invoice)
 kelompoknya ikut kebawa sendiri - field-nya senama di semua doctype, dan mapper bawaan Frappe
 nyalin field senama.
 
-Di print format Pengiriman dicetak paling atas (tebal + garis bawah), Pengerjaan di bawahnya
+Di print format Header 1 dicetak paling atas (tebal + garis bawah), Header 2 di bawahnya
 (tebal), terus itemnya - gak ada yang menjorok.
 """
 
 import frappe
-from frappe import _
 
 FIELDNAME = "custom_header"
 PENGERJAAN = "custom_pengerjaan"
@@ -47,43 +47,29 @@ ITEM_HEADER_DOCTYPES = tuple(HEADER_TABLES)
 
 
 def set_item_headers(doc, method=None):
-	"""Nurunin Pengiriman & Pengerjaan ke baris-baris di bawahnya, sekalian jaga baris pertamanya."""
+	"""Nurunin Header 1 & Header 2 ke baris-baris di bawahnya."""
 	rows = doc.get(HEADER_TABLES[doc.doctype]) or []
 	if not rows:
 		return
 
 	meta = frappe.get_meta(rows[0].doctype)
 
-	if meta.has_field(FIELDNAME) and any(get_value(row, FIELDNAME) for row in rows):
-		fill_down(rows, FIELDNAME, _("Pengiriman"))
-		segments = split_by(rows, FIELDNAME)
-	else:
-		segments = [rows]
+	if meta.has_field(FIELDNAME):
+		fill_down(rows, FIELDNAME)
 
-	# Dokumen / kelompok yang emang gak pakai Pengerjaan dibiarin apa adanya - yang dijaga cuma
-	# jangan sampai ada baris nyangkut tanpa induk di kelompok yang pakai.
 	if meta.has_field(PENGERJAAN):
-		for segment in segments:
-			if any(get_value(row, PENGERJAAN) for row in segment):
-				fill_down(segment, PENGERJAAN, _("Pengerjaan"))
+		for segment in split_by(rows, FIELDNAME):
+			fill_down(segment, PENGERJAAN)
 
 
-def fill_down(rows, fieldname, label):
+def fill_down(rows, fieldname):
+	"""Baris kosong ikut nilai di atasnya; yang di atasnya belum ada nilai dibiarin kosong."""
 	value = ""
 
 	for row in rows:
-		own = get_value(row, fieldname)
-
-		if not own and not value:
-			frappe.throw(
-				_(
-					"Row #{0}: {1} is required on the first item of the group, because the rows below it follow the row above them."
-				).format(row.idx, label),
-				title=_("{0} Required").format(label),
-			)
-
-		value = own or value
-		row.set(fieldname, value)
+		value = get_value(row, fieldname) or value
+		if value:
+			row.set(fieldname, value)
 
 
 def split_by(rows, fieldname):
@@ -109,10 +95,10 @@ def get_header(row):
 def group_items(items):
 	"""Baris item -> daftar kelompok buat print format, urutannya ngikut kemunculan pertama.
 
-	Tiap kelompok: `pengiriman` (judul Pengiriman, cuma diisi di kelompok pertama Pengiriman itu
-	biar judulnya kecetak sekali), `pengerjaan` (judul Pengerjaan), dan `rows`.
+	Tiap kelompok: `pengiriman` (judul Header 1, cuma diisi di kelompok pertama Header 1 itu
+	biar judulnya kecetak sekali), `pengerjaan` (judul Header 2), dan `rows`.
 
-	Dokumen tanpa Pengiriman & Pengerjaan balik jadi satu kelompok tanpa judul, jadi print format
+	Dokumen tanpa Header 1 & Header 2 balik jadi satu kelompok tanpa judul, jadi print format
 	tetap kecetak kayak biasa.
 	"""
 	tree = {}
@@ -135,8 +121,8 @@ def group_items(items):
 
 
 def group_items_by_header(items):
-	"""Baris item -> [(pengiriman, [baris, ...]), ...] - versi satu tingkat, buat print format
-	doctype yang gak punya Pengerjaan (Purchase Order, Purchase Receipt)."""
+	"""Baris item -> [(header 1, [baris, ...]), ...] - versi satu tingkat, buat print format
+	doctype yang gak punya Header 2 (Purchase Order, Purchase Receipt)."""
 	groups = {}
 
 	for row in items or []:

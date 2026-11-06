@@ -757,6 +757,11 @@ udah dibayar. Deposit Paid dihitung ulang tiap Payment Entry deposit disubmit / 
 **Pengembalian deposit** (penuh atau sebagian) dicatat **manual**, mis. Payment Entry Receive dari
 supplier dengan Account Paid From = akun deposit — gak ngubah Deposit Paid di PO.
 
+**Book Advance Payments in Separate Party Account** (setting Company): kalau nyala, ERPNext nimpa akun
+party Payment Entry ke akun uang muka waktu validate (`set_liability_account`). Payment Entry yang
+akun party-nya Vendor Deposit Account dilewatin (`VICPaymentEntry`, lewat `override_doctype_class`),
+baik bayar deposit maupun pengembaliannya. Payment Entry lain tetap ke akun uang muka kayak bawaan.
+
 Dites (rollback): PO deposit 1jt → bayar 600rb → PE kedua keisi 400rb (bayar 500rb ditolak) → lunas,
 tombol ditolak → cancel PE kedua, Deposit Paid balik 600rb; Advance Paid PO tetap 0.
 
@@ -2148,30 +2153,27 @@ Form Opportunity-nya juga dirapiin lewat property setter: section **Organization
 collapsible, dan **Opportunity Date** (`transaction_date`) dipindah dari More Information ke
 header, persis di atas section Organization (`field_order`).
 
-#### Pengiriman & Pengerjaan: ngelompokin baris item
+#### Header 1 & Header 2: ngelompokin baris item
 
 Dua field di baris item buat ngelompokin item dua tingkat:
 
 | Field | Fieldname | Doctype |
 | --- | --- | --- |
-| **Pengiriman** (kelompok atas, dulu labelnya *Header*) | `custom_header` | Opportunity (RFQ), Request for Quotation (Inquiry), Costing, Quotation, Sales Order, Delivery Note, Sales Invoice, Purchase Order, Purchase Receipt, Purchase Invoice |
-| **Pengerjaan** (di dalam Pengiriman) | `custom_pengerjaan` | doctype di atas kecuali Purchase Order, Purchase Receipt, Purchase Invoice |
+| **Header 1** (kelompok atas, dulu labelnya *Pengiriman*) | `custom_header` | Opportunity (RFQ), Request for Quotation (Inquiry), Costing, Quotation, Sales Order, Delivery Note, Sales Invoice, Purchase Order, Purchase Receipt, Purchase Invoice |
+| **Header 2** (di dalam Header 1, dulu labelnya *Pengerjaan*) | `custom_pengerjaan` | doctype di atas kecuali Purchase Order, Purchase Receipt, Purchase Invoice |
 
-Di form, kolom Pengiriman ada di depan Pengerjaan.
+Di form, kolom Header 1 ada di depan Header 2.
 
-Dua-duanya cukup diisi di baris pertama tiap kelompok — baris yang dikosongin ikut baris di
-atasnya, dan waktu disimpan nilainya ditulis balik ke tiap baris. Pengerjaan mulai dari nol lagi
-tiap ganti Pengiriman (gak ngewarisin Pengerjaan dari Pengiriman sebelumnya). Yang ditolak:
+Dua-duanya opsional dan cukup diisi di baris pertama tiap kelompok — baris yang dikosongin ikut
+baris di atasnya, dan waktu disimpan nilainya ditulis balik ke tiap baris. Header 2 mulai dari nol
+lagi tiap ganti Header 1 (gak ngewarisin Header 2 dari Header 1 sebelumnya).
 
-- Pengiriman dipakai, tapi baris pertama dokumen kosong
-- di satu kelompok Pengiriman ada Pengerjaan, tapi baris pertama kelompok itu kosong
+Gak ada kombinasi yang ditolak: baris pertama boleh kosong salah satu, kosong dua-duanya, atau keisi
+semua. Baris yang di atasnya belum ada nilai tetap kosong dan dicetak tanpa judul. Yang perlu
+diingat: begitu ada baris yang keisi, baris di bawahnya yang kosong ikut nilainya — jadi item tanpa
+kelompok taruh di atas, sebelum baris yang pertama diisi.
 
-(Dulu kebalik — Pengerjaan di atas, Pengiriman di dalamnya. Dokumen lama yang barisnya udah keisi
-semua tetap aman; yang bisa ditolak waktu disimpan ulang cuma dokumen yang pakai Pengiriman tapi
-baris pertamanya kosong.)
-
-Pengerjaan aja tanpa Pengiriman boleh, Pengiriman aja tanpa Pengerjaan juga boleh (kayak Header
-dulu). Di grid, dua kolomnya lebar 1 — grid item udah penuh, kalau lebih lebar kolom Rate/Amount
+Di grid, dua kolomnya lebar 1 — grid item udah penuh, kalau lebih lebar kolom Rate/Amount
 kedorong keluar.
 
 Karena nama field-nya sama di semua doctype, nilainya ikut kebawa sendiri lewat mapper bawaan
@@ -2179,20 +2181,24 @@ Karena nama field-nya sama di semua doctype, nilainya ikut kebawa sendiri lewat 
 
 Di print format (Quotation (VIC), Delivery Order, Delivery Order (Invoice), Invoice (VIC), Proforma
 Invoice, Inquiry, Request For Quotation (Customer), Costing (Sales), Costing (Import), Purchase Request
-(Sales Order)) **Pengiriman dicetak paling atas** (tebal + garis bawah), **Pengerjaan di bawahnya**
+(Sales Order)) **Header 1 dicetak paling atas** (tebal + garis bawah), **Header 2 di bawahnya**
 (tebal), terus itemnya. **Gak ada yang menjorok** — judul & item sama-sama mulai di kolom
 Description. Urutan kelompok ngikut kemunculan pertamanya. Print format PO & Goods Received tetap satu
-tingkat (Pengiriman aja, tebal + garis bawah, item juga gak menjorok).
+tingkat (Header 1 aja, tebal + garis bawah, item juga gak menjorok).
 Implementasi: `vic_addon/vic/item_header.py` (`group_items` / `group_items_by_header`).
 
 Catatan: Supplier Quotation **belum** punya dua field ini, jadi kelompok dari Inquiry putus di situ
-— Costing yang dibikin dari Supplier Quotation mulai tanpa Pengiriman/Pengerjaan. Versi Excel
+— Costing yang dibikin dari Supplier Quotation mulai tanpa Header 1/Header 2. Versi Excel
 Inquiry juga belum nampilin keduanya.
 
-Di tabel item, **yang tebal cuma baris Pengiriman & Pengerjaan**. Baris item dicetak
+Di tabel item, **yang tebal cuma baris Header 1 & Header 2**. Baris item dicetak
 normal, termasuk tebal bawaan editor (`<b>`/`<strong>`) di Description — dinormalin lewat
 `.vic-pf .items .desc` di `templates/print_formats/vic_letterhead.html`, jadi berlaku ke semua
 print format VIC sekaligus. Judul kolom dan baris total tetap tebal.
+
+Jarak Header 1 → Header 2 dan Header 2 → item pertama **rapat kayak teks biasa** (padding di bawah judul
+dan di atas baris sesudahnya nol, di `vic_letterhead.html`, jadi berlaku ke semua print format VIC yang
+pakai kelompok). Jarak sebelum kelompok baru dan antar item tetap.
 
 Catatan: Supplier Quotation **belum** punya field Header, jadi kelompok dari Inquiry putus di situ
 — Costing yang dibikin dari Supplier Quotation mulai tanpa Header. Versi Excel Inquiry juga belum
@@ -2257,7 +2263,7 @@ judul **PROFORMA INVOICE** (Invoice No. = nomor SO, Date = tanggal SO huruf besa
 (nama tebal, alamat, `EMAIL : ` dari kontak / master Customer), di kanannya **Payment Terms** (nama
 Payment Terms Template, dikotakin), **Tax No** (NPWP customer), **DO No.** (Delivery Note submitted
 dari SO ini); **PO No.** customer di bawah kotak. Tabel item sama kayak Quotation (VIC) — termasuk
-judul Pengerjaan / Pengiriman.
+judul Header 2 / Header 1.
 
 Ringkasan di bawah tabel (`get_proforma` di `vic/print_utils.py`):
 
@@ -2340,7 +2346,7 @@ tanda tangan), bedanya:
 
 - item yang **gak Maintain Stock** (jasa, ongkir, Item DP, dll) gak dicetak — dicek dari master
   Item (`is_stock_item`), nomor urutnya cuma ngitung barang stok;
-- tabelnya **rata**, tanpa judul Pengerjaan / Pengiriman.
+- tabelnya **rata**, tanpa judul Header 2 / Header 1.
 
 Catatan: Product Bundle (item induknya non-stok) ikut kesaring — kalau nanti dipakai, isi
 bundle-nya (`packed_items`) perlu ditambahin. File: `vic_addon/vic/print_format/delivery_order_stock/`.

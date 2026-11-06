@@ -65,19 +65,19 @@
   },
   {
    "columns": 1,
-   "description": "Kelompok pengerjaan (di dalam Pengiriman), dicetak sebagai judul tersendiri pada print format. Apabila dikosongkan, baris ini mengikuti baris di atasnya.",
+   "description": "Kelompok di dalam Header 1, dicetak sebagai judul tersendiri pada print format. Apabila dikosongkan, baris ini mengikuti baris di atasnya.",
    "fieldname": "custom_pengerjaan",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Pengerjaan"
+   "label": "Header 2"
   },
   {
    "columns": 1,
-   "description": "Kelompok pengiriman, dicetak paling atas pada print format (di atas Pengerjaan). Apabila dikosongkan, baris ini mengikuti baris di atasnya.",
+   "description": "Kelompok paling atas, dicetak paling atas pada print format (di atas Header 2). Apabila dikosongkan, baris ini mengikuti baris di atasnya.",
    "fieldname": "custom_header",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Pengiriman"
+   "label": "Header 1"
   },
   {
    "fieldname": "column_break_item",
@@ -309,7 +309,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-10-28 10:00:00.000000",
+ "modified": "2026-11-07 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "VIC",
  "name": "Costing Item",

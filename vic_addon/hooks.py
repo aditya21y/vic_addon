@@ -521,6 +521,8 @@ override_doctype_class = {
 	"Bank Clearance": "vic_addon.vic.bank_clearance.VICBankClearance",
 	# Repack: nilai bahan dibagi ke item hasil pakai Repack Percentage
 	"Stock Entry": "vic_addon.vic.stock_entry.VICStockEntry",
+	# Deposit ke supplier: akun deposit gak ditimpa ke akun uang muka (Book Advance Payments)
+	"Payment Entry": "vic_addon.vic.vendor_deposit.VICPaymentEntry",
 }
 
 # PO dropship: Delivery Note-nya ikut nongol di tab Connections

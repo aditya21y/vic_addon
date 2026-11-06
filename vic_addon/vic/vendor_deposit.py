@@ -17,14 +17,33 @@ dari supplier dengan akun asal = akun deposit.
 
 **Deposit Paid** di PO = total Payment Entry deposit yang submitted, dihitung ulang tiap Payment
 Entry-nya disubmit / dibatalin.
+
+Company yang nyalain *Book Advance Payments in Separate Party Account*: ERPNext nimpa akun party
+Payment Entry ke akun uang muka waktu validate (`set_liability_account`), jalan sebelum hook apa pun.
+Deposit bukan uang muka, jadi Payment Entry yang akun party-nya Vendor Deposit Account dilewatin -
+baik bayar deposit maupun pengembaliannya. Lihat `VICPaymentEntry`.
 """
 
 import frappe
 from frappe import _
 from frappe.utils import flt, today
 
+from erpnext.accounts.doctype.payment_entry.payment_entry import PaymentEntry
+
 PO_FIELD = "custom_deposit_purchase_order"
 TOLERANCE = 0.005
+
+
+class VICPaymentEntry(PaymentEntry):
+	def set_liability_account(self):
+		"""Akun deposit jangan ditimpa ke akun uang muka - Payment Entry lain tetap jalan bawaan."""
+		account = get_deposit_account(self.company, throw=False) if self.company else None
+		if account and self.party_account == account and self.docstatus == 0 and self.custom_deposit_purchase_order:
+			self.book_advance_payments_in_separate_party_account = False
+			self.is_opening = "No"
+			return
+
+		super().set_liability_account()
 
 
 def get_deposit_account(company, throw=True):

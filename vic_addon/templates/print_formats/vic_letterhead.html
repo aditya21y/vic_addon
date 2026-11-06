@@ -108,6 +108,10 @@
 	.vic-pf .items tr.group td { font-weight: 700; text-align: left; }
 	/* Pengiriman = kelompok paling atas, dibedain dari Pengerjaan pakai garis bawah */
 	.vic-pf .items tr.group.pengiriman td { text-decoration: underline; }
+	/* Header 1 -> Header 2 -> item pertama rapat kayak teks biasa: bawah judul & atas baris
+	   sesudahnya gak ada padding. Jarak sebelum kelompok baru dan antar item tetap. */
+	.vic-pf .items tr.group td { padding-bottom: 0 !important; border-bottom: 0; }
+	.vic-pf .items tr.group + tr td { padding-top: 0 !important; }
 	.vic-pf .items tr.note .note-item { padding-left: 22px; }
 	/* total nempel di kanan, selebar dua kolom terakhir tabel item */
 	.vic-pf .totals { width: 100%; margin-top: 6px; }
