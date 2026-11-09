@@ -319,6 +319,14 @@ doc_events["Delivery Note"]["on_submit"] = [
 doc_events["Delivery Note"].setdefault("before_cancel", []).append(
 	"vic_addon.vic.dropship_return.cancel_dropship_returns"
 )
+# DN & PR dropship saling nge-link: cancel DN -> PR-nya ikut dibatalin (urutannya DN dulu), PR
+# dropship gak bisa dibatalin sendiri selama DN-nya masih submitted
+doc_events["Delivery Note"].setdefault("on_cancel", []).append(
+	"vic_addon.vic.dropship.cancel_dropship_purchase_receipts"
+)
+doc_events["Purchase Receipt"].setdefault("before_cancel", []).append(
+	"vic_addon.vic.dropship.block_direct_cancel"
+)
 
 # harga dikunci ke dokumen sumbernya, jangan ketiban Item Price
 # for doctype in ("Quotation", "Sales Order"):

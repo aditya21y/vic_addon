@@ -1824,6 +1824,22 @@ retur DN.
 
 PR dropship (alur maju) dan retur PR/PI nyimpen nomor DN-nya di field **Dropship Delivery Note**
 (`custom_dropship_delivery_note`). Retur DN dibatalin → retur PI lalu retur PR-nya ikut dibatalin duluan.
+
+**Cancel DN dropship (maju maupun retur).** DN & PR dropship saling nge-link (DN →
+`custom_dropship_purchase_receipt`, PR → `custom_dropship_delivery_note`), jadi kalau dibatalin satu-satu
+dua-duanya saling ngunci — dan dialog *Cancel All* bawaan Frappe nyoba ngebatalin PR-nya duluan, yang
+gagal karena stok gudang transit jadi minus. Sekarang:
+
+| Yang dibatalin | Yang terjadi |
+| --- | --- |
+| DN dropship | PR dropship-nya ikut dibatalin otomatis **sesudah** DN-nya (hook `on_cancel`, `cancel_dropship_purchase_receipts`). Kalau PR-nya udah ditagih, PI-nya dibatalin dulu |
+| Retur DN dropship | retur PI & retur PR-nya dibatalin duluan (`cancel_dropship_returns`, kayak sebelumnya) |
+| PR / retur PR dropship langsung | ditolak, pesannya nyuruh batalin DN-nya (`block_direct_cancel`) |
+
+Di form, PR/PI gak ditawarin di dialog *Cancel All* DN dropship, dan DN gak ditawarin di dialog PR dropship
+(`frm.ignore_doctypes_on_cancel_all` bawaan Frappe, di `delivery_note.js` / `purchase_receipt.js`).
+Dites (rollback): cancel DN maju, cancel PR langsung (ditolak), retur DN lalu cancel retur, lalu cancel DN
+asalnya.
 Implementasi: `vic_addon/vic/dropship_return.py`.
 
 **Required By di PO** ngikut delivery date Sales Order. Buat SO yang tanggal kirimnya udah lewat,
@@ -2199,6 +2215,11 @@ print format VIC sekaligus. Judul kolom dan baris total tetap tebal.
 Jarak Header 1 → Header 2 dan Header 2 → item pertama **rapat kayak teks biasa** (padding di bawah judul
 dan di atas baris sesudahnya nol, di `vic_letterhead.html`, jadi berlaku ke semua print format VIC yang
 pakai kelompok). Jarak sebelum kelompok baru dan antar item tetap.
+
+Di **Inquiry** (satu-satunya print yang punya garis tegak di dalam tabel item — kotak isian Qty, Unit
+Price, Weight, Remarks buat supplier), baris judul Header 1/2 gak pakai `colspan`: judulnya di kolom
+Description, kolom sisanya tetap sel sendiri, jadi garis tegaknya nyambung terus. Tinggi 30px (ruang
+nulis) cuma buat baris item, baris judul ngikut teks.
 
 Catatan: Supplier Quotation **belum** punya field Header, jadi kelompok dari Inquiry putus di situ
 — Costing yang dibikin dari Supplier Quotation mulai tanpa Header. Versi Excel Inquiry juga belum

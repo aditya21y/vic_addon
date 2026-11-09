@@ -546,6 +546,77 @@ def get_selected_qty(selected_items):
 	return qty_by_row
 
 
+def cancel_dropship_purchase_receipts(doc, method=None):
+	"""Hook `on_cancel` Delivery Note: Purchase Receipt dropship yang dibikin waktu DN ini disubmit
+	ikut dibatalin.
+
+	DN & PR dropship saling nge-link (`custom_dropship_purchase_receipt` di DN,
+	`custom_dropship_delivery_note` di PR), jadi kalau dibatalin satu-satu dua-duanya saling ngunci.
+	Urutannya juga harus DN dulu: barang yang dikirim balik ke gudang transit, baru PR ngeluarin
+	lagi - kebalikannya bikin stok gudang transit minus. Jalan di `on_cancel` karena Frappe baru
+	ngecek link yang masih submitted *setelah* hook ini, jadi PR yang udah batal gak ngunci DN.
+
+	PR yang udah ditagih (Purchase Invoice-nya submitted) bikin pembatalan DN ditolak - PI-nya
+	dibatalin dulu. Retur DN punya jalurnya sendiri: `dropship_return.cancel_dropship_returns`.
+	"""
+	if doc.get("is_return"):
+		return
+
+	names = set(
+		frappe.get_all(
+			"Purchase Receipt",
+			filters={"custom_dropship_delivery_note": doc.name, "is_return": 0, "docstatus": 1},
+			pluck="name",
+		)
+	)
+	# PR lama belum nyimpen nomor DN-nya - yang kecatat di DN tetap ikut
+	if doc.get("custom_dropship_purchase_receipt"):
+		names.add(doc.custom_dropship_purchase_receipt)
+
+	cancelled = []
+	for name in sorted(names):
+		receipt = frappe.get_doc("Purchase Receipt", name)
+		if receipt.docstatus != 1 or receipt.is_return:
+			continue
+
+		receipt.flags.ignore_permissions = True
+		receipt.flags.via_dropship_delivery_note = True
+		receipt.cancel()
+		cancelled.append(name)
+
+	if cancelled:
+		frappe.msgprint(
+			_("Dropship Purchase Receipt {0} cancelled together with this Delivery Note.").format(
+				", ".join(cancelled)
+			),
+			title=_("Dropship Purchase Receipt"),
+			indicator="orange",
+			alert=True,
+		)
+
+
+def block_direct_cancel(doc, method=None):
+	"""Hook `before_cancel` Purchase Receipt: PR dropship dibatalin lewat Delivery Note-nya.
+
+	Dibatalin langsung, stok gudang transit minus (barangnya udah keluar lewat DN) dan link DN-nya
+	ngunci - jadi user dikasih tau jalan yang bener. Yang lewat DN (`cancel_dropship_purchase_receipts`
+	/ `dropship_return.cancel_dropship_returns`) ditandain flag, gak dicegat.
+	"""
+	delivery_note = doc.get("custom_dropship_delivery_note")
+	if not delivery_note or doc.flags.via_dropship_delivery_note:
+		return
+
+	if frappe.db.get_value("Delivery Note", delivery_note, "docstatus") != 1:
+		return
+
+	frappe.throw(
+		_(
+			"This Purchase Receipt was created automatically by dropship Delivery Note {0}. Cancel the Delivery Note instead - this Purchase Receipt is cancelled together with it."
+		).format(frappe.utils.get_link_to_form("Delivery Note", delivery_note)),
+		title=_("Dropship Purchase Receipt"),
+	)
+
+
 def make_dropship_purchase_receipt(doc, method=None):
 	"""Hook `before_submit` Delivery Note: terima barangnya dulu baru dikirim.
 

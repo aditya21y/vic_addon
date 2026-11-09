@@ -260,4 +260,5 @@ def cancel_dropship_returns(doc, method=None):
 			# retur DN ini sendiri nge-link ke retur PR-nya (Dropship Purchase Receipt) - DN-nya lagi
 			# dibatalin juga, jadi link itu gak boleh ngunci
 			returned.flags.ignore_links = True
+			returned.flags.via_dropship_delivery_note = True
 			returned.cancel()

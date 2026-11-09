@@ -25,6 +25,19 @@ function address_to_text(html) {
 		.join("\n");
 }
 
+// DN dropship & PR-nya saling nge-link. Dialog "Cancel All" bawaan Frappe bakal ngebatalin PR-nya
+// duluan - gagal (stok gudang transit minus, DN masih nge-link). PR/PI dropship dibatalin server
+// sesudah DN-nya (vic/dropship.py, vic/dropship_return.py), jadi gak usah ditawarin di dialog.
+frappe.ui.form.on("Delivery Note", {
+	refresh(frm) {
+		if (!frm.doc.custom_dropship_purchase_receipt) return;
+
+		frm.ignore_doctypes_on_cancel_all = [
+			...new Set([...(frm.ignore_doctypes_on_cancel_all || []), "Purchase Receipt", "Purchase Invoice"]),
+		];
+	},
+});
+
 // Tarik barang dropship dari beberapa PO sekaligus (Dropship & Mixed). Dua langkah: pilih PO-nya,
 // terus pilih baris + qty yang dikirim. Barisnya ditambahin ke DN yang lagi dibuka - dirakit di
 // server (`build_delivery_note` di vic/dropship.py) lewat Sales Order masing-masing.

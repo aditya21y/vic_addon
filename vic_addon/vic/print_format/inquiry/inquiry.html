@@ -8,6 +8,8 @@
 	/* garis pemisah antara Description dan Qty */
 	.vic-pf .items .qty-col { border-left: 1px solid #999; }
 	.vic-pf .items tbody td { height: 30px; }
+	/* baris judul Header 1 / Header 2 bukan tempat nulis - tingginya ngikut teks, biar rapat ke itemnya */
+	.vic-pf .items tbody tr.group td { height: auto; }
 </style>
 
 <div class="vic-pf">
@@ -76,13 +78,14 @@
 		<tbody>
 			{%- set ns = namespace(no = 0) %}
 			{%- for group in group_items(doc.items) %}
-				{#- Pengiriman paling atas, di bawahnya Pengerjaan, terus item - gak ada yang menjorok
-				    (lihat vic/item_header.py). Judulnya mulai di kolom Description. -#}
+				{#- Header 1 paling atas, di bawahnya Header 2, terus item - gak ada yang menjorok
+				    (lihat vic/item_header.py). Judulnya cuma di kolom Description; kolom Qty sampai
+				    Remarks tetap sel sendiri (bukan colspan) biar garis tegaknya nyambung terus. -#}
 				{%- if group.pengiriman %}
-					<tr class="group pengiriman"><td></td><td class="text" colspan="5">{{ group.pengiriman }}</td></tr>
+					<tr class="group pengiriman"><td></td><td class="text">{{ group.pengiriman }}</td><td class="qty-col"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
 				{%- endif %}
 				{%- if group.pengerjaan %}
-					<tr class="group"><td></td><td class="text" colspan="5">{{ group.pengerjaan }}</td></tr>
+					<tr class="group"><td></td><td class="text">{{ group.pengerjaan }}</td><td class="qty-col"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
 				{%- endif %}
 				{%- for item in group.rows %}
 					{%- set ns.no = ns.no + 1 %}
