@@ -410,6 +410,12 @@ def make_costing(source_name, target_doc=None):
 		target_item.supplier = source_parent.supplier
 		target_item.supplier_quotation_item = source_item.name
 
+		# Header 1 & Header 2 dari baris Inquiry asalnya (SQTN gak punya field-nya)
+		inquiry_row = get_inquiry_rows([source_item.name]).get(source_item.name)
+		if inquiry_row:
+			target_item.custom_header = inquiry_row.custom_header
+			target_item.custom_pengerjaan = inquiry_row.custom_pengerjaan
+
 	def set_missing_values(source, target):
 		# Customer/Project/Subject dari Inquiry-nya langsung keisi, biar udah kelihatan sebelum
 		# disimpan - hook validate-nya ngisi lagi kalau masih ada yang kosong
@@ -444,12 +450,13 @@ def get_supplier_quotation_items(supplier_quotations):
 
 
 @frappe.whitelist()
-def get_supplier_quotations(request_for_quotation=None, company=None, txt=None):
+def get_supplier_quotations(request_for_quotation=None, company=None, txt=None, project=None):
 	"""Daftar Supplier Quotation buat dipilih di dialog `Get Items from Supplier Quotation`.
 
 	Kalau nomor Request for Quotation diisi, yang muncul cuma penawaran yang lahir dari RFQ itu -
-	biar gak kecampur penawaran proyek lain. Mata uangnya gak disaring: harganya diambil dalam
-	mata uang perusahaan (lihat `get_company_currency_rates`).
+	biar gak kecampur penawaran proyek lain. Kalau Project diisi, cuma penawaran project itu: yang
+	lahir dari Inquiry project itu, atau yang field Project-nya sendiri sama. Mata uangnya gak
+	disaring: harganya diambil dalam mata uang perusahaan (lihat `get_company_currency_rates`).
 	"""
 	quotation = frappe.qb.DocType("Supplier Quotation")
 	query = (
@@ -468,6 +475,23 @@ def get_supplier_quotations(request_for_quotation=None, company=None, txt=None):
 
 	if request_for_quotation:
 		query = query.where(quotation.name.isin(get_quotations_of_rfq(request_for_quotation)))
+
+	if project:
+		inquiries = frappe.get_all("Request for Quotation", filters={"project": project}, pluck="name")
+		from_inquiries = (
+			frappe.get_all(
+				"Supplier Quotation Item",
+				filters={"request_for_quotation": ["in", inquiries]},
+				pluck="parent",
+				distinct=True,
+			)
+			if inquiries
+			else []
+		)
+		condition = quotation.project == project
+		if from_inquiries:
+			condition = condition | quotation.name.isin(from_inquiries)
+		query = query.where(condition)
 
 	return [
 		{
@@ -540,7 +564,64 @@ def get_costing_items(supplier_quotations=None, request_for_quotation=None, only
 	if only_cheapest:
 		items = keep_cheapest(items)
 
+	return sort_by_inquiry(set_inquiry_groups(items))
+
+
+def get_inquiry_rows(supplier_quotation_items):
+	"""Baris SQTN -> baris Inquiry asalnya (Header 1, Header 2, urutan baris).
+
+	SQTN yang dibikin dari Inquiry nyimpen `request_for_quotation_item` di tiap barisnya, dan baris
+	Inquiry nyimpen Header 1/2 secara eksplisit (diturunin waktu disimpan, lihat item_header.py).
+	SQTN sendiri gak punya field Header, jadi kelompoknya diambil langsung dari Inquiry.
+	"""
+	names = [name for name in supplier_quotation_items if name]
+	if not names:
+		return {}
+
+	links = frappe.get_all(
+		"Supplier Quotation Item",
+		filters={"name": ["in", names]},
+		fields=["name", "request_for_quotation_item"],
+	)
+	rfq_rows = {
+		row.name: row
+		for row in frappe.get_all(
+			"Request for Quotation Item",
+			filters={"name": ["in", [link.request_for_quotation_item for link in links if link.request_for_quotation_item]]},
+			fields=["name", "parent", "idx", "custom_header", "custom_pengerjaan"],
+		)
+	}
+
+	return {
+		link.name: rfq_rows[link.request_for_quotation_item]
+		for link in links
+		if link.request_for_quotation_item in rfq_rows
+	}
+
+
+def set_inquiry_groups(items):
+	"""Header 1 & Header 2 tiap baris Costing ngikut baris Inquiry asalnya."""
+	rfq_rows = get_inquiry_rows([item["supplier_quotation_item"] for item in items])
+
+	for item in items:
+		row = rfq_rows.get(item["supplier_quotation_item"])
+		item["custom_header"] = (row.custom_header or "") if row else ""
+		item["custom_pengerjaan"] = (row.custom_pengerjaan or "") if row else ""
+		item["_inquiry_order"] = (row.parent, row.idx) if row else None
+
 	return items
+
+
+def sort_by_inquiry(items):
+	"""Urutan baris ngikut Inquiry, biar kelompok Header 1/2 tetap nyambung walau barisnya dari
+	beberapa SQTN. Baris tanpa Inquiry ditaruh paling bawah, urutannya gak diubah."""
+	linked = sorted((item for item in items if item["_inquiry_order"]), key=lambda item: item["_inquiry_order"])
+	unlinked = [item for item in items if not item["_inquiry_order"]]
+
+	for item in items:
+		item.pop("_inquiry_order")
+
+	return linked + unlinked
 
 
 def get_source_quotations(supplier_quotations, request_for_quotation, only_cheapest):

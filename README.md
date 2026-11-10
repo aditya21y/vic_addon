@@ -150,6 +150,7 @@ kalau centangannya nyala — bisa salah satu atau dua-duanya. Baris Attn, Phone,
 
 | Isian | Gunanya |
 | --- | --- |
+| **Project** | Default Project Costing. Kalau diisi, pilihan Request for Quotation cuma Inquiry project itu, dan daftar Supplier Quotation cuma penawaran dari Inquiry project itu (atau yang Project-nya sendiri sama). Ganti Project → Inquiry yang udah kepilih dikosongin kalau project-nya beda |
 | **Request for Quotation** | Nyaring daftar penawaran ke RFQ itu doang, biar gak kecampur proyek lain |
 | **Take the cheapest price only** | Satu baris per item, diambil dari penawaran termurah |
 | **Supplier Quotation** | Pilih penawarannya sendiri (disembunyiin kalau ambil termurah dari RFQ) |
@@ -2203,9 +2204,15 @@ Description. Urutan kelompok ngikut kemunculan pertamanya. Print format PO & Goo
 tingkat (Header 1 aja, tebal + garis bawah, item juga gak menjorok).
 Implementasi: `vic_addon/vic/item_header.py` (`group_items` / `group_items_by_header`).
 
-Catatan: Supplier Quotation **belum** punya dua field ini, jadi kelompok dari Inquiry putus di situ
-— Costing yang dibikin dari Supplier Quotation mulai tanpa Header 1/Header 2. Versi Excel
-Inquiry juga belum nampilin keduanya.
+**Inquiry → Costing.** Supplier Quotation gak punya dua field ini, tapi tiap barisnya nyimpen link ke
+baris Inquiry asalnya (`request_for_quotation_item`, bawaan ERPNext). Jadi waktu Costing diisi lewat
+**Get Items from Supplier Quotation** (pilih SQTN maupun ambil termurah per Inquiry) atau **Create >
+Costing** dari SQTN, Header 1 & Header 2 tiap baris diambil langsung dari baris Inquiry-nya
+(`get_inquiry_rows` di `costing.py`). Baris dari Get Items diurutin ngikut urutan Inquiry, biar kelompoknya
+tetap nyambung walau dari beberapa SQTN; baris SQTN yang gak dari Inquiry ditaruh paling bawah. Header
+yang udah ada di Costing gak diubah, dan ganti SQTN di satu baris gak ngubah Header-nya.
+
+Versi Excel Inquiry belum nampilin Header 1/Header 2.
 
 Di tabel item, **yang tebal cuma baris Header 1 & Header 2**. Baris item dicetak
 normal, termasuk tebal bawaan editor (`<b>`/`<strong>`) di Description — dinormalin lewat
@@ -2220,10 +2227,6 @@ Di **Inquiry** (satu-satunya print yang punya garis tegak di dalam tabel item �
 Price, Weight, Remarks buat supplier), baris judul Header 1/2 gak pakai `colspan`: judulnya di kolom
 Description, kolom sisanya tetap sel sendiri, jadi garis tegaknya nyambung terus. Tinggi 30px (ruang
 nulis) cuma buat baris item, baris judul ngikut teks.
-
-Catatan: Supplier Quotation **belum** punya field Header, jadi kelompok dari Inquiry putus di situ
-— Costing yang dibikin dari Supplier Quotation mulai tanpa Header. Versi Excel Inquiry juga belum
-nampilin Header.
 
 #### Print Format: Kwitansi (Sales Invoice)
 

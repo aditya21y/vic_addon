@@ -342,11 +342,38 @@ function get_items_from_supplier_quotation(frm) {
 		size: "extra-large",
 		fields: [
 			{
+				// Project nyaring pilihan Inquiry & Supplier Quotation di bawahnya
+				fieldtype: "Link",
+				fieldname: "project",
+				label: __("Project"),
+				options: "Project",
+				default: frm.doc.project,
+				description: __("Only Inquiries and quotations of this project are listed."),
+				onchange: () => {
+					const project = dialog.get_value("project");
+					const rfq = dialog.get_value("request_for_quotation");
+					if (!project || !rfq) {
+						dialog.set_value("supplier_quotations", []);
+						return;
+					}
+					// Inquiry yang kepilih dikosongin kalau punya project lain
+					frappe.db.get_value("Request for Quotation", rfq, "project").then(({ message }) => {
+						if ((message || {}).project !== project) dialog.set_value("request_for_quotation", "");
+						dialog.set_value("supplier_quotations", []);
+					});
+				},
+			},
+			{ fieldtype: "Column Break" },
+			{
 				fieldtype: "Link",
 				fieldname: "request_for_quotation",
 				label: __("Request for Quotation"),
 				options: "Request for Quotation",
 				description: __("Only quotations created from this RFQ are listed."),
+				get_query: () => {
+					const project = dialog && dialog.get_value("project");
+					return project ? { filters: { project } } : {};
+				},
 				onchange: () => {
 					dialog.set_value("supplier_quotations", []);
 					reload_items(frm, dialog);
@@ -378,6 +405,7 @@ function get_items_from_supplier_quotation(frm) {
 						.xcall("vic_addon.vic.doctype.costing.costing.get_supplier_quotations", {
 							// pas pertama dibangun dialognya belum ada, filter RFQ-nya nyusul
 							request_for_quotation: dialog && dialog.get_value("request_for_quotation"),
+							project: dialog && dialog.get_value("project"),
 							company: frm.doc.company,
 							txt: txt,
 						})
@@ -462,6 +490,18 @@ function get_items_from_supplier_quotation(frm) {
 						label: __("Row"),
 						hidden: 1,
 					},
+					{
+						fieldtype: "Data",
+						fieldname: "custom_header",
+						label: __("Header 1"),
+						hidden: 1,
+					},
+					{
+						fieldtype: "Data",
+						fieldname: "custom_pengerjaan",
+						label: __("Header 2"),
+						hidden: 1,
+					},
 				],
 			},
 		],
@@ -484,6 +524,9 @@ function get_items_from_supplier_quotation(frm) {
 					supplier: row.supplier,
 					supplier_quotation: row.supplier_quotation,
 					supplier_quotation_item: row.supplier_quotation_item,
+					// Header 1 & Header 2 dari baris Inquiry asalnya (get_costing_items)
+					custom_header: row.custom_header,
+					custom_pengerjaan: row.custom_pengerjaan,
 				});
 			});
 
