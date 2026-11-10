@@ -279,13 +279,13 @@
   },
   {
    "collapsible": 0,
-   "description": "Simulasi diskon ke customer atas Total Quotation Amount, buat ngira profit kalau harga jual diturunin. Gak ikut kebawa ke Quotation.",
+   "description": "Diskon kepada customer atas Total Quotation Amount (sebelum pajak), digunakan untuk menghitung estimasi profit setelah diskon. Diskon ini akan terbawa ke Quotation sebagai Additional Discount dengan Apply Additional Discount On = Net Total.",
    "fieldname": "discount_section",
    "fieldtype": "Section Break",
    "label": "Discount"
   },
   {
-   "description": "Isi salah satu: persen atau nominal. Yang satunya dihitung otomatis.",
+   "description": "Isi salah satu, persentase atau nominal. Nilai lainnya akan dihitung secara otomatis.",
    "fieldname": "discount_percentage",
    "fieldtype": "Percent",
    "label": "Discount %"
@@ -381,7 +381,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-20 12:00:00.000000",
+ "modified": "2026-11-10 11:00:00.000000",
  "modified_by": "Administrator",
  "module": "VIC",
  "name": "Costing",

@@ -113,11 +113,12 @@
    "label": "Buying"
   },
   {
-   "description": "Harga beli per unit sebelum diskon, diambil dari Supplier Quotation. Harga setelah diskon tersimpan pada kolom Rate.",
+   "description": "Harga beli per unit sebelum diskon, diambil otomatis dari Supplier Quotation (dicetak sebagai Act Price di Costing (Import)). Harga setelah diskon tersimpan pada kolom Rate.",
    "fieldname": "price_list_rate",
    "fieldtype": "Currency",
    "label": "Price List Rate",
-   "options": "currency"
+   "options": "currency",
+   "read_only": 1
   },
   {
    "columns": 1,
@@ -309,7 +310,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-11-07 00:00:00.000000",
+ "modified": "2026-11-10 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "VIC",
  "name": "Costing Item",

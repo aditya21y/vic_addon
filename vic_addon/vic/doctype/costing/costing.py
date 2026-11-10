@@ -46,6 +46,7 @@ class Costing(Document):
 		self.validate_margin_percentage()
 		self.set_warehouses()
 		self.set_rates_from_valuation()
+		self.set_price_list_rates()
 		self.calculate()
 		self.validate_discount()
 		self.set_status()
@@ -79,6 +80,30 @@ class Costing(Document):
 				continue
 
 			item.rate = flt(get_valuation_rate(item.item_code, item.warehouse))
+
+	def set_price_list_rates(self):
+		"""Price List Rate (harga sebelum diskon, dicetak sebagai Act Price di Costing (Import))
+		diisi dari baris SQTN-nya kalau masih kosong.
+
+		Dulu dialog Get Items gak nyalin field ini, jadi Costing lama banyak yang 0 dan print-nya
+		jatuh ke Rate setelah diskon. Disimpan ulang = beres sendiri.
+		"""
+		missing = [row for row in self.items if row.supplier_quotation_item and not flt(row.price_list_rate)]
+		if not missing:
+			return
+
+		sources = {
+			row.name: row
+			for row in frappe.get_all(
+				"Supplier Quotation Item",
+				filters={"name": ["in", [row.supplier_quotation_item for row in missing]]},
+				fields=["name", "base_price_list_rate", "base_rate", "base_net_rate"],
+			)
+		}
+		for row in missing:
+			source = sources.get(row.supplier_quotation_item)
+			if source:
+				row.price_list_rate = get_company_currency_rates(source)["price_list_rate"]
 
 	def set_status(self):
 		self.status = NOT_QUOTED if self.is_new() else get_status(self.name)
@@ -351,13 +376,32 @@ def validate_single_submitted_quotation(doc, method=None):
 	)
 
 
+def set_quotation_discount(costing, quotation):
+	"""Diskon Costing -> Additional Discount Quotation, dasarnya sama: total sebelum pajak.
+
+	Tanpa ini mapper cuma nyalin `discount_amount` (namanya kebetulan sama) dan Quotation
+	nerapinnya ke Grand Total - net total-nya jadi beda dari Total Quotation After Discount.
+	Yang terakhir diketik di Costing yang dipegang: nominal kalau nominal, persen kalau persen.
+	"""
+	quotation.apply_discount_on = "Net Total"
+	if not flt(costing.discount_amount):
+		quotation.additional_discount_percentage = 0
+		quotation.discount_amount = 0
+		return
+
+	quotation.additional_discount_percentage = (
+		0 if costing.discount_amount_manually_set else flt(costing.discount_percentage)
+	)
+	quotation.discount_amount = flt(costing.discount_amount)
+
+
 @frappe.whitelist()
 def make_quotation(source_name, target_doc=None):
 	"""Bikin Quotation ke customer dari Costing.
 
 	Harga jualnya diambil dari Quotation Rate (yang default-nya ngikut Selling Rate), plus
-	SQTN ID dan supplier per item biar ketahuan harga belinya dari mana. Diskon per item dan
-	diskon atas total quotation tetap diisi di dokumen Quotation-nya.
+	SQTN ID dan supplier per item biar ketahuan harga belinya dari mana. Diskon di section
+	Discount ikut jadi Additional Discount Quotation (lihat `set_quotation_discount`).
 	"""
 	from frappe.model.mapper import get_mapped_doc
 
@@ -372,6 +416,7 @@ def make_quotation(source_name, target_doc=None):
 		target.custom_delivery_time = source.delivery_time
 		target.custom_validity = source.validity
 		target.custom_subject = source.subject
+		set_quotation_discount(source, target)
 		target.run_method("set_missing_values")
 		target.run_method("calculate_taxes_and_totals")
 

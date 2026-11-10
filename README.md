@@ -115,7 +115,7 @@ waktu disimpan kalau masih ada yang kosong.
 (Import)** langsung kelampir — buat dikirim ke internal (review harga). Emailnya kecatat di
 timeline Costing.
 
-**Discount** (section di bawah Totals): simulasi diskon ke customer, buat ngira profit kalau
+**Discount** (section di bawah Totals): diskon ke customer, buat ngira profit kalau
 harga jual diturunin. User isi **Discount %** atau **Discount Amount** — yang satunya dihitung
 otomatis. Yang terakhir diketik yang dipegang: kalau nominal yang diketik, nominalnya tetap waktu
 Total Quotation Amount berubah dan persennya yang ngikut (dan sebaliknya).
@@ -126,8 +126,12 @@ Total Quotation Amount berubah dan persennya yang ngikut (dan sebaliknya).
 | Total Profit After Discount | Total Quotation After Discount − Total HPP Amount |
 | Total Profit % After Discount | Total Profit After Discount / Total HPP Amount × 100 |
 
-Diskon ini cuma simulasi di Costing — **gak ikut kebawa ke Quotation** (diskon di Quotation tetap
-diisi di Quotation-nya). Diskon gak boleh minus dan gak boleh lebih dari Total Quotation Amount.
+Diskon ini **ikut kebawa ke Quotation** (Create > Quotation) sebagai **Additional Discount** dengan
+**Apply Additional Discount On = Net Total**, jadi dasarnya sama kayak di Costing (total sebelum
+pajak) dan Net Total Quotation = Total Quotation After Discount. Kalau di Costing yang diketik
+persen, Quotation dapat persennya (nominal dihitung ulang kalau qty/harga di Quotation diubah);
+kalau nominal, Quotation dapat nominalnya. Masih bisa diubah di Quotation-nya. Diskon gak boleh
+minus dan gak boleh lebih dari Total Quotation Amount.
 
 Di **Costing (Import)**, kolom **Act Price After Disc** dicetak **merah**; kolom lain tetap hitam.
 
@@ -183,6 +187,12 @@ dan `base_price_list_rate` (Price List Rate) — harga valas × kurs yang dipaka
   `base_net_rate`.
 
 Kursnya beku di kurs SQTN — kalau kurs berubah, SQTN-nya yang mesti diperbarui.
+
+**Price List Rate** di baris Costing = harga beli **sebelum diskon** dari SQTN (read only), dicetak sebagai
+**Act Price** di Costing (Import); Rate (setelah diskon) jadi **Act Price After Disc**. Diisi lewat Get Items,
+Create > Costing, dan ganti SQTN di baris; baris yang punya SQTN tapi Price List Rate-nya masih 0 diisi ulang
+tiap Costing disimpan (`set_price_list_rates` — Costing lama yang dibikin lewat Get Items sebelum ini 0
+semua, beres begitu disimpan ulang). Baris barang stok (tanpa SQTN) dibiarin 0 — print-nya jatuh ke Rate.
 
 Tiap baris Costing Item punya field **Warehouse** yang keisi otomatis: gudang default item di
 company itu (`Item Default`) dulu, kalau item gak punya baru ikut default warehouse di Stock

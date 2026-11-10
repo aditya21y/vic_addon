@@ -90,6 +90,7 @@ frappe.ui.form.on("Costing Item", {
 				supplier: null,
 				supplier_quotation_item: null,
 				rate: 0,
+				price_list_rate: 0,
 			});
 			fetch_stock_item_details(frm, cdt, cdn, { keep_warehouse: true });
 			return;
@@ -521,6 +522,8 @@ function get_items_from_supplier_quotation(frm) {
 					uom: row.uom,
 					qty: flt(row.qty),
 					rate: flt(row.rate),
+					// harga sebelum diskon - dicetak sebagai Act Price di Costing (Import)
+					price_list_rate: flt(row.price_list_rate),
 					supplier: row.supplier,
 					supplier_quotation: row.supplier_quotation,
 					supplier_quotation_item: row.supplier_quotation_item,
