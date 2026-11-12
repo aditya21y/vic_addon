@@ -153,7 +153,8 @@ function load_progress_terms(frm) {
 
 	frappe.call({
 		method: "vic_addon.vic.retention.get_progress_terms",
-		args: { order: frm.doc.custom_dp_order },
+		// termin yang udah ditagih invoice DP gak ditawarin
+		args: { order: frm.doc.custom_dp_order, invoice: frm.is_new() ? null : frm.doc.name },
 		callback({ message }) {
 			const options = [""].concat((message || []).map((row) => row.label));
 			if (frm.doc.custom_progress_term && !options.includes(frm.doc.custom_progress_term)) {

@@ -24,7 +24,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
-from vic_addon.vic.dp_item_invoice import TOLERANCE, get_link, get_term_row
+from vic_addon.vic.dp_item_invoice import TOLERANCE, get_link, get_term_row, validate_term_not_used
 
 RETENTION_WORDS = ("retensi", "retention")
 
@@ -107,6 +107,8 @@ def set_progress_invoice(doc):
 	term = get_term_row(order, doc.get("custom_progress_term"))
 	if is_retention_term(term):
 		frappe.throw(_("Pick the progress term, not the retention term, in Progress Term."))
+	# termin yang udah ditagih invoice DP gak boleh dipilih lagi (progress lain boleh - kirim bertahap)
+	validate_term_not_used(doc, order, term, allow_progress=True)
 
 	rows = [row for row in doc.items if row.item_code != settings.item]
 	percent = get_retention_percent(order)
@@ -150,7 +152,7 @@ def set_retention_invoice(doc):
 		)
 
 	doc.set("items", [])
-	append_retention_row(doc, settings, remaining, get_retention_percent(order), order.name)
+	append_retention_row(doc, settings, remaining, get_retention_percent(order), order.name, link_order=True)
 
 	# pajaknya ngikut SO kalau invoice-nya belum punya
 	if not doc.get("taxes") and order.get("taxes"):
@@ -220,7 +222,7 @@ def warn_unreversed_dp(doc, order):
 # ---------------------------------------------------------------------------------------------
 
 
-def append_retention_row(doc, settings, amount, percent, order):
+def append_retention_row(doc, settings, amount, percent, order, link_order=False):
 	item = frappe.get_cached_doc("Item", settings.item)
 	doc.append(
 		"items",
@@ -238,8 +240,18 @@ def append_retention_row(doc, settings, amount, percent, order):
 			"rate": amount,
 			"income_account": settings.account,
 			"cost_center": doc.get("cost_center") or frappe.get_cached_value("Company", doc.company, "cost_center"),
+			# invoice retensi: biar muncul di tab Connections SO-nya (cuma link, so_detail tetap kosong).
+			# Baris RETENSI minus di invoice progress gak di-link - invoice-nya udah nempel lewat baris
+			# barangnya, dan DPP baris yang nempel SO dipakai ngitung porsi DP yang dibalik.
+			# SO Closed / On Hold gak di-link: ERPNext nolak invoice yang barisnya nunjuk SO begitu,
+			# padahal retensi bisa aja ditagih jauh sesudah SO-nya ditutup.
+			"sales_order": order if link_order and is_linkable_order(order) else None,
 		},
 	)
+
+
+def is_linkable_order(order):
+	return frappe.db.get_value("Sales Order", order, "status") not in ("Closed", "On Hold")
 
 
 def get_settings(company, throw=True):
@@ -309,17 +321,24 @@ def get_retention_invoices(order):
 
 
 @frappe.whitelist()
-def get_progress_terms(order):
-	"""Pilihan Progress Term buat form: baris schedule SO selain termin retensi."""
+def get_progress_terms(order, invoice=None):
+	"""Pilihan Progress Term buat form: baris schedule SO selain termin retensi dan selain termin
+	yang udah ditagih invoice DP."""
 	order_doc = frappe.get_doc("Sales Order", order)
 	order_doc.check_permission("read")
 
-	from vic_addon.vic.dp_item_invoice import get_term_label
+	from vic_addon.vic.dp_item_invoice import get_term_label, get_used_terms
+
+	dp_terms = {
+		idx
+		for idx, rows in get_used_terms(order, exclude=invoice).items()
+		if any(row.kind == "dp" for row in rows)
+	}
 
 	return [
 		{"label": get_term_label(row), "portion": flt(row.invoice_portion)}
 		for row in order_doc.get("payment_schedule") or []
-		if not is_retention_term(row)
+		if not is_retention_term(row) and row.idx not in dp_terms
 	]
 
 

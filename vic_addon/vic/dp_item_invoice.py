@@ -104,6 +104,9 @@ def set_dp_invoice(doc, method=None):
 			"discount_amount": 0,
 			"rate": amount,
 			side.item_account: settings.account,
+			# nomor order di baris ini yang bikin invoice DP muncul di tab Connections order-nya
+			# (cuma link - billed SO tetap dari so_detail, yang sengaja kosong)
+			side.order_field: order.name,
 			"cost_center": get_order_cost_center(order) or doc.get("cost_center"),
 			# kategori PPh baris ini diisi kayak ERPNext ngisi baris item biasa (master Item dulu,
 			# lalu master party), biar PPh bawaan ikut jalan di invoice DP
@@ -159,17 +162,10 @@ def get_term_label(row):
 
 
 def validate_dp_total(doc, order, term, amount):
-	"""Satu term cuma boleh di-DP sekali, dan total DP gak boleh lewat Net Total order."""
+	"""Satu term cuma boleh dipakai satu invoice DP (dan gak boleh udah jadi termin invoice
+	progress), dan total DP gak boleh lewat Net Total order."""
+	validate_term_not_used(doc, order, term)
 	others = get_dp_invoices(doc.doctype, order.name, exclude=doc.name)
-
-	for other in others:
-		if get_term_index(other.custom_dp_term) == term.idx:
-			frappe.throw(
-				_("DP Term {0} of {1} is already billed in {2}.").format(
-					frappe.bold(get_term_label(term)), order.name, get_link(doc.doctype, other.name)
-				),
-				title=_("DP Term Already Billed"),
-			)
 
 	billed = sum(flt(other.net_total) for other in others)
 	if billed + amount > flt(order.net_total) + TOLERANCE:
@@ -180,6 +176,54 @@ def validate_dp_total(doc, order, term, amount):
 				frappe.format(order.net_total, {"fieldtype": "Currency", "options": doc.currency}),
 			)
 		)
+
+
+def validate_term_not_used(doc, order, term, allow_progress=False):
+	"""Termin Payment Schedule order yang udah ditagih invoice lain gak boleh dipilih lagi.
+
+	Misal SO "DP 20%, Progress 75%, Retensi 5%" yang DP 20%-nya udah ditagih: invoice progress
+	harus milih termin 75%, bukan 20% lagi. Invoice draft & submitted dihitung, yang cancelled
+	enggak. `allow_progress`: invoice progress boleh pakai termin yang sama dengan invoice progress
+	lain (barang dikirim bertahap, tiap pengiriman ditagih pakai termin progress yang sama).
+	"""
+	used = get_used_terms(order.name, exclude=doc.name).get(term.idx) or []
+	if allow_progress:
+		used = [row for row in used if row.kind != "progress"]
+	if not used:
+		return
+
+	first = used[0]
+	frappe.throw(
+		_("Term {0} of {1} is already billed in {2} ({3}). Pick another term.").format(
+			frappe.bold(get_term_label(term)),
+			order.name,
+			get_link("Sales Invoice", first.invoice),
+			_("DP Invoice") if first.kind == "dp" else _("Progress Invoice"),
+		),
+		title=_("Term Already Billed"),
+	)
+
+
+def get_used_terms(order, exclude=None):
+	"""{nomor baris Payment Schedule: [invoice DP / progress yang pakai termin itu]} buat satu SO."""
+	filters = {"custom_dp_order": order, "docstatus": ["<", 2]}
+	if exclude:
+		filters["name"] = ["!=", exclude]
+
+	used = {}
+	for row in frappe.get_all(
+		"Sales Invoice",
+		filters=filters,
+		or_filters={"custom_is_dp": 1, "custom_is_progress": 1},
+		fields=["name", "custom_is_dp", "custom_dp_term", "custom_progress_term"],
+		order_by="creation asc",
+	):
+		kind = "dp" if row.custom_is_dp else "progress"
+		idx = get_term_index(row.custom_dp_term if kind == "dp" else row.custom_progress_term)
+		if idx:
+			used.setdefault(idx, []).append(frappe._dict(kind=kind, invoice=row.name))
+
+	return used
 
 
 def get_term_index(term):
@@ -242,11 +286,9 @@ def get_dp_terms(order_doctype, order, invoice=None):
 	order_doc = frappe.get_doc(order_doctype, order)
 	order_doc.check_permission("read")
 
-	invoice_doctype = "Sales Invoice"
-	used = {
-		get_term_index(row.custom_dp_term): row.name
-		for row in get_dp_invoices(invoice_doctype, order, exclude=invoice)
-	}
+	# termin yang udah dipakai invoice DP / progress lain ditandain (form-nya ngasih peringatan,
+	# server nolak waktu disimpan)
+	used = {idx: rows[0].invoice for idx, rows in get_used_terms(order, exclude=invoice).items()}
 
 	return [
 		{
@@ -319,7 +361,12 @@ def get_default_allocations(doc):
 			continue
 
 		order_net = flt(frappe.db.get_value(side.order_doctype, order, "base_net_total"))
-		this_net = sum(get_row_base_net(doc, item) for item in doc.items if item.get(side.order_field) == order)
+		# baris RETENSI invoice retensi nempel ke SO cuma buat Connections - bukan tagihan barang
+		this_net = (
+			0
+			if doc.get("custom_is_retention")
+			else sum(get_row_base_net(doc, item) for item in doc.items if item.get(side.order_field) == order)
+		)
 		billed_before = get_billed_before(doc, order, side)
 		total_dp = sum(flt(dp.base_net_total) for dp in dp_invoices)
 
@@ -384,6 +431,8 @@ def get_billed_before(doc, order, side):
 			(item[side.order_field] == order)
 			& (parent.docstatus == 1)
 			& (parent.custom_is_dp == 0)
+			# invoice retensi nempel ke SO cuma buat Connections, DPP-nya bukan tagihan barang
+			& (parent.custom_is_retention == 0)
 			& (parent.is_return == 0)
 			& (parent.name != (doc.name or ""))
 		)

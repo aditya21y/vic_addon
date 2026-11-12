@@ -403,7 +403,8 @@ satu baris Item DP:
 - akun baris = akun Uang Muka dari Company; kategori PPh baris ngikut cara ERPNext (master Item,
   lalu master party), jadi PPh bawaan tetap jalan di invoice DP.
 - payment terms invoice dikosongin (satu tagihan), Update Stock dimatiin.
-- satu term cuma boleh di-DP sekali, dan total DP gak boleh lewat Net Total order.
+- satu term cuma boleh di-DP sekali (dan gak boleh term yang udah dipakai invoice progress), dan
+  total DP gak boleh lewat Net Total order.
 
 **Invoice progress** — tabel **DP Invoices** (di bawah Advances) narik DP dari order yang sama
 (party & company sama), otomatis waktu dokumen baru kebuka atau lewat tombol **Get DP Invoices**:
@@ -418,6 +419,11 @@ Waktu invoice progress disubmit, **Reverse Journal** dibikin & disubmit otomatis
 Reversal For* di JE nunjuk ke invoice-nya). Isinya ngebalik **jurnal GL invoice DP-nya sendiri**
 (semua baris selain piutang/hutang) × Allocated / DPP DP — akun Uang Muka, PPN, PPh, sampai cost
 center-nya persis yang dipakai invoice DP. Baris piutang/hutangnya nempel ke invoice progress.
+
+**Connections di Sales Order:** baris Item DP nyimpen nomor SO-nya (field `sales_order`, `so_detail`
+sengaja kosong), jadi invoice DP muncul di tab **Connections → Sales Invoice** SO itu bareng invoice
+progress & retensi. Cuma link — % Billed SO tetap dihitung dari baris barang. Invoice DP & retensi
+lama diisi lewat patch `link_dp_retention_invoices_to_sales_order`.
 
 **Cancel:** cancel invoice progress → Reverse Journal-nya ikut dicancel duluan, DP-nya bisa dipakai
 lagi. Invoice DP yang udah dipakai invoice progress submitted **gak bisa dicancel**.
@@ -444,6 +450,11 @@ Contoh SO DPP 51.000 + PPN 11% (udah dites): DP 11.322 → progress DPP 48.450 (
 dibalik 11.322, sisa tagih 42.458 → retensi DPP 2.550 + PPN = 2.830 → total dari customer **56.610 =
 grand total SO**, saldo Piutang Retensi balik 0.
 
+Baris RETENSI plus di invoice retensi nyimpen nomor SO, jadi invoice retensinya muncul di tab
+**Connections** SO (kecuali SO-nya udah **Closed / On Hold** — ERPNext nolak invoice yang barisnya nunjuk
+SO begitu, jadi baris itu dibiarin tanpa link). Baris RETENSI minus di invoice progress gak di-link;
+invoice progress udah nempel lewat baris barangnya.
+
 Invoice retensi dibikin dari tombol di SO, bukan *Create → Sales Invoice* bawaan: SO yang barangnya
 udah ketagih semua (% Billed 100) gak bisa bikin invoice lewat mapper bawaan, dan SI baru yang Items-nya
 kosong ditolak form.
@@ -458,6 +469,12 @@ Term; kalau gak dicentang, dari nama/deskripsinya yang mengandung "retensi"/"ret
 
 - Satu invoice cuma boleh satu dari Is DP / Is Progress / Is Retention; invoice progress cuma boleh
   narik item dari satu Sales Order.
+- **Termin yang udah ditagih gak bisa dipilih lagi** (dicek per Sales Order, invoice draft & submitted;
+  yang cancelled gak dihitung). SO "DP 20%, 75% progress, 5% retensi" yang DP 20%-nya udah ditagih:
+  Progress Term cuma nawarin "75%", dan kalau "20%" tetap dikirim, simpannya ditolak (*Term ... is
+  already billed in ... (DP Invoice)*). Sebaliknya, termin yang udah dipakai invoice progress gak bisa
+  jadi DP Term. Termin progress yang sama **boleh** dipakai lebih dari satu invoice progress — barang
+  yang dikirim bertahap ditagih per pengiriman pakai termin progress yang sama.
 - *Allow Negative rates for Items* (setelan global ERPNext) harus nyala, tapi yang boleh rate minus
   **cuma baris RETENSI di invoice progress** — item lain ditolak.
 - Invoice retensi ditolak kalau retensi order itu udah habis ditagih.
