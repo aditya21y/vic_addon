@@ -360,8 +360,9 @@ def get_invoice_summary(doc, down_payment, delivery_notes):
 
 	Ringkasannya ngikut formulir VIC:
 
-		TOTAL         = Total (sebelum diskon tambahan)
+		TOTAL         = Total (sebelum diskon tambahan); invoice progress: tanpa baris retensi minus
 		DISCOUNT      = Total - Net Total
+		RETENTION x%  = retensi yang ditahan (invoice progress aja, baris retensinya gak dicetak)
 		DOWN PAYMENT  = DPP uang muka yang dipotong (lihat pemanggilnya)
 		SUB TOTAL     = Net Total - Down Payment
 		PPN           = PPN dokumen, dihitung ulang sebanding Sub Total kalau ada DP;
@@ -375,7 +376,11 @@ def get_invoice_summary(doc, down_payment, delivery_notes):
 
 	company = frappe.get_cached_doc("Company", doc.company)
 
-	total = flt(doc.total)
+	# invoice progress: baris retensi minus gak dicetak, jadi TOTAL = total barang yang kecetak dan
+	# retensinya jadi baris sendiri. Diskon tetap Total - Net Total dokumen (retensi bukan diskon).
+	retention, retention_percent = get_retention_deduction(doc)
+	discount = flt(doc.total) - flt(doc.net_total)
+	total = flt(doc.total) + retention
 	net_total = flt(doc.net_total)
 	sub_total = net_total - flt(down_payment)
 
@@ -404,7 +409,9 @@ def get_invoice_summary(doc, down_payment, delivery_notes):
 
 	return frappe._dict(
 		total=total,
-		discount=total - net_total,
+		discount=discount,
+		retention=retention,
+		retention_percent=retention_percent,
 		down_payment=flt(down_payment),
 		sub_total=sub_total,
 		vat=vat,
@@ -464,11 +471,49 @@ def split_payment_terms(text):
 
 
 def get_printed_items(doc):
-	"""Baris item yang dicetak di print format Sales Invoice: baris **Barang Tambahan** dibuang.
+	"""Baris item yang dicetak di print format Sales Invoice (Invoice (VIC), Delivery Order (Invoice)).
+
+	Yang dibuang: baris **Barang Tambahan**, dan di invoice progress (MOS) baris **retensi minus**
+	(item = Retention Item di Company). Retensinya dicetak di ringkasan total (`get_invoice_summary`),
+	bukan sebagai barang. Invoice retensi tetap nyetak barisnya - itu memang yang ditagih.
 
 	Cuma barisnya yang gak dicetak - dokumennya sendiri (qty, stok, nilai, total) gak berubah.
 	"""
-	return [item for item in doc.get("items") or [] if not item.get("custom_is_additional_item")]
+	retention_item = get_progress_retention_item(doc)
+	return [
+		item
+		for item in doc.get("items") or []
+		if not item.get("custom_is_additional_item") and not (retention_item and item.item_code == retention_item)
+	]
+
+
+def get_progress_retention_item(doc):
+	"""Retention Item Company kalau dokumennya invoice progress, selain itu None."""
+	import frappe
+
+	if not doc.get("custom_is_progress"):
+		return None
+	return frappe.get_cached_value("Company", doc.company, "custom_retention_item")
+
+
+def get_retention_deduction(doc):
+	"""(nilai retensi yang ditahan di invoice progress ini - angka positif, persen termin retensi SO)."""
+	import frappe
+	from frappe.utils import flt
+
+	retention_item = get_progress_retention_item(doc)
+	if not retention_item:
+		return 0, 0
+
+	amount = -sum(flt(item.amount) for item in doc.get("items") or [] if item.item_code == retention_item)
+	if not amount:
+		return 0, 0
+
+	from vic_addon.vic.retention import get_retention_percent
+
+	order = doc.get("custom_dp_order")
+	percent = get_retention_percent(frappe.get_doc("Sales Order", order)) if order else 0
+	return amount, percent
 
 
 def get_invoice_delivery_order(doc):

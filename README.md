@@ -2002,7 +2002,7 @@ dikasih class `left`, `<td>`-nya class `text`, aturannya di letterhead.
 | Quotation (VIC) | **Quotation** (bisa juga dipasang di Sales Order) | QUOTATION |
 | Purchase Order (VIC) | Purchase Order | PURCHASE ORDER |
 | Invoice (VIC) | Sales Invoice | INVOICE (formulirnya sama kayak Proforma Invoice) |
-| Delivery Order (Invoice) | Sales Invoice | DELIVERY ORDER ("DO asli" dari invoice, tanpa Barang Tambahan) |
+| Delivery Order (Invoice) | Sales Invoice | DELIVERY ORDER ("DO asli" dari invoice, tanpa Barang Tambahan & baris retensi invoice progress) |
 | Receipt Note | Purchase Invoice | "RECEIPT NOTE" (tanda terima tukar faktur, lihat di bawah) |
 | Purchase Request | Material Request | PURCHASE REQUEST |
 | Inquiry | Request for Quotation | INQUIRY (+ versi Excel, lihat di bawah) |
@@ -2140,6 +2140,24 @@ selain itu **Grand Total**. Total yang dihitung sendiri sama print format-nya (V
 Proforma yang dipotong DP) dibulatin persis kayak ERPNext ngebulatin Rounded Total, kalau dokumennya
 pakai pembulatan. Terbilangnya ikut angka yang dicetak. Helper: `get_grand_total` di
 `vic_addon/vic/print_utils.py`.
+
+**Diskon tambahan ikut kecetak, jadi baris di atas Grand Total nyambung.** Kalau dokumennya pakai
+Additional Discount, ringkasan total nyetak **Discount x%** (= Total − Net Total) dan **Total After
+Discount** (= Net Total), terus pajaknya pakai nilai **setelah diskon**
+(`tax_amount_after_discount_amount`) — baik diskonnya dihitung dari Net Total maupun dari Grand Total.
+Tanpa diskon, dua baris itu gak muncul.
+
+| Print format | Ringkasan |
+| --- | --- |
+| Quotation (VIC) | TOTAL PRICE → DISCOUNT x% → TOTAL PRICE AFTER DISC → VAT → GRAND TOTAL PRICE |
+| Purchase Order (VIC) | Total Price → Discount x% → Total After Discount → PPN → Grand Total |
+| Invoice (VIC), Proforma Invoice | TOTAL → DISCOUNT → (RETENTION x%, invoice progress aja) → DOWN PAYMENT → SUB TOTAL → PPN → GRAND TOTAL |
+| Costing (Sales) | total di kaki tabel → Discount x% → Total After Discount (dari section Discount Costing) |
+| Kwitansi, Kwitansi (Progress), Receipt Note | cuma angka akhir (Rounded/Grand Total, udah setelah diskon) |
+
+Contoh PO (dites): harga 12.345,67, diskon 10%, PPN 11%, pembulatan nyala → Total Price 12.345,67,
+Discount 10% 1.234,57, Total After Discount 11.111,10, PPN 11% 1.222,22, Grand Total **12.333** (Rounded
+Total). Sebelumnya PPN-nya kecetak 1.358,02 (dari harga sebelum diskon) dan baris diskonnya gak ada.
 
 Lewat property setter `<Doctype>-disable_rounded_total-default` — namanya sengaja sama persis
 dengan yang dibikin **Global Defaults → Disable Rounded Total**, jadi fixture kita nimpa record itu,
@@ -2371,8 +2389,23 @@ Cuma barisnya yang disembunyiin — qty, stok, nilai, dan **total di invoice tet
 disembunyiin. Print format Delivery Order di Delivery Note gak kena. Tanda yang dicentang di SO setelah
 invoice-nya kebentuk gak ikut nyusul — centang langsung di baris invoice-nya.
 
-Implementasi: `get_printed_items` & `get_invoice_delivery_order` di `vic/print_utils.py`, template di
-`vic/print_format/delivery_order_invoice/`.
+**Baris retensi di invoice progress (MOS).** Di invoice yang **Is Progress Invoice**, baris **retensi
+minus** (item = **Retention Item** di Company, mis. `RETENSI`) juga **gak dicetak** di Invoice (VIC) &
+Delivery Order (Invoice) — retensi bukan barang. Di Invoice (VIC) retensinya pindah ke ringkasan:
+
+| Baris | Isi |
+| --- | --- |
+| TOTAL | total barang yang kecetak (Total dokumen + retensi yang ditahan) |
+| RETENTION x% | retensi yang ditahan; x% = termin retensi di Payment Schedule SO. Cuma muncul di invoice progress |
+| DOWN PAYMENT → SUB TOTAL → PPN → GRAND TOTAL | sama kayak sebelumnya, angkanya gak berubah |
+
+Contoh (dites): SO DPP 50.000 + PPN 11%, termin DP 20% / 75% / retensi 5% → invoice progress nyetak
+2 baris barang (tanpa RETENSI), TOTAL 50.000, RETENTION 5% 2.500, DOWN PAYMENT 10.000, SUB TOTAL 37.500,
+PPN 4.125, GRAND TOTAL **41.625** (= sisa tagih invoice-nya). Invoice **retensi** tetap nyetak baris
+RETENSI-nya (itu yang ditagih), invoice DP & invoice biasa gak kena. Dokumennya sendiri gak berubah.
+
+Implementasi: `get_printed_items`, `get_retention_deduction` & `get_invoice_delivery_order` di
+`vic/print_utils.py`, template di `vic/print_format/delivery_order_invoice/` & `vic/print_format/invoice/`.
 
 #### Print Format: Delivery Order (Delivery Note)
 

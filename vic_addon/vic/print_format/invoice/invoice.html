@@ -178,6 +178,10 @@
 				<table class="totals">
 					<tr><td class="lbl">TOTAL</td><td class="money">{{ frappe.utils.fmt_money(pf.total) }}</td></tr>
 					<tr><td class="lbl">DISCOUNT</td><td class="money">{{ frappe.utils.fmt_money(pf.discount) }}</td></tr>
+					{#- invoice progress (MOS): baris retensi minus gak dicetak di tabel item, retensinya di sini -#}
+					{%- if pf.retention %}
+						<tr><td class="lbl">RETENTION{% if pf.retention_percent %} {{ "%g" | format(pf.retention_percent) }}%{% endif %}</td><td class="money">{{ frappe.utils.fmt_money(pf.retention) }}</td></tr>
+					{%- endif %}
 					<tr><td class="lbl">DOWN PAYMENT</td><td class="money">{{ frappe.utils.fmt_money(pf.down_payment) }}</td></tr>
 					<tr><td class="lbl">SUB TOTAL</td><td class="money">{{ frappe.utils.fmt_money(pf.sub_total) }}</td></tr>
 					<tr><td class="lbl">PPN</td><td class="money">{{ frappe.utils.fmt_money(pf.vat) }}</td></tr>

@@ -192,6 +192,21 @@
 						<td class="lbl">Total Price</td>
 						<td class="money">{{ frappe.utils.fmt_money(doc.total) }}</td>
 					</tr>
+					{#- Diskon tambahan (Additional Discount): Diskon = Total - Net Total, terus Total After
+					    Discount. Pajak di bawahnya pakai nilai setelah diskon, jadi barisnya nyambung ke Grand
+					    Total - baik diskonnya dihitung dari Net Total maupun dari Grand Total. -#}
+					{%- set discount = (doc.total | float) - (doc.net_total | float) %}
+					{%- set percent = doc.get("additional_discount_percentage") | float %}
+					{%- if discount > 0.005 %}
+						<tr>
+							<td class="lbl">Discount{% if percent %} {{ "%g" | format(percent) }}%{% endif %}</td>
+							<td class="money">{{ frappe.utils.fmt_money(discount) }}</td>
+						</tr>
+						<tr>
+							<td class="lbl">Total After Discount</td>
+							<td class="money">{{ frappe.utils.fmt_money(doc.net_total) }}</td>
+						</tr>
+					{%- endif %}
 					{#- PPN selalu dicetak di bawah Total Price, labelnya "PPN <rate>%" (bukan deskripsi akunnya);
 					    PO tanpa PPN tetap kecetak "PPN 11%" senilai 0, ngikut formulir. Baris pajak lain (PPh,
 					    potongan) dicetak pakai deskripsinya. -#}
@@ -200,7 +215,7 @@
 						{%- for tax in vat_rows %}
 							<tr>
 								<td class="lbl">PPN {{ "%g" | format(tax.rate | float) if tax.rate else 11 }}%</td>
-								<td class="money">{{ frappe.utils.fmt_money(tax.tax_amount) }}</td>
+								<td class="money">{{ frappe.utils.fmt_money(tax.tax_amount_after_discount_amount or tax.tax_amount) }}</td>
 							</tr>
 						{%- endfor %}
 					{%- else %}
@@ -212,7 +227,7 @@
 					{%- for tax in other_rows %}
 						<tr>
 							<td class="lbl">{{ tax.description }}</td>
-							<td class="money">{{ frappe.utils.fmt_money(tax.tax_amount) }}</td>
+							<td class="money">{{ frappe.utils.fmt_money(tax.tax_amount_after_discount_amount or tax.tax_amount) }}</td>
 						</tr>
 					{%- endfor %}
 					<tr class="grand">

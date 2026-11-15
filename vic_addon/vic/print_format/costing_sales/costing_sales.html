@@ -27,6 +27,8 @@
 
 	/* baris total di kaki tabel: cuma angkanya, lurus di kolom Total Selling Price */
 	.vic-pf .items tr.sum td { border-top: 1px solid #000; font-weight: 700; }
+	/* label Total / Discount / Total After Discount: rata kanan, nempel ke angkanya */
+	.vic-pf .items tr.sum td.lbl, .vic-pf .items tr.disc td.lbl { text-align: right; }
 
 	/* Garis luar tabel. Digambar per sel di pinggir kiri/kanan, bukan lewat `border` di elemen
 	   <table>: mesin render PDF-nya cuma nggambar garis tabel di baris yang selnya emang punya
@@ -129,10 +131,23 @@
 			</tr>
 			{%- endif %}
 
+			{#- Diskon ke customer (section Discount Costing, kebawa ke Quotation): kalau diisi, dicetak di
+			    bawah total + Total After Discount, biar angka akhirnya sama kayak Quotation-nya -#}
+			{%- set discount = doc.get("discount_amount") | float %}
 			<tr class="sum">
-			<td colspan="4"></td>
+			<td colspan="4" class="lbl">{% if discount > 0.005 %}Total{% endif %}</td>
 			<td class="money">{{ frappe.utils.fmt_money(doc.total_quotation_amount) }}</td>
 		</tr>
+			{%- if discount > 0.005 %}
+			<tr class="disc">
+				<td colspan="4" class="lbl">Discount{% if doc.discount_percentage %} {{ "%g" | format(doc.discount_percentage | float) }}%{% endif %}</td>
+				<td class="money">{{ frappe.utils.fmt_money(discount) }}</td>
+			</tr>
+			<tr class="sum">
+				<td colspan="4" class="lbl">Total After Discount</td>
+				<td class="money">{{ frappe.utils.fmt_money(doc.total_after_discount_amount) }}</td>
+			</tr>
+			{%- endif %}
 		</tbody>
 	</table>
 
