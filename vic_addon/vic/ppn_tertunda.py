@@ -54,6 +54,27 @@ def get_deferred_amounts(doc, deferred_account):
 	return {cost_center: amount for cost_center, amount in amounts.items() if flt(amount, 2)}
 
 
+def set_ppn_tertunda_account(doc, method=None):
+	"""Hook `before_validate` Purchase Invoice: akun baris PPN ngikut centangan PPN Tertunda.
+
+	Dicentang -> baris yang pakai akun PPN Masukan (COA Company) dialihin ke akun PPN Masukan
+	Tertunda. Dilepas -> dibalikin lagi. Swap-nya antar dua akun Company, jadi bolak-balik aman
+	dan idempoten. Akun Company belum di-set -> dilewatin (validasi submit yang negur).
+	"""
+	deferred_account, vat_account = get_accounts(doc.company)
+	if not (deferred_account and vat_account):
+		return
+
+	if doc.get("custom_ppn_tertunda"):
+		source, target = vat_account, deferred_account
+	else:
+		source, target = deferred_account, vat_account
+
+	for tax in doc.get("taxes") or []:
+		if tax.account_head == source:
+			tax.account_head = target
+
+
 def validate_ppn_tertunda(doc, method=None):
 	"""Hook `before_submit` Purchase Invoice: yang dicentang PPN Tertunda wajib punya baris
 	PPN Masukan Tertunda - kalau enggak, gak ada yang bisa direklas nanti.

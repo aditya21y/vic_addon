@@ -585,6 +585,11 @@ Waktu Payment Entry dibikin dari DP Invoice itu, **tabel pajaknya kebawa otomati
 kalau Payment Entry-nya belum punya baris pajak, jadi editan manual gak ketiban). Dokumen DP
 Invoice sendiri gak posting jurnal — jurnalnya kebentuk di Payment Entry, sesuai R&C.
 
+Baris `On Paid Amount` dihitung ulang di Payment Entry dari rate × paid amount, tapi baris
+**`Actual`** (mis. PPN yang dibulatin manual di Advance Invoice) gak punya rate buat dihitung —
+jadi **nilai `tax_amount`-nya ikut disalin** ke Payment Entry. Tanpa ini, baris Actual kebawa
+dengan nilai 0.
+
 **Sisa PPN/PPh di invoice final.** Sales Invoice & Purchase Invoice punya checkbox
 **Deduct Taxes Paid on DP** (default nyala). Kalau ada Payment Entry DP yang dialokasiin ke
 invoice itu, baris pajaknya diubah jadi charge type `Actual` dengan nilai:
@@ -727,10 +732,13 @@ Akunnya diset per company, di tab **Accounts** bagian **PPN Masukan Tertunda**:
 
 Jalannya:
 
-1. **Purchase Invoice** — centang **PPN Tertunda** (di bawah *Deduct Taxes Paid on DP*), terus
-   **pilih manual** akun PPN Masukan Tertunda sebagai *Account Head* baris PPN di tabel pajak.
-   Waktu submit dicek: kalau dicentang tapi gak ada baris yang pakai akun itu (atau akunnya belum
-   diset di Company), submit-nya ditolak. Draft bebas disimpan.
+1. **Purchase Invoice** — centang **PPN Tertunda** (di bawah *Deduct Taxes Paid on DP*). Begitu
+   dicentang, baris pajak yang pakai akun **PPN Masukan** (COA Company) **otomatis dialihin** ke akun
+   **PPN Masukan Tertunda** — gak usah pilih manual. Dilepas centangnya, akunnya **balik** ke PPN
+   Masukan. Swap-nya di JS (`custom_ppn_tertunda` onchange, biar langsung kelihatan) sekaligus diulang
+   di server waktu simpan (`set_ppn_tertunda_account`, before_validate) biar data tetap konsisten dari
+   jalur mana pun. Dua akun COA-nya harus udah di-set di Company; kalau belum, swap-nya dilewatin dan
+   submit-nya ditolak. Draft bebas disimpan.
 2. **Faktur pajak dateng** — tombol **Create > Reklas PPN Tertunda** di invoice yang udah submit
    bikin **draft** Journal Entry, terus langsung dibuka:
 

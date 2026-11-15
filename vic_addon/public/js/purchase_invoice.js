@@ -8,6 +8,40 @@ frappe.ui.form.on("Purchase Invoice", {
 
 		frm.add_custom_button(__("Reklas PPN Tertunda"), () => make_ppn_reclass_entry(frm), __("Create"));
 	},
+
+	// Centang PPN Tertunda -> akun baris PPN pindah dari PPN Masukan ke PPN Masukan Tertunda (akun
+	// COA Company), dilepas -> balik lagi. Server ngulang swap-nya waktu simpan (set_ppn_tertunda_account),
+	// ini cuma biar langsung kelihatan di form.
+	custom_ppn_tertunda(frm) {
+		if (!frm.doc.company) return;
+
+		frappe.db
+			.get_value("Company", frm.doc.company, [
+				"custom_ppn_masukan_account",
+				"custom_ppn_masukan_tertunda_account",
+			])
+			.then(({ message }) => {
+				const vat = message && message.custom_ppn_masukan_account;
+				const deferred = message && message.custom_ppn_masukan_tertunda_account;
+				if (!vat || !deferred) {
+					frappe.show_alert({
+						message: __("Set COA PPN Masukan & PPN Masukan Tertunda di Company dulu."),
+						indicator: "orange",
+					});
+					return;
+				}
+
+				const [from, to] = frm.doc.custom_ppn_tertunda ? [vat, deferred] : [deferred, vat];
+				let changed = false;
+				(frm.doc.taxes || []).forEach((row) => {
+					if (row.account_head === from) {
+						row.account_head = to;
+						changed = true;
+					}
+				});
+				if (changed) frm.refresh_field("taxes");
+			});
+	},
 });
 
 function make_ppn_reclass_entry(frm) {

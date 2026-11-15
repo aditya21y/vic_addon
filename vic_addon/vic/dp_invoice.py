@@ -445,7 +445,12 @@ def set_advance_taxes(doc, method=None):
 
 	source = frappe.get_doc("Payment Request", payment_request)
 	for tax in source.get("custom_taxes") or []:
-		doc.append("taxes", {fieldname: tax.get(fieldname) for fieldname in TAX_FIELDS_TO_COPY})
+		row = {fieldname: tax.get(fieldname) for fieldname in TAX_FIELDS_TO_COPY}
+		# Actual: nilainya diketik manual di Advance Invoice (mis. PPN dibulatin) dan gak ada rate buat
+		# dihitung ulang - amount-nya mesti ikut disalin, kalau enggak jadi 0 di Payment Entry
+		if tax.charge_type == "Actual":
+			row["tax_amount"] = tax.tax_amount
+		doc.append("taxes", row)
 
 	if doc.get("taxes"):
 		template_field = (
