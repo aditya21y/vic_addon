@@ -17,3 +17,4 @@ vic_addon.patches.drop_sales_order_spp
 vic_addon.patches.drop_purchase_receipt_base_net_total_hidden
 vic_addon.patches.link_dp_retention_invoices_to_sales_order
 vic_addon.patches.widen_header_fields_to_text_editor
+vic_addon.patches.unhide_purchase_receipt_price_fields
