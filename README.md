@@ -1997,6 +1997,7 @@ dikasih class `left`, `<td>`-nya class `text`, aturannya di letterhead.
 | --- | --- | --- |
 | Quotation (VIC) | **Quotation** (bisa juga dipasang di Sales Order) | QUOTATION |
 | Purchase Order (VIC) | Purchase Order | PURCHASE ORDER |
+| Advance Payment (Purchase) | Payment Request | "ADVANCE PAYMENT" (DP ke supplier, sama persis Receipt Note, lihat di bawah) |
 | Invoice (VIC) | Sales Invoice | INVOICE (formulirnya sama kayak Proforma Invoice) |
 | Delivery Order (Invoice) | Sales Invoice | DELIVERY ORDER ("DO asli" dari invoice, tanpa Barang Tambahan & baris retensi invoice progress) |
 | Receipt Note | Purchase Invoice | "RECEIPT NOTE" (tanda terima tukar faktur, lihat di bawah) |
@@ -2331,6 +2332,27 @@ tetap di tempatnya.
 | Costing (Sales) | Terms & Conditions "3. Payment" | paling atas di Note yang udah ada |
 
 Batasnya satu konstanta `PAYMENT_TERMS_LIMIT` di `split_payment_terms` (`vic/print_utils.py`).
+
+#### Print Format: Advance Payment (Purchase) — Payment Request DP ke supplier
+
+Print format **Advance Payment (Purchase)** di **Payment Request** (DP Type = Purchase), buat dokumen
+uang muka ke supplier. Bentuknya **sama persis Receipt Note**: tanpa kop, satu kotak bergaris, kertas
+melintang, judul **"ADVANCE PAYMENT"** + DATE/NO di kanan, **RECEIVED FROM** (centang Supplier /
+Subcontractor / Expedite / Etc dari Supplier Group PO-nya) + nama supplier, kotak **AMOUNT** (nominal DP
+di kotak miring) + terbilang Inggris, tabel bergaris, dan kaki **RECEIVED BY / DATE / SIGN**.
+
+Kolom tabelnya **sama kayak Receipt Note**: Invoice No. / Date / Nominal / Tax Invoice No. / DO No. /
+PO No. Satu baris, diisi dari Payment Request + PO-nya:
+
+| Kolom | Isi |
+| --- | --- |
+| PO No. | Purchase Order yang direferensiin (`reference_name`) |
+| Date | Transaction Date PR (kosong → tanggal dokumen dibuat) |
+| Nominal | DP Amount = nilai Payment Request (`grand_total`) |
+| Invoice No., Tax Invoice No., DO No. | **kosong** — belum ada di tahap uang muka |
+
+AMOUNT = DP Amount yang sama. Implementasi: `get_advance_payment_purchase` di `vic/print_utils.py`
+(bentuknya ngikut `get_receipt_note`), template di `vic/print_format/advance_payment_purchase/`.
 
 #### Print Format: Proforma Invoice (Sales Order)
 

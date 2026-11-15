@@ -167,6 +167,8 @@ jinja = {
 		"vic_addon.vic.print_utils.get_inquiry_signatory",
 		# kwitansi Sales Invoice: isian + terbilang & tanggal bahasa Indonesia
 		"vic_addon.vic.print_utils.get_kwitansi",
+		# Advance Payment (Purchase): Payment Request DP ke supplier, tabel item + total dari PO-nya
+		"vic_addon.vic.print_utils.get_advance_payment_purchase",
 		# Proforma Invoice (Sales Order): ringkasan total, terbilang Inggris, rekening
 		"vic_addon.vic.print_utils.get_proforma",
 		# Invoice (VIC) dari Sales Invoice - formulirnya sama kayak Proforma

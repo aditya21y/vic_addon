@@ -32,6 +32,8 @@ PRINT_FORMATS = {
 	"Proforma Invoice": "proforma_invoice",
 	# Invoice dari Sales Invoice, formulirnya sama kayak Proforma Invoice
 	"Invoice (VIC)": "invoice",
+	# Advance Payment (Purchase): Payment Request DP ke supplier, mirip Purchase Order (VIC)
+	"Advance Payment (Purchase)": "advance_payment_purchase",
 	# surat jalan yang dicetak dari Sales Invoice, Barang Tambahan gak ikut
 	"Delivery Order (Invoice)": "delivery_order_invoice",
 }

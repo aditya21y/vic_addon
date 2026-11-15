@@ -305,6 +305,52 @@ def get_received_from(doc):
 
 
 # ---------------------------------------------------------------------------------------------
+# Advance Payment (Purchase) - print format Payment Request DP ke supplier
+# ---------------------------------------------------------------------------------------------
+
+
+def get_advance_payment_purchase(doc):
+	"""Isian print format Advance Payment (Purchase) dari Payment Request (DP ke supplier).
+
+	Bentuknya sama persis Receipt Note (lihat `get_receipt_note`) - satu baris tabel dengan kolom
+	Invoice No. / Date / Nominal / Tax Invoice No. / DO No. / PO No. Buat DP ke supplier: yang keisi
+	cuma PO No., Date, dan Nominal (= DP Amount); Invoice No., Tax Invoice No., dan DO No. **kosong**
+	(dokumennya belum ada di tahap uang muka). RECEIVED FROM & AMOUNT + terbilang ngikut PO-nya.
+	"""
+	import frappe
+	from frappe.utils import flt, getdate, money_in_words
+
+	if doc.reference_doctype != "Purchase Order" or not doc.reference_name:
+		frappe.throw(
+			_("This print format is for an Advance Payment (Purchase) with a Purchase Order reference."),
+			title=_("Not a Purchase Advance"),
+		)
+
+	po = frappe.get_doc("Purchase Order", doc.reference_name)
+	amount = flt(doc.grand_total)
+	# Payment Request sering gak ngisi Transaction Date - jatuh ke tanggal dibuat biar gak kosong
+	date = doc.get("transaction_date") or getdate(doc.creation)
+
+	row = frappe._dict(
+		invoice_no="",
+		date=date,
+		nominal=amount,
+		tax_invoice_no="",
+		do_no="",
+		po_no=get_print_name(po),
+	)
+
+	return frappe._dict(
+		rows=[row],
+		date=date,
+		amount=amount,
+		in_words=money_in_words(amount, doc.get("currency") or po.currency),
+		received_from=get_received_from(po),
+		supplier=doc.party_name or po.supplier_name or po.supplier,
+	)
+
+
+# ---------------------------------------------------------------------------------------------
 # Proforma Invoice (Sales Order)
 # ---------------------------------------------------------------------------------------------
 
