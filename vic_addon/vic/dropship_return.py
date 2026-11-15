@@ -7,17 +7,16 @@ dropship) disubmit:
 1. Barangnya masuk lagi ke gudang transit lewat retur DN itu (bawaan ERPNext).
 2. **Retur Purchase Receipt** dibikin & disubmit otomatis atas PR dropship-nya - barang keluar dari
    gudang transit, balik ke supplier. Serial No yang diretur customer ikut dibalikin.
-3. Kalau baris PR itu **udah ditagih** (ada Purchase Invoice-nya), **retur Purchase Invoice** (debit
-   note) dibikin & disubmit juga, sebanyak qty yang diretur.
 
-Gak ada Payment Entry yang dibikin, walaupun invoice-nya udah dibayar: debit note-nya nyimpen
-outstanding sendiri (piutang ke supplier), dibereskan manual.
+Yang diretur otomatis **cuma Purchase Receipt**. Purchase Invoice-nya (kalau baris PR itu udah ditagih)
+gak disentuh - debit note ke supplier dibikin manual kalau perlu (mis. Create > Return dari PI-nya,
+atau Purchase Invoice dari retur PR-nya). Dulu retur PI ikut dibikin otomatis; fitur itu dicopot.
 
 Dibikin di `on_submit` (bukan `before_submit` kayak alur maju): stoknya baru masuk gudang transit
 setelah retur DN-nya kecatat, dan retur PR baru bisa ngeluarin stok yang udah ada.
 
-Retur PR & PI yang dibikin nyimpen nomor retur DN-nya (`custom_dropship_delivery_note`). Retur DN
-dibatalin -> retur PI & PR-nya ikut dibatalin duluan.
+Retur PR yang dibikin nyimpen nomor retur DN-nya (`custom_dropship_delivery_note`). Retur DN dibatalin
+-> retur PR-nya ikut dibatalin duluan (begitu juga debit note lama yang dulu dibikin otomatis).
 """
 
 import frappe
@@ -31,7 +30,7 @@ LINK_FIELD = "custom_dropship_delivery_note"
 
 
 def make_dropship_returns(doc, method=None):
-	"""Hook `on_submit` Delivery Note: retur DN dropship -> retur PR (+ retur PI kalau udah ditagih)."""
+	"""Hook `on_submit` Delivery Note: retur DN dropship -> retur PR (PI-nya gak ikut diretur)."""
 	if not doc.get("is_return"):
 		return
 
@@ -53,18 +52,14 @@ def make_dropship_returns(doc, method=None):
 		for receipt, allocations in group_by_parent(receipt_rows).items()
 	]
 
-	invoice_rows = allocate_invoice_rows(receipt_rows)
-	invoices = [
-		make_invoice_return(doc, invoice, allocations)
-		for invoice, allocations in group_by_parent(invoice_rows).items()
-	]
-
 	doc.db_set("custom_dropship_purchase_receipt", receipts[0])
 
-	message = _("Purchase Receipt return {0} created for this dropship return.").format(", ".join(receipts))
-	if invoices:
-		message += " " + _("Debit Note {0} created (no Payment Entry is made).").format(", ".join(invoices))
-	frappe.msgprint(message, title=_("Dropship Return"), indicator="green", alert=True)
+	frappe.msgprint(
+		_("Purchase Receipt return {0} created for this dropship return.").format(", ".join(receipts)),
+		title=_("Dropship Return"),
+		indicator="green",
+		alert=True,
+	)
 
 
 def allocate_receipt_rows(delivery_note, rows):
@@ -137,48 +132,6 @@ def allocate_receipt_rows(delivery_note, rows):
 	return allocations
 
 
-def allocate_invoice_rows(receipt_rows):
-	"""Baris Purchase Invoice yang ikut diretur: yang nagih baris PR tadi (`pr_detail`), sebatas qty
-	yang belum diretur di invoice itu."""
-	qty_by_receipt_row = {row.name: row.qty for row in receipt_rows}
-	invoice_rows = frappe.get_all(
-		"Purchase Invoice Item",
-		filters={"pr_detail": ["in", list(qty_by_receipt_row)], "docstatus": 1},
-		fields=["name", "parent", "pr_detail", "qty"],
-		order_by="creation asc",
-	)
-	returns = set(
-		frappe.get_all(
-			"Purchase Invoice",
-			filters={"name": ["in", list({row.parent for row in invoice_rows})], "is_return": 1},
-			pluck="name",
-		)
-	) if invoice_rows else set()
-	invoice_rows = [row for row in invoice_rows if row.parent not in returns]
-
-	allocations = []
-	for row in invoice_rows:
-		need = qty_by_receipt_row.get(row.pr_detail, 0)
-		available = flt(row.qty) - get_invoice_returned_qty(row.name)
-		if need <= 0 or available <= 0:
-			continue
-
-		qty = min(need, available)
-		qty_by_receipt_row[row.pr_detail] = need - qty
-		allocations.append(frappe._dict(name=row.name, parent=row.parent, qty=qty))
-
-	return allocations
-
-
-def get_invoice_returned_qty(invoice_item):
-	returned = frappe.get_all(
-		"Purchase Invoice Item",
-		filters={"purchase_invoice_item": invoice_item, "docstatus": 1},
-		pluck="qty",
-	)
-	return abs(sum(flt(qty) for qty in returned))
-
-
 def group_by_parent(rows):
 	groups = {}
 	for row in rows:
@@ -216,31 +169,6 @@ def make_receipt_return(delivery_note, receipt, allocations):
 	return doc.name
 
 
-def make_invoice_return(delivery_note, invoice, allocations):
-	from erpnext.controllers.sales_and_purchase_return import make_return_doc
-
-	by_row = {row.name: row for row in allocations}
-	doc = make_return_doc("Purchase Invoice", invoice)
-	set_return_dates(doc, delivery_note)
-	doc.update_stock = 0
-
-	items = []
-	for item in doc.items:
-		row = by_row.get(item.purchase_invoice_item)
-		if not row:
-			continue
-
-		item.qty = -flt(row.qty, item.precision("qty"))
-		items.append(item)
-
-	doc.items = items
-	doc.set(LINK_FIELD, delivery_note.name)
-	doc.insert(ignore_permissions=True)
-	doc.submit()
-
-	return doc.name
-
-
 def set_return_dates(doc, delivery_note):
 	doc.posting_date = delivery_note.posting_date
 	doc.posting_time = delivery_note.posting_time
@@ -248,8 +176,9 @@ def set_return_dates(doc, delivery_note):
 
 
 def cancel_dropship_returns(doc, method=None):
-	"""Hook `before_cancel` Delivery Note: retur PI & PR dropship yang dibikin retur DN ini ikut
-	dibatalin duluan - kalau enggak, stok gudang transit minus dan link-nya ngunci pembatalan."""
+	"""Hook `before_cancel` Delivery Note: retur PR dropship yang dibikin retur DN ini ikut dibatalin
+	duluan - kalau enggak, stok gudang transit minus dan link-nya ngunci pembatalan. Purchase Invoice
+	tetap dicek buat retur DN lama yang dulu sempat bikin debit note otomatis."""
 	if not doc.get("is_return") or not frappe.get_meta("Purchase Receipt").has_field(LINK_FIELD):
 		return
 

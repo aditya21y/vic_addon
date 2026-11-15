@@ -49,7 +49,7 @@ function add_sales_order_items(frm) {
 				fieldtype: "Table",
 				label: __("New Items"),
 				in_place_edit: true,
-				data: [{ delivery_date: frm.doc.delivery_date, transaction_type: "Mixed" }],
+				data: [{ delivery_date: frm.doc.delivery_date, transaction_type: "Mixed", is_additional_item: 1 }],
 				fields: [
 					{
 						fieldtype: "Link",
@@ -58,8 +58,22 @@ function add_sales_order_items(frm) {
 						options: "Item",
 						reqd: 1,
 						in_list_view: 1,
-						columns: 3,
+						columns: 2,
 						get_query: () => ({ filters: { is_sales_item: 1, disabled: 0 } }),
+						// UOM default kayak baris SO biasa: Sales UOM item, kosong -> Stock UOM. Ditimpa
+						// tiap item-nya diganti (UOM item lama belum tentu berlaku buat item baru).
+						onchange() {
+							const doc = this.doc;
+							if (!doc || !this.value) return;
+
+							frappe.db.get_value("Item", this.value, ["sales_uom", "stock_uom"]).then(({ message }) => {
+								if (!message) return;
+								const table = dialog.fields_dict.items;
+								const row = (table.df.data || []).find((d) => d.name === doc.name) || doc;
+								row.uom = message.sales_uom || message.stock_uom;
+								table.grid.refresh();
+							});
+						},
 					},
 					{ fieldtype: "Float", fieldname: "qty", label: __("Qty"), reqd: 1, in_list_view: 1, columns: 1 },
 					{ fieldtype: "Link", fieldname: "uom", label: __("UOM"), options: "UOM", in_list_view: 1, columns: 1 },
@@ -86,6 +100,16 @@ function add_sales_order_items(frm) {
 						label: __("Transaction Type"),
 						options: ["Reguler", "Dropship", "Mixed"],
 						default: "Mixed",
+						in_list_view: 1,
+						columns: 1,
+					},
+					{
+						// baris yang ditambah setelah SO submit = barang di luar pesanan awal: default
+						// kecentang (gak dicetak di Invoice (VIC) & DO (Invoice)), boleh dilepas
+						fieldtype: "Check",
+						fieldname: "is_additional_item",
+						label: __("Barang Tambahan"),
+						default: 1,
 						in_list_view: 1,
 						columns: 1,
 					},

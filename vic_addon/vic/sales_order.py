@@ -8,7 +8,7 @@ otomatis tanpa milih supplier manual lagi.
 import frappe
 from frappe import _
 from frappe.query_builder import Order
-from frappe.utils import flt, get_link_to_form, getdate
+from frappe.utils import cint, flt, get_link_to_form, getdate
 
 from vic_addon.vic.dropship import DROPSHIP, MIXED, REGULER, set_transaction_type
 
@@ -480,6 +480,12 @@ def set_supplier_quotation_details(purchase_order, sales_order, selection=None):
 UNCHANGED_FIELDS = ("item_code", "qty", "rate", "uom", "conversion_factor", "delivery_date", "description")
 
 
+def get_default_sales_uom(item_code):
+	"""UOM default baris SO: Sales UOM item, kosong -> Stock UOM (sama kayak ERPNext di form SO)."""
+	values = frappe.get_cached_value("Item", item_code, ["sales_uom", "stock_uom"], as_dict=True) or {}
+	return values.get("sales_uom") or values.get("stock_uom")
+
+
 @frappe.whitelist()
 def add_sales_order_items(sales_order, items):
 	"""Tombol *Add Items* di Sales Order submitted: tambah baris baru, baris lama gak disentuh.
@@ -518,7 +524,8 @@ def add_sales_order_items(sales_order, items):
 			"item_code": row.item_code,
 			"qty": flt(row.qty),
 			"rate": flt(row.rate),
-			"uom": row.uom,
+			# UOM kosong -> Sales UOM item, terus Stock UOM (ERPNext sendiri langsung jatuh ke Stock UOM)
+			"uom": row.uom or get_default_sales_uom(row.item_code),
 			"delivery_date": row.delivery_date or doc.delivery_date,
 			"description": frappe.db.get_value("Item", row.item_code, "description") or row.item_code,
 		}
@@ -528,12 +535,21 @@ def add_sales_order_items(sales_order, items):
 
 	update_child_qty_rate("Sales Order", frappe.as_json(existing + added), doc.name, "items")
 
-	# tipe transaksi baris baru (Reguler / Dropship / Mixed), header-nya ringkasan
+	# tipe transaksi baris baru (Reguler / Dropship / Mixed), header-nya ringkasan. Baris baru juga
+	# ditandain Barang Tambahan (default nyala, user bisa lepas di dialog) - barang di luar pesanan awal,
+	# gak dicetak di Invoice (VIC) & Delivery Order (Invoice); tandanya kebawa ke DN & SI.
 	doc.reload()
-	types = iter(row.get("transaction_type") or MIXED for row in new_items)
+	added_rows = iter(new_items)
 	for row in doc.items:
 		if row.name not in previous_rows:
-			row.db_set("custom_transaction_type", next(types, MIXED), update_modified=False)
+			source = next(added_rows, frappe._dict())
+			row.db_set(
+				{
+					"custom_transaction_type": source.get("transaction_type") or MIXED,
+					"custom_is_additional_item": cint(source.get("is_additional_item", 1)),
+				},
+				update_modified=False,
+			)
 	set_transaction_type(doc)
 	doc.db_set("custom_transaction_type", doc.custom_transaction_type, update_modified=False)
 

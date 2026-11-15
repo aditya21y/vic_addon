@@ -15,7 +15,8 @@ Statusnya jalan sendiri ngikutin dokumen turunannya, user cuma milih di satu per
 	            -> Stock Entry (Customer Loan Return) disubmit   Returned
 
 Tiap dokumen turunannya dibatalin, statusnya balik ke langkah sebelumnya - jadi salah submit
-tinggal di-cancel, gak usah bikin memo baru.
+tinggal di-cancel, gak usah bikin memo baru. Pengecualian: Sales Order dibatalin balik ke
+**Delivered** (bukan Approved to Sell), biar customer yang batal beli masih bisa Approve to Return.
 """
 
 import frappe
@@ -294,13 +295,34 @@ def update_status_from_stock_entry(doc, method=None):
 
 
 def update_status_from_sales_order(doc, method=None):
-	"""Hook `on_submit` / `on_cancel` Sales Order: barang pinjaman resmi kejual."""
+	"""Hook `on_submit` / `on_cancel` Sales Order: barang pinjaman resmi kejual.
+
+	Submit -> Sold. Cancel -> balik ke **Delivered**, titik keputusan customer: user bisa pilih lagi
+	Approve to Sell (bikin SO baru) atau Approve to Return kalau customer-nya batal beli. Status tetap
+	Sold selama masih ada SO lain dari memo ini yang submitted.
+	"""
 	if not doc.get("custom_loan_memo"):
 		return
 
-	frappe.get_doc("Loan Memo", doc.custom_loan_memo).set_status(
-		SOLD if doc.docstatus == 1 else APPROVED_TO_SELL
+	memo = frappe.get_doc("Loan Memo", doc.custom_loan_memo)
+
+	if doc.docstatus == 1:
+		# SO yang dicancel terus di-amend bisa disubmit lagi setelah barangnya dibalikin - dicegat
+		if memo.loan_memo_status in (APPROVED_TO_RETURN, RETURNED, CANCELLED):
+			frappe.throw(
+				_("Loan Memo {0} is {1}, so a Sales Order for its goods cannot be submitted.").format(
+					memo.name, _(memo.loan_memo_status)
+				),
+				title=_("Loan Memo Not for Sale"),
+			)
+		memo.set_status(SOLD)
+		return
+
+	still_sold = frappe.db.exists(
+		"Sales Order", {"custom_loan_memo": memo.name, "docstatus": 1, "name": ["!=", doc.name]}
 	)
+	if memo.loan_memo_status == SOLD and not still_sold:
+		memo.set_status(DELIVERED)
 
 
 def get_linked_documents(loan_memo):

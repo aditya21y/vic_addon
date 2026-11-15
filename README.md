@@ -804,7 +804,15 @@ Tombol bawaan **Update Items** di Sales Order diganti **Add Items**: SO yang uda
   atau ditagih** (Update Items bawaan ERPNext ngilang di kondisi itu; yang *partially* sebenarnya masih
   ada).
 - Dialognya cuma berisi baris baru: Item, Qty, UOM, Rate, Delivery Date (default dari SO), Transaction
-  Type (default Mixed).
+  Type (default Mixed), Barang Tambahan (default kecentang).
+- **UOM keisi otomatis** begitu Item dipilih (dan ditimpa tiap Item-nya diganti): **Sales UOM** item, kosong
+  → **Stock UOM** — sama kayak baris SO biasa. Kalau UOM tetap kosong waktu dikirim, server ngisi dengan
+  aturan yang sama (mesin ERPNext sendiri langsung jatuh ke Stock UOM). Conversion factor ikut UOM-nya.
+  Contoh (dites): item Stock UOM Meter, Sales UOM Box (1 Box = 12) → baris baru UOM Box, conversion 12.
+- **Barang Tambahan otomatis kecentang** di baris yang ditambah lewat Add Items — barang di luar pesanan
+  awal, jadi **gak dicetak** di Invoice (VIC) & Delivery Order (Invoice) (lihat *Barang Tambahan*). Tandanya
+  kebawa ke Delivery Note & Sales Invoice. Barang yang sebenarnya masih termasuk pesanan awal tinggal
+  dilepas centangnya di dialog (atau di baris SO-nya, field-nya boleh diubah setelah submit).
 - Barisnya ditambahin lewat mesin Update Items bawaan ERPNext (`update_child_qty_rate`), jadi status,
   % delivered/billed, pajak, dan validasinya tetap ERPNext yang ngurus. Contoh (dites): SO 100%
   terkirim + 1 item baru → % Delivered 40, status balik *To Deliver and Bill*.
@@ -987,6 +995,7 @@ Draft
        └─ Stock Entry (Customer Loan) disubmit ───► Delivered
             ├─ tombol Approve to Sell ────────────► Approved to Sell
             │    └─ Sales Order disubmit ─────────► Sold
+            │         └─ Sales Order dicancel ────► Delivered (pilih lagi Sell / Return)
             └─ tombol Approve to Return ──────────► Approved to Return
                  └─ Stock Entry (Customer Loan Return) disubmit ─► Returned
 ```
@@ -1011,6 +1020,12 @@ Tiap dokumen turunan dibatalin, status memo balik ke langkah sebelumnya — jadi
 tinggal di-cancel, gak usah bikin memo baru. Memonya sendiri gak bisa dibatalin selama masih ada
 Stock Entry/Sales Order aktif yang lahir dari dia, dan pesannya nyebut dokumen mana yang harus
 dibatalin duluan. Tiap perpindahan status dicatat di timeline.
+
+**Sales Order dibatalin → balik ke Delivered**, bukan Approved to Sell: itu titik keputusannya, jadi
+kalau customer batal beli user masih bisa **Approve to Return** (atau Approve to Sell lagi buat bikin SO
+baru). Status tetap **Sold** selama masih ada SO lain dari memo itu yang submitted. SO yang di-amend dari
+SO batal boleh disubmit dari status Delivered (langsung jadi Sold), tapi **ditolak** kalau memo-nya udah
+Approved to Return / Returned — barangnya lagi/udah dibalikin.
 
 Tab **Connections** di Loan Memo nampilin Stock Entry & Sales Order-nya (lewat field
 `custom_loan_memo` di dua doctype itu).
@@ -1841,17 +1856,18 @@ Delivery Note** (Create > Return dari DN dropship) disubmit:
 | --- | --- | --- |
 | 1 | Retur DN | barang masuk lagi ke gudang transit dropship (bawaan ERPNext) |
 | 2 | **Retur Purchase Receipt** (otomatis, submitted) | atas PR dropship-nya — barang keluar dari gudang transit balik ke supplier. Serial No yang diretur customer ikut dibalikin |
-| 3 | **Retur Purchase Invoice / debit note** (otomatis, submitted) | cuma kalau baris PR itu **udah ditagih** — sebanyak qty yang diretur |
-| — | Payment Entry | **gak dibikin**, walaupun PI-nya udah dibayar. Debit note-nya nyimpen outstanding sendiri (piutang ke supplier), dibereskan manual |
+| — | Purchase Invoice | **gak disentuh**. Debit note ke supplier (kalau baris PR-nya udah ditagih) dibikin manual — mis. Create > Return dari PI-nya, atau Purchase Invoice dari retur PR-nya |
+
+Yang diretur otomatis **cuma Purchase Receipt**. (Dulu retur PI / debit note ikut dibikin otomatis kalau
+PR-nya udah ditagih — fitur itu udah dicopot biar sisi hutang/pajaknya dikontrol manual.)
 
 Retur PR dibikin di `on_submit` (bukan `before_submit` kayak alur maju): stoknya baru masuk gudang transit
 setelah retur DN-nya kecatat. Qty retur dibagi ke baris PR dropship atas baris SO yang sama, sebatas yang
-belum diretur — PR yang dibikin buat DN asalnya didahuluin. Retur PI-nya ngambil baris invoice yang nagih
-baris PR itu (`pr_detail`), sebatas qty yang belum diretur di invoice itu. Tanggal posting semua ngikut
-retur DN.
+belum diretur — PR yang dibikin buat DN asalnya didahuluin. Tanggal posting ngikut retur DN.
 
-PR dropship (alur maju) dan retur PR/PI nyimpen nomor DN-nya di field **Dropship Delivery Note**
-(`custom_dropship_delivery_note`). Retur DN dibatalin → retur PI lalu retur PR-nya ikut dibatalin duluan.
+PR dropship (alur maju) dan retur PR nyimpen nomor DN-nya di field **Dropship Delivery Note**
+(`custom_dropship_delivery_note`). Retur DN dibatalin → retur PR-nya ikut dibatalin duluan (begitu juga
+debit note lama yang dulu sempat dibikin otomatis, biar DN lama tetap bisa dibatalin).
 
 **Cancel DN dropship (maju maupun retur).** DN & PR dropship saling nge-link (DN →
 `custom_dropship_purchase_receipt`, PR → `custom_dropship_delivery_note`), jadi kalau dibatalin satu-satu
