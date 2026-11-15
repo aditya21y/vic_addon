@@ -98,16 +98,17 @@
 	   kertas. Kolom duit tetap rata kanan lewat `.money`. */
 	.vic-pf .items .qty { text-align: center; white-space: nowrap; }
 	.vic-pf .items .money { text-align: right; white-space: nowrap; }
-	/* baris item gak ditebalin - yang tebal di tabel item cuma judul kelompok (tr.group). Tebal
-	   bawaan editor di description (<b>/<strong>) ikut dinormalin biar aturannya seragam. */
+	/* description item selalu normal (gak tebal): tebal bawaan editor (<b>/<strong>) dinormalin.
+	   Judul kelompok (tr.group) beda - gayanya bebas ngikut styling field Text Editor-nya. */
 	.vic-pf .items .desc, .vic-pf .items .desc * { font-weight: 400; }
 	/* description item itu HTML dari editor - paragrafnya jangan nambah jarak */
 	.vic-pf .items .desc p { margin: 0; }
-	/* Baris judul kelompok item: tebal, ngambil selebar tabel, dan gak dikasih border kanan-kiri
-	   biar kebaca sebagai pemisah, bukan sebagai baris item. Item di bawahnya gak menjorok. */
-	.vic-pf .items tr.group td { font-weight: 700; text-align: left; }
-	/* Pengiriman = kelompok paling atas, dibedain dari Pengerjaan pakai garis bawah */
-	.vic-pf .items tr.group.pengiriman td { text-decoration: underline; }
+	/* Baris judul kelompok item: ngambil selebar tabel, gak dikasih border kanan-kiri biar kebaca
+	   sebagai pemisah, bukan baris item. Tampilannya (tebal/garis bawah/font/warna) 100% ngikut
+	   styling yang diketik user di field Text Editor - print format gak maksa apa-apa. */
+	.vic-pf .items tr.group td { text-align: left; }
+	/* teks user dibungkus <p>/<div> sama editor - margin bawaannya dimatiin biar gak nambah jarak */
+	.vic-pf .items tr.group td p, .vic-pf .items tr.group td div { margin: 0; }
 	/* Header 1 -> Header 2 -> item pertama rapat kayak teks biasa: bawah judul & atas baris
 	   sesudahnya gak ada padding. Jarak sebelum kelompok baru dan antar item tetap. */
 	.vic-pf .items tr.group td { padding-bottom: 0 !important; border-bottom: 0; }

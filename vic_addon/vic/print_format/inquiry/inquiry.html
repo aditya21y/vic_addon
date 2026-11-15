@@ -82,10 +82,10 @@
 				    (lihat vic/item_header.py). Judulnya cuma di kolom Description; kolom Qty sampai
 				    Remarks tetap sel sendiri (bukan colspan) biar garis tegaknya nyambung terus. -#}
 				{%- if group.pengiriman %}
-					<tr class="group pengiriman"><td></td><td class="text">{{ group.pengiriman }}</td><td class="qty-col"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+					<tr class="group pengiriman"><td></td><td class="text">{{ group.pengiriman | safe }}</td><td class="qty-col"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
 				{%- endif %}
 				{%- if group.pengerjaan %}
-					<tr class="group"><td></td><td class="text">{{ group.pengerjaan }}</td><td class="qty-col"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+					<tr class="group"><td></td><td class="text">{{ group.pengerjaan | safe }}</td><td class="qty-col"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
 				{%- endif %}
 				{%- for item in group.rows %}
 					{%- set ns.no = ns.no + 1 %}

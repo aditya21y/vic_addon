@@ -19,14 +19,23 @@ eksplisit, dan waktu dokumen diturunin (Quotation -> Sales Order -> Delivery Not
 kelompoknya ikut kebawa sendiri - field-nya senama di semua doctype, dan mapper bawaan Frappe
 nyalin field senama.
 
-Di print format Header 1 dicetak paling atas (tebal + garis bawah), Header 2 di bawahnya
-(tebal), terus itemnya - gak ada yang menjorok.
+Di print format Header 1 dicetak paling atas, Header 2 di bawahnya, terus itemnya - gak ada yang
+menjorok. Tampilannya (tebal/garis bawah/font/warna) ngikut styling yang diketik user di field
+Text Editor; print format gak maksa apa-apa.
 """
 
+import re
+
 import frappe
+from frappe.utils import strip_html_tags
 
 FIELDNAME = "custom_header"
 PENGERJAAN = "custom_pengerjaan"
+
+# Header 1 & 2 itu Text Editor (HTML, biar user bisa atur font/warna sendiri). Editor yang "kosong"
+# di mata user tetap nyimpen tag kosong (`<p></p>`, `<div><br></div>`, `&nbsp;`) - itu diperlakuin
+# kayak kosong biar baris itu ngewarisin Header di atasnya, bukan jadi judul kelompok hampa.
+_BLANK_HTML = re.compile(r"(?:&nbsp;|&#160;| |\s)+")
 
 # doctype induk -> nama child table yang barisnya dikelompokin
 HEADER_TABLES = {
@@ -53,6 +62,11 @@ def set_item_headers(doc, method=None):
 		return
 
 	meta = frappe.get_meta(rows[0].doctype)
+
+	# tag kosong dari Text Editor dibersihin dulu ke "" biar gak kebawa turun & gak jadi judul hampa
+	for fieldname in (FIELDNAME, PENGERJAAN):
+		if meta.has_field(fieldname):
+			normalize_blanks(rows, fieldname)
 
 	if meta.has_field(FIELDNAME):
 		fill_down(rows, FIELDNAME)
@@ -84,8 +98,21 @@ def split_by(rows, fieldname):
 	return segments
 
 
+def normalize_blanks(rows, fieldname):
+	"""Baris yang isinya cuma tag kosong Text Editor di-set "" beneran."""
+	for row in rows:
+		if row.get(fieldname) and not get_value(row, fieldname):
+			row.set(fieldname, "")
+
+
+def is_blank_html(value):
+	"""True kalau HTML-nya gak punya teks kelihatan (cuma tag/`&nbsp;`/spasi)."""
+	return not _BLANK_HTML.sub("", strip_html_tags(value or ""))
+
+
 def get_value(row, fieldname):
-	return (row.get(fieldname) or "").strip()
+	value = (row.get(fieldname) or "").strip()
+	return "" if is_blank_html(value) else value
 
 
 def get_header(row):

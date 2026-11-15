@@ -117,10 +117,10 @@
 				{#- Pengiriman paling atas, di bawahnya Pengerjaan, terus item - gak ada yang menjorok
 				    (lihat vic/item_header.py). Judulnya mulai di kolom Description. -#}
 				{%- if group.pengiriman %}
-					<tr class="group pengiriman"><td></td><td class="text" colspan="7">{{ group.pengiriman }}</td></tr>
+					<tr class="group pengiriman"><td></td><td class="text" colspan="7">{{ group.pengiriman | safe }}</td></tr>
 				{%- endif %}
 				{%- if group.pengerjaan %}
-					<tr class="group"><td></td><td class="text" colspan="7">{{ group.pengerjaan }}</td></tr>
+					<tr class="group"><td></td><td class="text" colspan="7">{{ group.pengerjaan | safe }}</td></tr>
 				{%- endif %}
 				{%- for item in group.rows %}
 					{%- set ns.no = ns.no + 1 %}

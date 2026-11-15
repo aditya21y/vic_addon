@@ -2208,6 +2208,17 @@ Dua field di baris item buat ngelompokin item dua tingkat:
 
 Di form, kolom Header 1 ada di depan Header 2.
 
+Dua-duanya **Text Editor** (HTML): user bisa atur sendiri font, ukuran, warna, tebal/miring lewat
+toolbar editor — styling-nya **kebawa ke print format** (render-nya `| safe`). Ngetik + styling-nya
+di panel detail baris (klik baris buat expand), bukan di sel grid. Editor yang user biarin kosong
+nyimpen tag kosong (`<p></p>`, `<div><br></div>`, `&nbsp;`) — itu diperlakuin kayak kosong, jadi
+baris itu tetap ngewarisin Header di atasnya dan gak jadi judul kelompok hampa. Nilai teks polos
+lama (sebelum jadi Text Editor) tetap kebaca & kecetak biasa.
+
+> Di print format, tampilan judul kelompok **100% ngikut field** — tebal, garis bawah, font, ukuran,
+> warna, miring semuanya dari styling yang diketik user. Print format gak maksa bold/underline:
+> kalau field-nya teks polos, kecetak teks polos juga.
+
 Dua-duanya opsional dan cukup diisi di baris pertama tiap kelompok — baris yang dikosongin ikut
 baris di atasnya, dan waktu disimpan nilainya ditulis balik ke tiap baris. Header 2 mulai dari nol
 lagi tiap ganti Header 1 (gak ngewarisin Header 2 dari Header 1 sebelumnya).
@@ -2225,10 +2236,10 @@ Karena nama field-nya sama di semua doctype, nilainya ikut kebawa sendiri lewat 
 
 Di print format (Quotation (VIC), Delivery Order, Delivery Order (Invoice), Invoice (VIC), Proforma
 Invoice, Inquiry, Request For Quotation (Customer), Costing (Sales), Costing (Import), Purchase Request
-(Sales Order)) **Header 1 dicetak paling atas** (tebal + garis bawah), **Header 2 di bawahnya**
-(tebal), terus itemnya. **Gak ada yang menjorok** — judul & item sama-sama mulai di kolom
-Description. Urutan kelompok ngikut kemunculan pertamanya. Print format PO & Goods Received tetap satu
-tingkat (Header 1 aja, tebal + garis bawah, item juga gak menjorok).
+(Sales Order)) **Header 1 dicetak paling atas**, **Header 2 di bawahnya**, terus itemnya. Gayanya
+(tebal/garis bawah/font/warna) **ngikut styling field Text Editor**, print format gak maksa. **Gak ada
+yang menjorok** — judul & item sama-sama mulai di kolom Description. Urutan kelompok ngikut kemunculan
+pertamanya. Print format PO & Goods Received tetap satu tingkat (Header 1 aja, item juga gak menjorok).
 Implementasi: `vic_addon/vic/item_header.py` (`group_items` / `group_items_by_header`).
 
 **Inquiry → Costing.** Supplier Quotation gak punya dua field ini, tapi tiap barisnya nyimpen link ke

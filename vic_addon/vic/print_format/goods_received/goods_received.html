@@ -54,7 +54,7 @@
 			{%- for header, rows in group_items_by_header(doc.items) %}
 				{%- if header %}
 					{#- judul kelompok mulai di kolom Description, kolom sebelumnya dikosongin -#}
-					<tr class="group pengiriman"><td></td><td></td><td class="text" colspan="2">{{ header }}</td></tr>
+					<tr class="group pengiriman"><td></td><td></td><td class="text" colspan="2">{{ header | safe }}</td></tr>
 				{%- endif %}
 				{%- for item in rows %}
 					{%- set ns.no = ns.no + 1 %}
