@@ -169,11 +169,28 @@ def validate_deposit_payment(doc, method=None):
 
 
 def update_deposit_paid(doc, method=None):
-	"""Hook `on_submit` / `on_cancel` Payment Entry: Deposit Paid di PO dihitung ulang."""
-	if doc.get(PO_FIELD):
-		frappe.db.set_value(
-			"Purchase Order", doc.get(PO_FIELD), "custom_deposit_paid", get_paid(doc.get(PO_FIELD))
-		)
+	"""Hook `on_submit` / `on_cancel` Payment Entry: Deposit Paid + link PE deposit di PO dihitung ulang."""
+	order = doc.get(PO_FIELD)
+	if not order:
+		return
+
+	# PE deposit submitted terbaru buat PO ini - biar dari PO langsung bisa diklik ke pembayarannya,
+	# dan kelihatan depositnya udah kebayar (field keisi) atau belum (kosong). Kosong = belum dibayar.
+	latest = frappe.get_all(
+		"Payment Entry",
+		filters={PO_FIELD: order, "docstatus": 1},
+		order_by="posting_date desc, creation desc",
+		limit=1,
+		pluck="name",
+	)
+	frappe.db.set_value(
+		"Purchase Order",
+		order,
+		{
+			"custom_deposit_paid": get_paid(order),
+			"custom_deposit_payment_entry": latest[0] if latest else None,
+		},
+	)
 
 
 def validate_deposit_amount(doc, method=None):

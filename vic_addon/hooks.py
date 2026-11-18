@@ -472,10 +472,6 @@ doc_events["Purchase Invoice"]["before_validate"].append(
 doc_events["Purchase Invoice"].setdefault("before_submit", []).append(
 	"vic_addon.vic.ppn_tertunda.validate_ppn_tertunda"
 )
-# Target Grand Total: rate item disesuaikan biar Net Total + pajak = tagihan supplier
-doc_events["Purchase Invoice"]["before_validate"].append(
-	"vic_addon.vic.purchase_invoice.apply_target_grand_total"
-)
 # Supplier Invoice No bisa diubah setelah submit - keunikannya tetap dicek
 doc_events["Purchase Invoice"].setdefault("before_update_after_submit", []).append(
 	"vic_addon.vic.purchase_invoice.validate_supplier_invoice_after_submit"
@@ -522,10 +518,7 @@ doc_events["Purchase Invoice"].setdefault("before_update_after_submit", []).appe
 # extend_doctype_class = {
 # 	"Task": "vic_addon.custom.task.CustomTaskMixin"
 # }
-extend_doctype_class = {
-	# Target Grand Total: rate PI boleh beda dari PO/PR walau Maintain Same Rate-nya Stop
-	"Purchase Invoice": ["vic_addon.vic.purchase_invoice.TargetGrandTotalMixin"],
-}
+extend_doctype_class = {}
 
 # Overriding Methods
 # ------------------------------
