@@ -19,3 +19,4 @@ vic_addon.patches.link_dp_retention_invoices_to_sales_order
 vic_addon.patches.widen_header_fields_to_text_editor
 vic_addon.patches.unhide_purchase_receipt_price_fields
 vic_addon.patches.drop_target_grand_total
+vic_addon.patches.drop_deposit_payment_entry_field

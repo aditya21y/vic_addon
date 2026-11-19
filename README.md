@@ -739,7 +739,7 @@ biaya dan bukan uang muka barang. Tanpa PPN/PPh.
 | Tempat | Field / tombol |
 | --- | --- |
 | Company → section **Vendor Deposit** | **Vendor Deposit Account** — akun aset (bukan grup) |
-| Purchase Order (bagian total, di bawah Advance Paid) | **Deposit Amount** (mata uang perusahaan, bisa diubah setelah submit) + **Deposit Paid** (otomatis) + **Deposit Payment Entry** (link read-only ke PE deposit terakhir) |
+| Purchase Order (bagian total, di bawah Advance Paid) | **Deposit Amount** (mata uang perusahaan, bisa diubah setelah submit) + **Deposit Paid** (otomatis) |
 | Purchase Order submitted | tombol **Pay Deposit** — muncul selama Deposit Paid < Deposit Amount |
 | Payment Entry | **Deposit for Purchase Order** (penanda, read only) |
 
@@ -760,11 +760,17 @@ sengaja gak boleh punya References, pajak, maupun potongan.
 
 **Penjaga:** supplier & company harus sama dengan PO; Account Paid To harus akun deposit; total
 deposit dibayar gak boleh lewat Deposit Amount; Deposit Amount gak boleh diturunin di bawah yang
-udah dibayar. Deposit Paid dihitung ulang tiap Payment Entry deposit disubmit / dibatalin. Field
-**Deposit Payment Entry** (read-only) ikut keisi PE deposit submitted paling akhir — biar dari PO
-langsung keliatan depositnya udah kebayar (field keisi + bisa diklik ke PE-nya) atau belum (kosong).
-Deposit PE sengaja gak punya baris References, jadi gak nongol di Connections standar PO — makanya
-dikasih field link ini.
+udah dibayar. Deposit Paid dihitung ulang tiap Payment Entry deposit disubmit / dibatalin.
+
+**Status deposit di form PO** (`public/js/vendor_deposit.js`): begitu PO submitted dan Deposit Amount
+keisi, muncul **indikator** di dashboard — oranye **Deposit Unpaid** (belum dibayar), biru **Deposit
+Partial** (sebagian), atau hijau **Deposit Paid** (lunas), dengan **nomor PE deposit-nya** di sebelah
+nilainya (mis. `Deposit Paid: Rp 30.000 · ACC-PAY-2026-00043`; lebih dari satu PE → nomor yang terakhir
++ `(+N)`). **Indikatornya bisa diklik** langsung ke PE-nya (satu PE dibuka langsung, lebih dari satu ke
+list). Deposit PE sengaja gak
+punya baris References, jadi gak nongol di Connections standar PO — makanya ditarik sendiri lewat JS
+(filter `custom_deposit_purchase_order`). Jadi dari PO langsung ketahuan depositnya udah kebayar atau
+belum, sekalian bisa loncat ke pembayarannya.
 
 **Pengembalian deposit** (penuh atau sebagian) dicatat **manual**, mis. Payment Entry Receive dari
 supplier dengan Account Paid From = akun deposit — gak ngubah Deposit Paid di PO.
